@@ -44,6 +44,9 @@ INDEXES = {
     'tasks': [[BID, ('trang_thai', 1)], [BID, ('id', 1)]],
     'appointments': [[BID, ('id', 1)]],
     'employees': [[BID, ('ma_nv', 1)]],
+    # bảng xoay tua thợ Nails (nail_turns.py): nhật ký theo (tiệm, ngày giờ tiệm), id tăng dần; cài đặt 1 dòng/tiệm
+    'nail_turns': [[BID, ('day', 1), ('id', 1)], [BID, ('id', 1)]],
+    'nail_turn_settings': [[BID]],
     'chat_presence': [[BID, ('room', 1)]],
     'chat_messages': [[BID, ('room', 1)]],
     'table_reservations': [[BID]],
@@ -59,6 +62,8 @@ UNIQUE_INDEXES = [
     ('customers', [BID, ('phone', 1)], {'phone': {'$gt': ''}}),
     # 1 lần bấm thanh toán = 1 đơn, kể cả khi mạng chập chờn và POS gửi lại
     ('orders', [BID, ('metadata.client_request_id', 1)], {'metadata.client_request_id': {'$type': 'string'}}),
+    # bảng tua: 1 thợ được chấm công tự đưa vào bảng tối đa 1 lần/ngày, kể cả khi 2 máy quầy cùng tải bảng
+    ('nail_turns', [BID, ('day', 1), ('ma_nv', 1)], {'source': 'attendance'}),
 ]
 
 

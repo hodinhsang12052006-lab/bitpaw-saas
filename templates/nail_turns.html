@@ -205,7 +205,7 @@
             <section class="box">
                 <div class="bh"><h2>{{ 'Chưa có trên bảng' if vi else 'Not on the board' }}</h2></div>
                 <div id="notOn"></div>
-                <p class="note">{{ 'Thợ check-in trên app nhân viên hoặc máy chấm công là tự vào bảng theo giờ check-in. Thợ không dùng app thì bấm "Vào bảng".' if vi else 'Technicians who clock in on the staff app or the clock-in screen join the board by their clock-in time. For anyone not using the app, tap "Add to board".' }}</p>
+                <p class="note">{{ 'Thợ check-in trên app nhân viên hoặc máy chấm công là tự vào bảng theo giờ check-in.' if vi else 'Technicians who clock in on the staff app or the clock-in screen join the board by their clock-in time.' }}<span id="joinHint"> {{ 'Thợ không dùng app thì bấm "Vào bảng".' if vi else 'For anyone not using the app, tap "Add to board".' }}</span></p>
             </section>
             <section class="box">
                 <div class="bh"><h2>{{ 'Đã về' if vi else 'Gone home' }}</h2></div>
@@ -354,7 +354,7 @@
         fromAttendance: (t) => `từ chấm công ${t || ''}`.trim(), byLbl: 'bởi',
         sumCols: ['Thợ', 'Check-in', 'Khách', 'Tua', 'Đủ', 'Nửa', 'Không tính', 'Bỏ lượt', 'Tiền vé trên bảng', 'Doanh số POS'],
         total: 'Tổng', noSum: 'Ngày này chưa có thợ nào trên bảng.',
-        sumNote: (p, off) => `Tua = tua đủ + nửa tua + phạt bỏ lượt. "Tiền vé trên bảng" = giá quầy ghi lúc giao/xong khách. "Doanh số POS" = tiền dịch vụ của thợ trên vé POS Nails đã thu trong ngày (chưa trừ hoàn tiền một phần).` + (p ? ` ${p} tua chưa có giá (đang tạm tính 1 tua).` : '') + (off ? ` Doanh số POS của thợ không có trên bảng: ${off}.` : ''),
+        sumNote: (p, off, pos) => `Tua = tua đủ + nửa tua + phạt bỏ lượt. "Tiền vé trên bảng" = giá quầy ghi lúc giao/xong khách.` + (pos ? ` "Doanh số POS" = tiền dịch vụ của thợ trên vé POS Nails đã thu trong ngày (chưa trừ hoàn tiền một phần).` : '') + (p ? ` ${p} tua chưa có giá (đang tạm tính 1 tua).` : '') + (off ? ` Doanh số POS của thợ không có trên bảng: ${off}.` : ''),
         aTitleTo: (n) => `Giao khách cho ${n}`, aTitle: 'Giao khách', noAvail: 'Không có thợ nào nhận được loại khách này lúc này.',
         apptNone: '— Không gắn lịch hẹn —', apptOpt: (a) => `${a.time} · ${a.customer || 'Khách'}${a.service ? ' · ' + a.service : ''}${a.staff_name ? ' · hẹn ' + a.staff_name : ' · thợ nào cũng được'}`,
         svcNone: '— Chọn dịch vụ —', nextTag: 'tới lượt', breakTag: 'đang nghỉ',
@@ -395,7 +395,7 @@
         fromAttendance: (t) => `from clock-in ${t || ''}`.trim(), byLbl: 'by',
         sumCols: ['Technician', 'Clocked in', 'Clients', 'Turns', 'Full', 'Half', 'No turn', 'Skips', 'Tickets on board', 'POS sales'],
         total: 'Total', noSum: 'Nobody was on the board that day.',
-        sumNote: (p, off) => `Turns = full + half turns + skip penalties. "Tickets on board" = prices the desk entered when giving or finishing clients. "POS sales" = the technician's service lines on paid nail POS tickets that day (partial refunds not subtracted).` + (p ? ` ${p} turn(s) still have no price (counted as a full turn for now).` : '') + (off ? ` POS sales for technicians not on the board: ${off}.` : ''),
+        sumNote: (p, off, pos) => `Turns = full + half turns + skip penalties. "Tickets on board" = prices the desk entered when giving or finishing clients.` + (pos ? ` "POS sales" = the technician's service lines on paid nail POS tickets that day (partial refunds not subtracted).` : '') + (p ? ` ${p} turn(s) still have no price (counted as a full turn for now).` : '') + (off ? ` POS sales for technicians not on the board: ${off}.` : ''),
         aTitleTo: (n) => `Give a client to ${n}`, aTitle: 'Give a client', noAvail: 'No technician can take this kind of client right now.',
         apptNone: '— No appointment —', apptOpt: (a) => `${a.time} · ${a.customer || 'Client'}${a.service ? ' · ' + a.service : ''}${a.staff_name ? ' · with ' + a.staff_name : ' · any tech'}`,
         svcNone: '— Choose a service —', nextTag: 'next', breakTag: 'on break',
@@ -417,7 +417,9 @@
     };
 
     const $ = (id) => document.getElementById(id);
-    let B = null, SUM = null, tab = 'log', day = '', inflight = false, lastOk = 0, svc = [], dlgCtx = {}, fails = 0;
+    // day = '' -> luôn theo "hôm nay" của tiệm (máy quầy mở qua đêm tự sang ngày mới); chọn ngày cũ mới gán day.
+    // gen tăng mỗi thao tác: kết quả hỏi lại (poll) bắt đầu TRƯỚC thao tác bị bỏ, không vẽ đè bảng mới bằng bảng cũ.
+    let B = null, SUM = null, tab = 'log', day = '', inflight = false, lastOk = 0, svc = [], dlgCtx = {}, fails = 0, gen = 0;
 
     function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
     function fmtT(x) {
@@ -427,13 +429,14 @@
         return x.toFixed(2).replace(/0+$/, '');
     }
     function cur() { return (B && B.currency) || 'USD'; }
+    function sym() { return { GBP: '£', EUR: '€', VND: 'đ' }[cur()] || '$'; }
     function money(v) {
         if (v == null || v === '') return '—';
         const n = Number(v) || 0, c = cur();
         if (c === 'VND') return Math.round(n).toLocaleString('vi-VN') + 'đ';
-        return (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return (n < 0 ? '-' : '') + sym() + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-    function setCur() { document.querySelectorAll('.money').forEach((w) => { const vnd = cur() === 'VND'; w.classList.toggle('suffix', vnd); w.querySelector('.cur').textContent = vnd ? 'đ' : '$'; }); }
+    function setCur() { document.querySelectorAll('.money').forEach((w) => { const vnd = cur() === 'VND'; w.classList.toggle('suffix', vnd); w.querySelector('.cur').textContent = sym(); }); }
     function parseAmt(s) { s = String(s || '').trim(); if (!s) return null; const n = Number(cur() === 'VND' ? s.replace(/[.,\s]/g, '') : s.replace(/,/g, '')); return isFinite(n) && n > 0 ? n : NaN; }
     function show(text, kind) { const m = $('msg'); m.hidden = !text; m.className = 'msg' + (kind ? ' ' + kind : ''); m.textContent = text || ''; if (text) { clearTimeout(show._t); show._t = setTimeout(() => { m.hidden = true; }, kind === 'err' ? 9000 : 4500); } }
 
@@ -445,7 +448,7 @@
     }
     async function post(path, data) {
         if (inflight) return null;
-        inflight = true;
+        inflight = true; gen++;
         try { const b = await api(path, { method: 'POST', body: JSON.stringify(data || {}) }); if (b.line) take(b); return b; }
         catch (e) { if (e.body && e.body.board) take(e.body.board); show(e.message, 'err'); throw e; }
         finally { inflight = false; }
@@ -477,6 +480,7 @@
         const ro = $('roBanner');
         ro.hidden = may; ro.textContent = !B.is_today ? T.roPast(fmtDay(B.day)) : (may ? '' : T.roStaff);
         $('undoBtn').hidden = !(may && B.undo);
+        $('joinHint').hidden = !may;                 // tài khoản chỉ xem: không hướng dẫn bấm nút không có
         if (B.undo) $('undoLbl').textContent = T.undo(`${T.evShort[B.undo.type] || ''} · ${B.undo.name || ''}`);
 
         // tới lượt
@@ -557,11 +561,13 @@
     function renderSum() {
         if (!SUM || SUM.day !== (B && B.day)) return;
         if (!SUM.rows.length) { $('sumTbl').innerHTML = `<tbody><tr><td class="empty">${esc(T.noSum)}</td></tr></tbody>`; $('sumNote').textContent = ''; return; }
-        const C = T.sumCols, r = (v) => `<td class="r">${v}</td>`;
-        const line = (x, name, ci) => `<td>${name}</td><td class="num">${ci}</td>` + r(x.clients) + r(esc(fmtT(x.turns))) + r(x.full) + r(x.half) + r(x.not_counted) + r(x.skips) + r(esc(money(x.ticket_total))) + r(esc(money(x.pos_sales)));
+        // Doanh số POS từng thợ chỉ chủ tiệm thấy (máy chủ không gửi cho tài khoản nhân viên: show_pos = false)
+        const pos = SUM.show_pos !== false;
+        const C = pos ? T.sumCols : T.sumCols.slice(0, -1), r = (v) => `<td class="r">${v}</td>`;
+        const line = (x, name, ci) => `<td>${name}</td><td class="num">${ci}</td>` + r(x.clients) + r(esc(fmtT(x.turns))) + r(x.full) + r(x.half) + r(x.not_counted) + r(x.skips) + r(esc(money(x.ticket_total))) + (pos ? r(esc(money(x.pos_sales))) : '');
         $('sumTbl').innerHTML = `<thead><tr>${C.map((c, i) => `<th class="${i > 1 ? 'r' : ''}">${esc(c)}</th>`).join('')}</tr></thead><tbody>` +
             SUM.rows.map((x) => `<tr>${line(x, esc(x.name), esc(x.checkin || '—'))}</tr>`).join('') + `</tbody><tfoot><tr>${line(SUM.total, esc(T.total), '')}</tr></tfoot>`;
-        $('sumNote').textContent = T.sumNote(SUM.total.pending_price, SUM.pos_sales_not_on_board ? money(SUM.pos_sales_not_on_board) : '');
+        $('sumNote').textContent = T.sumNote(SUM.total.pending_price, SUM.pos_sales_not_on_board ? money(SUM.pos_sales_not_on_board) : '', pos);
     }
 
     function fmtDay(d) {
@@ -582,12 +588,12 @@
 
     async function load(lite) {
         if (inflight) return;
+        const g0 = gen;
         try {
             const q = `/api/nail_turns/board?day=${encodeURIComponent(day)}${lite && svc.length ? '&lite=1' : ''}`;
             const b = await api(q);
-            if (inflight) return;               // 1 thao tác vừa bắt đầu: để kết quả của nó vẽ bảng
+            if (inflight || g0 !== gen) return;  // có thao tác chen giữa: để kết quả của nó vẽ bảng
             take(b); fillDays();
-            if (!day) day = b.day;
         } catch (e) {
             fails++;
             $('liveDot').className = 'live-dot off';
@@ -756,7 +762,7 @@
             try { await post('/api/nail_turns/undo', {}); show(T.undone, 'ok'); } catch (e) { /* đã báo */ }
         });
     });
-    $('daySel').addEventListener('change', () => { day = $('daySel').value; SUM = null; load(false); if (tab === 'sum') loadSum(); });
+    $('daySel').addEventListener('change', () => { const v = $('daySel').value; day = (B && v === B.today) ? '' : v; SUM = null; gen++; load(false); if (tab === 'sum') loadSum(); });
     document.querySelectorAll('dialog [data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
 
     // ---------------- tab nhật ký / tổng kết

@@ -361,6 +361,28 @@ class RouteTests(unittest.TestCase):
         self.board()
         self.assertEqual(DB.nail_turns.writes(), writes)                           # lần tải sau: không ghi gì
 
+    def test_parallel_attendance_sync_duplicate_key_is_harmless(self):
+        self.login('staff')
+        real = DB.nail_turns.update_one
+
+        class DuplicateKeyError(Exception):
+            pass
+
+        def other_device_won(flt, update, upsert=False):
+            real(flt, update, upsert=upsert)            # máy kia vừa ghi đúng dòng này
+            raise DuplicateKeyError('E11000 duplicate key error collection: nail_turns')
+        with patch.object(DB.nail_turns, 'update_one', side_effect=other_device_won):
+            b = self.board()
+        self.assertEqual([m['ma_nv'] for m in b['line']], ['NV1', 'NV2'])
+        self.assertEqual(len([d for d in DB.nail_turns.docs if d['type'] == 'join']), 2)
+
+        def broken(flt, update, upsert=False):
+            raise RuntimeError('network down')
+        DB.nail_turns.docs.clear()
+        with patch.object(DB.nail_turns, 'update_one', side_effect=broken):
+            with self.assertRaises(RuntimeError):         # lỗi khác KHÔNG bị nuốt
+                nt.sync_attendance(BIZ, DAY, [], {'NV1': {'name': 'Anna'}}, {'NV1': '08:58'})
+
     def test_late_clock_in_is_not_inserted_before_recorded_history(self):
         self.login('admin')
         self.board()
@@ -382,6 +404,7 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(r.status_code, 403)
         self.assertEqual(DB.nail_turns.writes(), n)
         self.assertEqual(self.c.post('/api/nail_turns/settings', json={'staff_can_assign': True}).status_code, 403)
+        self.assertEqual(self.c.get('/api/nail_turns/settings').status_code, 403)                # danh sách mọi nhân viên: chỉ chủ tiệm
         self.login('admin')
         self.post('/api/nail_turns/settings', {'staff_can_assign': True})
         self.login('staff')
@@ -543,6 +566,18 @@ class RouteTests(unittest.TestCase):
         self.assertEqual((rows['NV1']['ticket_total'], rows['NV1']['pos_sales'], rows['NV2']['pos_sales']), (80.0, 20.0, 45.0))
         for k in ('clients', 'turns', 'full', 'half', 'not_counted', 'ticket_total', 'pos_sales'):
             self.assertAlmostEqual(s['total'][k], sum(r[k] for r in s['rows']), places=3, msg=k)
+        self.assertTrue(s['show_pos'])
+        # tài khoản nhân viên (máy quầy): vẫn thấy tua + giá vé trên bảng, KHÔNG thấy doanh số POS (không đọc db.orders)
+        self.login('staff')
+        n_reads = len(DB.orders.docs)
+        with patch.object(nt, '_pos_lines', side_effect=AssertionError('staff summary must not read POS sales')):
+            st = self.c.get('/api/nail_turns/summary').get_json()
+        self.assertEqual(len(DB.orders.docs), n_reads)
+        self.assertFalse(st['show_pos'])
+        self.assertIsNone(st['pos_sales_not_on_board'])
+        self.assertTrue(all(r['pos_sales'] is None for r in st['rows']) and st['total']['pos_sales'] is None)
+        self.assertEqual({r['ma_nv']: r['turns'] for r in st['rows']}, {r['ma_nv']: r['turns'] for r in s['rows']})
+        self.assertEqual(st['total']['ticket_total'], s['total']['ticket_total'])
 
     def test_shop_timezone_decides_the_day_for_clock_ins_and_pos(self):
         """Tiệm Úc 08:00 ngày 27 trong khi máy chủ (UTC) còn 21:00 ngày 26."""
@@ -600,6 +635,20 @@ class StaticChecks(unittest.TestCase):
         finally:
             os.unlink(fh.name)
 
+    def test_poll_never_overwrites_a_newer_action_and_follows_today(self):
+        self.assertIn('inflight = true; gen++;', self.SRC)
+        self.assertIn('if (inflight || g0 !== gen) return;', self.SRC)
+        self.assertNotIn('if (!day) day = b.day;', self.SRC)          # trước: khoá cứng ngày đầu tiên -> qua đêm thành "chỉ xem"
+        self.assertIn("day = (B && v === B.today) ? '' : v;", self.SRC)
+        self.assertIn("GBP: '£'", self.SRC)
+        self.assertNotIn("textContent = vnd ? 'đ' : '$'", self.SRC)
+
+    def test_indexes_declared_for_turn_log(self):
+        with io.open(os.path.join(ROOT, 'scripts', 'ensure_indexes.py'), encoding='utf-8') as fh:
+            src = fh.read()
+        self.assertIn("'nail_turns': [[BID, ('day', 1), ('id', 1)]", src)
+        self.assertIn("('nail_turns', [BID, ('day', 1), ('ma_nv', 1)], {'source': 'attendance'})", src)
+
     def test_touch_targets_and_responsive_breakpoints(self):
         self.assertIn('min-height: 48px', self.SRC)
         self.assertIn('@media (max-width: 767px)', self.SRC)
@@ -626,6 +675,7 @@ class StaticChecks(unittest.TestCase):
             sb = fh.read()
         i = sb.index('href="/nail/turns"')
         self.assertIn("{% if active_industry_code == 'nail' %}", sb[max(0, i - 400):i])
+        self.assertIn("nicon('queue', 'sm')", sb[i:i + 600])
 
 
 if __name__ == '__main__':

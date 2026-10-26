@@ -382,9 +382,14 @@ def sync_attendance(bid, day, events, techs, ins=None):
         doc = {'id': next_mongo_id('nail_turns'), 'business_id': bid, 'day': day, 'type': 'join', 'ma_nv': ma,
                'name': techs[ma]['name'], 'source': 'attendance', 'checkin': t, 'at': at,
                'created_at': _server_now().isoformat(), 'by': 'attendance', 'by_role': 'system', 'voided': False}
-        # 2 máy quầy cùng tải bảng: upsert theo khoá (tiệm, ngày, thợ, nguồn chấm công) -> chỉ 1 dòng
-        db.nail_turns.update_one({'business_id': bid, 'day': day, 'type': 'join', 'source': 'attendance', 'ma_nv': ma},
-                                 {'$setOnInsert': doc}, upsert=True)
+        # 2 máy quầy cùng tải bảng: upsert theo khoá (tiệm, ngày, thợ, nguồn chấm công) -> chỉ 1 dòng. Index unique partial
+        # (scripts/ensure_indexes.py) chặn nốt trường hợp 2 upsert chạy song song: máy thua nhận E11000 = dòng đã có, bỏ qua.
+        try:
+            db.nail_turns.update_one({'business_id': bid, 'day': day, 'type': 'join', 'source': 'attendance', 'ma_nv': ma},
+                                     {'$setOnInsert': doc}, upsert=True)
+        except Exception as e:
+            if type(e).__name__ != 'DuplicateKeyError' and 'E11000' not in str(e):
+                raise
         added.append(doc)
     return _events(bid, day) if added else events
 
@@ -589,13 +594,16 @@ def board_payload(bid, day, settings, lite=False):
     return payload
 
 
-def summary_rows(bid, day, settings):
-    """Tổng kết cuối ngày theo từng thợ: số tua (đủ / nửa / không tính), bỏ lượt, tiền vé ghi trên bảng, doanh số dịch vụ POS."""
+def summary_rows(bid, day, settings, show_pos=True):
+    """Tổng kết cuối ngày theo từng thợ: số tua (đủ / nửa / không tính), bỏ lượt, tiền vé ghi trên bảng, doanh số dịch vụ POS.
+    show_pos=False (tài khoản nhân viên / máy quầy): không đọc + không trả doanh số POS của từng thợ — doanh thu là số của
+    chủ tiệm (cùng lý do AI Copilot ẩn với nhân viên); số tua + giá vé quầy ghi trên bảng vẫn hiện như nhật ký."""
     _techs, events, members, turns, _ins = _load(bid, day, settings, sync=False)
-    lo, hi = _server_bounds(bid, day)
     pos = {}
-    for _oid, _c, ma, amt in _pos_lines(bid, lo, hi):
-        pos[ma] = round(pos.get(ma, 0.0) + amt, 2)
+    if show_pos:
+        lo, hi = _server_bounds(bid, day)
+        for _oid, _c, ma, amt in _pos_lines(bid, lo, hi):
+            pos[ma] = round(pos.get(ma, 0.0) + amt, 2)
     rows = []
     for m in sorted(members.values(), key=lambda x: (x['joined_at'] or '', x['name'].lower())):
         live = [turns[i] for i in m['turn_ids'] if i in turns]
@@ -618,8 +626,12 @@ def summary_rows(bid, day, settings):
     for k in ('clients', 'full', 'half', 'not_counted', 'requests', 'appointments', 'pending_price', 'skips'):
         tot[k] = int(tot[k])
     off_board = round(sum(v for ma, v in pos.items() if ma not in members), 2)
+    if not show_pos:
+        for r in rows + [tot]:
+            r['pos_sales'] = None
+        off_board = None
     return {'success': True, 'day': day, 'currency': settings['currency'], 'rows': rows, 'total': tot,
-            'pos_sales_not_on_board': off_board}
+            'pos_sales_not_on_board': off_board, 'show_pos': bool(show_pos)}
 
 
 # ------------------------------------------------------------------ ghi nhật ký
@@ -682,7 +694,7 @@ def api_summary():
     day = _parse_day(request.args.get('day'), _today(bid))
     if not day:
         return _err(400, f'Chỉ xem được {HISTORY_DAYS} ngày gần nhất (YYYY-MM-DD).', f'Pick a day in the last {HISTORY_DAYS} days (YYYY-MM-DD).')
-    return jsonify(summary_rows(bid, day, settings))
+    return jsonify(summary_rows(bid, day, settings, show_pos=_is_admin()))
 
 
 @nail_turns_bp.route('/api/nail_turns/action', methods=['POST'])
@@ -936,11 +948,11 @@ def api_undo():
 @nail_only
 def api_settings():
     bid = _bid()
+    if not _is_admin():   # luật tua đang áp đã có trong /board; trang cài đặt (kèm danh sách mọi nhân viên) chỉ cho chủ tiệm
+        return _err(403, 'Chỉ chủ tiệm xem và đổi được cài đặt tua.', 'Only the owner can view or change turn settings.')
     if request.method == 'GET':
         s = get_settings(bid)
         return jsonify({'success': True, 'settings': s, 'staff': _all_staff(bid), 'defaults': default_settings(s['currency'])})
-    if not _is_admin():
-        return _err(403, 'Chỉ chủ tiệm đổi được cài đặt tua.', 'Only the owner can change turn settings.')
     current = get_settings(bid)
     clean, e = clean_settings(request.get_json(silent=True) or {}, current)
     if e:
