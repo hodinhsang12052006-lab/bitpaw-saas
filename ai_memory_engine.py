@@ -16,8 +16,8 @@ app.py. A real task queue is the natural production-grade upgrade once this is p
 
 import os
 import threading
-import requests
 from mongo_client import db, MONGO_STATUS
+from ai_deepseek_client import deepseek_chat_completion
 
 DISTILL_EVERY_N_CUSTOMER_TURNS = 4  # throttle: don't re-summarize on every single message
 MAX_MEMORY_CHARS = 800  # keep the distilled memory itself lean — it gets injected into every prompt
@@ -37,10 +37,15 @@ def get_conversation_memory(customer_id):
 def _distill_now(customer_id, existing_memory, recent_turns):
     """Gọi DeepSeek để hợp nhất existing_memory + recent_turns thành 1 bản tóm tắt mới,
     ngắn gọn (giữ dưới MAX_MEMORY_CHARS). Chạy trong background thread — best-effort,
-    lỗi/timeout gì cũng chỉ bỏ qua, KHÔNG được văng exception ra thread chính."""
+    lỗi/timeout gì cũng chỉ bỏ qua, KHÔNG được văng exception ra thread chính.
+    Gọi qua ai_deepseek_client (điểm gọi DeepSeek duy nhất: Web gọi thẳng bằng DEEPSEEK_API_KEY, Desktop qua AI Proxy) —
+    trước đây module này tự gọi HTTP thẳng tới DeepSeek, không qua proxy Desktop, không thống nhất lỗi/timeout."""
+    is_desktop = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
     api_key = os.environ.get('DEEPSEEK_API_KEY')
-    if not api_key:
+    proxy_key = os.environ.get('BITPAW_AI_PROXY_KEY')
+    if not (proxy_key if is_desktop else api_key):
         return
+    business_id = str(customer_id).split(':', 1)[0] or None
 
     turns_text = "\n".join(
         f"{t.get('role', '?')}: {(t.get('content') or '')[:300]}"
@@ -58,29 +63,33 @@ def _distill_now(customer_id, existing_memory, recent_turns):
     )
 
     try:
-        resp = requests.post(
-            "https://api.deepseek.com/chat/completions",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-            json={
+        result = deepseek_chat_completion(
+            {
                 "model": "deepseek-chat",
                 "messages": [{"role": "user", "content": distill_prompt}],
                 "temperature": 0.2,
                 "max_tokens": 300,
             },
+            business_id=business_id,
+            proxy_api_key=proxy_key if is_desktop else None,
+            direct_api_key=api_key if not is_desktop else None,
             timeout=20,
         )
-        resp.raise_for_status()
-        new_memory = resp.json()['choices'][0]['message']['content'].strip()[:MAX_MEMORY_CHARS]
+        new_memory = (result['choices'][0]['message']['content'] or '').strip()[:MAX_MEMORY_CHARS]
         if new_memory:
             db.bot_customers.update_one({'id': customer_id}, {'$set': {'ai_memory': new_memory}})
     except Exception:
         pass  # best-effort — trí nhớ không update lần này, sẽ thử lại ở lượt throttle kế tiếp
 
 
-def maybe_distill_memory_async(customer_id, recent_turns, customer_turn_count):
+def maybe_distill_memory_async(customer_id, recent_turns, customer_turn_count, memory_is_read=False):
     """Gọi từ secure_ai_generate SAU KHI đã trả lời khách thành công. Throttle theo
     DISTILL_EVERY_N_CUSTOMER_TURNS (không tóm tắt lại mỗi tin nhắn — tốn tiền/chậm vô ích)
-    và chạy trong background thread để KHÔNG làm chậm response đang trả về cho khách."""
+    và chạy trong background thread để KHÔNG làm chậm response đang trả về cho khách.
+    memory_is_read: chỉ True khi caller THẬT SỰ đọc lại trí nhớ này vào prompt (get_conversation_memory) — trước đây
+    mọi chat ẩn danh (khách đặt lịch) đều tốn 1 lệnh DeepSeek trả phí mỗi 4 lượt cho 1 bản tóm tắt không ai đọc."""
+    if not memory_is_read:
+        return
     if MONGO_STATUS != "CONNECTED" or not customer_id or not customer_turn_count:
         return
     if customer_turn_count % DISTILL_EVERY_N_CUSTOMER_TURNS != 0:
