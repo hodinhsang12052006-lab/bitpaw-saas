@@ -131,11 +131,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]" data-i18n="campaignbuilder_label_channel">3. Message Channel</label>
-                                <select id="campChannel" class="glass-input cursor-pointer">
-                                    <option value="SMS" data-i18n="campaignbuilder_opt_channel_sms">SMS (Twilio)</option>
-                                    <option value="EMAIL" data-i18n="campaignbuilder_opt_channel_email">Email</option>
-                                    <option value="ZALO" data-i18n="campaignbuilder_opt_channel_zalo">Zalo OA</option>
-                                    <option value="FACEBOOK" data-i18n="campaignbuilder_opt_channel_fb">Facebook Messenger</option>
+                                {# Giá trị kênh CHỮ THƯỜNG = messaging.CHANNELS (sms | email | zalo | messenger) — bộ gửi so đúng các giá trị này #}
+                                <select id="campChannel" class="glass-input cursor-pointer" aria-describedby="campChannelNote">
+                                    <option value="sms" data-i18n="campaignbuilder_opt_channel_sms">SMS (Twilio)</option>
+                                    <option value="email" data-i18n="campaignbuilder_opt_channel_email">Email</option>
+                                    <option value="zalo" data-i18n="campaignbuilder_opt_channel_zalo">Zalo OA</option>
+                                    <option value="messenger" data-i18n="campaignbuilder_opt_channel_fb">Facebook Messenger</option>
                                 </select>
                             </div>
                             <div>
@@ -148,6 +149,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                                 </select>
                             </div>
                         </div>
+                        <p id="campChannelNote" class="text-[10px] text-gray-400 leading-relaxed bg-black/30 border border-white/5 rounded-xl p-3" data-i18n="campaignbuilder_channel_note">Zalo / Messenger: only to customers who have messaged your connected Page / OA, and only within 24 hours of their last message (Messenger) or 48 hours (Zalo). Outside that window the message goes by SMS or email if the customer has one — otherwise it is skipped.</p>
 
                         <div>
                             <label class="block text-gray-400 mb-2 uppercase font-black tracking-wider text-[9px]" data-i18n="campaignbuilder_label_schedule">5. Schedule Frequency</label>
@@ -302,6 +304,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 campaignbuilder_opt_channel_email: 'Email',
                 campaignbuilder_opt_channel_fb: 'Facebook Messenger',
                 campaignbuilder_opt_channel_sms: 'SMS (Twilio)',
+                campaignbuilder_channel_note: 'Zalo / Messenger: chỉ gửi được cho khách đã nhắn tới Page / OA tiệm đã nối, và chỉ trong 24 giờ kể từ tin gần nhất của khách (Messenger) hoặc 48 giờ (Zalo). Ngoài khung đó tin đi SMS hoặc email nếu khách có — không thì bỏ qua.',
                 campaignbuilder_label_tone: '4. Giọng Văn AI',
                 campaignbuilder_opt_tone_friendly: 'Thân thiện, gần gũi',
                 campaignbuilder_opt_tone_premium: 'Sang trọng, cao cấp',
@@ -379,6 +382,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 campaignbuilder_opt_channel_email: 'Email',
                 campaignbuilder_opt_channel_fb: 'Facebook Messenger',
                 campaignbuilder_opt_channel_sms: 'SMS (Twilio)',
+                campaignbuilder_channel_note: "Zalo / Messenger: only to customers who have messaged your connected Page / OA, and only within 24 hours of their last message (Messenger) or 48 hours (Zalo). Outside that window the message goes by SMS or email if the customer has one — otherwise it is skipped.",
                 campaignbuilder_label_tone: '4. AI Tone of Voice',
                 campaignbuilder_opt_tone_friendly: 'Friendly, approachable',
                 campaignbuilder_opt_tone_premium: 'Elegant, upscale',

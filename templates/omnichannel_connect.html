@@ -99,6 +99,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             </div>
         </div>
 
+        {# Nối kênh nay chỉ có 1 nơi: /inbox/channels (inbox_channels.py). /api/ai/nurture/toggle-connection + test-connection đã
+           ngừng (410) — trang này không gọi chúng nữa, mọi nút nối/cấu hình thủ công dẫn sang Kênh nhắn tin. #}
+        <div id="omniMovedNote" class="mb-6 shrink-0 relative z-10 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 px-5 py-3 text-xs text-cyan-100 flex flex-wrap items-center gap-3">
+            <i class="fas fa-circle-info text-cyan-300"></i>
+            <span class="flex-1 min-w-[200px]" data-i18n="omni_moved_note">Zalo OA / Messenger / WhatsApp / Instagram / Viber / SMS are connected in Messaging channels: connect once to receive customer messages and send follow-ups from your own Page / OA.</span>
+            <a href="/inbox/channels" class="font-bold underline text-white whitespace-nowrap" data-i18n="omni_moved_link">Open Messaging channels</a>
+        </div>
+
         <!-- NEW: Realtime Stats Dashboard Grid -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 shrink-0 z-10 relative" data-aos="fade-down">
             <div class="glass-card p-5 rounded-2xl border-l-4 border-l-cyan-500 relative overflow-hidden group shadow-lg">
@@ -606,7 +614,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 omni_info_missing_credential: 'Thiếu API Credential',
                 omni_info_missing_credential_desc: 'Ứng dụng chưa được nhập API Access Token hợp lệ.',
                 omni_btn_oauth_connect: 'Kết nối (OAuth)',
-                omni_btn_manual_config: 'Cấu hình thủ công',
+                omni_btn_manual_config: 'Nối trong Kênh nhắn tin',
+                omni_moved_note: 'Zalo OA / Messenger / WhatsApp / Instagram / Viber / SMS nay được nối ở Kênh nhắn tin: nối 1 lần là vừa nhận tin của khách, vừa gửi tin chăm sóc qua đúng Page / OA của tiệm.',
+                omni_moved_link: 'Mở Kênh nhắn tin',
+                omni_log_moved: '[KÊNH] {platform}: nối và cấu hình ở Kênh nhắn tin (/inbox/channels)...',
                 omni_import_syncing: 'Đang đồng bộ dữ liệu...',
                 omni_log_pos_sync_start: '[POS-SYNC] Khởi chạy bộ đồng bộ API dữ liệu bán hàng POS và lịch hẹn Booking...',
                 omni_import_btn_default: 'Đồng bộ dữ liệu POS/Booking',
@@ -740,7 +751,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 omni_info_missing_credential: 'Missing API Credential',
                 omni_info_missing_credential_desc: 'The app has not yet been given a valid API Access Token by the admin.',
                 omni_btn_oauth_connect: 'Connect (OAuth)',
-                omni_btn_manual_config: 'Manual Configuration',
+                omni_btn_manual_config: 'Connect in Messaging channels',
+                omni_moved_note: 'Zalo OA / Messenger / WhatsApp / Instagram / Viber / SMS are connected in Messaging channels: connect once to receive customer messages and send follow-ups from your own Page / OA.',
+                omni_moved_link: 'Open Messaging channels',
+                omni_log_moved: '[CHANNELS] {platform}: connect and configure it in Messaging channels (/inbox/channels)...',
                 omni_import_syncing: 'Syncing data...',
                 omni_log_pos_sync_start: '[POS-SYNC] Launching the API sync engine for POS sales data and Booking appointments...',
                 omni_import_btn_default: 'Sync POS/Booking Data',
@@ -862,44 +876,16 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             });
         }
 
-        // Open manual configuration modal as fallback
+        // Nối / cấu hình kênh thủ công nay chỉ ở Kênh nhắn tin (/inbox/channels). /api/ai/nurture/toggle-connection và
+        // /api/ai/nurture/test-connection đã ngừng (410) — không gọi nữa, không nhận token ở trang này.
+        function goToInboxChannels(platform) {
+            logToConsole(tf('omni_log_moved', { platform: String(platform || '').toUpperCase() }));
+            window.location.href = '/inbox/channels';
+        }
+
+        // "Cấu hình thủ công" cũ mở hộp nhập token rồi gọi API đã ngừng -> giờ dẫn thẳng sang Kênh nhắn tin
         function openManualConfig(platform) {
-            let guideHtml = "";
-            if (platform === 'messenger' || platform === 'fb_page') {
-                guideHtml = t('omni_guide_facebook');
-            } else if (platform === 'zalo_oa') {
-                guideHtml = t('omni_guide_zalo');
-            } else if (platform === 'whatsapp') {
-                guideHtml = t('omni_guide_whatsapp');
-            } else if (platform === 'mascot_chat') {
-                guideHtml = t('omni_guide_mascot');
-            } else {
-                guideHtml = t('omni_guide_default');
-            }
-
-            const modal = document.getElementById("channelConfigModal");
-            const titleEl = document.getElementById("modalConfigTitle");
-            const guideEl = document.getElementById("configSetupGuide");
-            const platformInput = document.getElementById("config-platform");
-            const disconnectBtn = document.getElementById("btn-config-disconnect");
-
-            // Fill inputs with cached data if exists
-            const cache = channelCache[platform] || {};
-            document.getElementById("config-account-name").value = cache.account_name || "";
-            document.getElementById("config-channel-id").value = cache.channel_id || "";
-            document.getElementById("config-access-token").value = cache.access_token || "";
-
-            platformInput.value = platform;
-            titleEl.innerHTML = `<i class="fas fa-sliders text-cyan-400 animate-pulse"></i> ${tf('omni_modal_title_manual', { platform: platform.toUpperCase() })}`;
-            guideEl.innerHTML = guideHtml;
-            
-            if (cache.status === 'CONNECTED') {
-                disconnectBtn.classList.remove("hidden");
-            } else {
-                disconnectBtn.classList.add("hidden");
-            }
-
-            modal.classList.remove("hidden");
+            goToInboxChannels(platform);
         }
 
         function closeConfigModal() {
@@ -907,72 +893,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         }
 
         function saveChannelConfig(e) {
-            e.preventDefault();
-            const platform = document.getElementById("config-platform").value;
-            const account_name = document.getElementById("config-account-name").value;
-            const channel_id = document.getElementById("config-channel-id").value;
-            const access_token = document.getElementById("config-access-token").value;
-
-            logToConsole(tf('omni_log_saving_config', { platform: platform.toUpperCase() }));
-
-            fetch("/api/ai/nurture/toggle-connection", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    platform,
-                    action: "SAVE",
-                    account_name,
-                    channel_id,
-                    access_token
-                })
-            })
-            .then(res => res.json())
-            .then(res => {
-                if (res.success) {
-                    reloadConnectionStatus();
-                    logToConsole(tf('omni_log_save_success', { platform: platform.toUpperCase() }), 'emerald');
-                    closeConfigModal();
-                } else {
-                    logToConsole(tf('omni_log_save_error', { msg: res.message }), 'rose');
-                    alert(res.message);
-                }
-            })
-            .catch(err => {
-                logToConsole(tf('omni_log_connection_error', { msg: err.message }), 'rose');
-            });
+            if (e) e.preventDefault();
+            goToInboxChannels(document.getElementById("config-platform").value);
         }
 
         function testChannelConfig() {
-            const platform = document.getElementById("config-platform").value;
-            const account_name = document.getElementById("config-account-name").value;
-            const channel_id = document.getElementById("config-channel-id").value;
-            const access_token = document.getElementById("config-access-token").value;
-
-            logToConsole(tf('omni_log_manual_test', { platform: platform.toUpperCase() }));
-
-            fetch("/api/ai/nurture/test-connection", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    platform,
-                    account_name,
-                    channel_id,
-                    access_token
-                })
-            })
-            .then(res => res.json())
-            .then(res => {
-                if (res.success) {
-                    logToConsole(`[SUCCESS] ${res.message}`, 'emerald');
-                    alert(res.message);
-                } else {
-                    logToConsole(tf('omni_log_manual_test_failed', { msg: res.message }), 'rose');
-                    alert(res.message);
-                }
-            })
-            .catch(err => {
-                logToConsole(tf('omni_log_api_error_generic', { msg: err.message }), 'rose');
-            });
+            goToInboxChannels(document.getElementById("config-platform").value);
         }
 
         function disconnectChannel() {

@@ -346,6 +346,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 dashboard_issue_missing_order: 'Thiếu đơn hàng',
                 dashboard_issue_amount_mismatch: 'Lệch số tiền',
                 dashboard_issue_stale_pending: 'Chờ thanh toán quá lâu',
+                dashboard_txn_label: 'Giao dịch',
                 dashboard_resolved_btn: 'Đã xử lý',
                 dashboard_cskh_autoreply: 'Chúng tôi đã nhận được yêu cầu. Nếu cần gấp, bạn cứ alo thẳng Hotline hoặc Zalo cho em nhé!'
             },
@@ -401,6 +402,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 dashboard_issue_missing_order: 'Missing order',
                 dashboard_issue_amount_mismatch: 'Amount mismatch',
                 dashboard_issue_stale_pending: 'Payment pending too long',
+                dashboard_txn_label: 'Transaction',
                 dashboard_resolved_btn: 'Resolved',
                 dashboard_cskh_autoreply: "Got it! If it's urgent, just call the Hotline or message us on Zalo!"
             }
@@ -707,13 +709,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 panel.style.display = 'block';
                 countEl.innerText = tf('dashboard_reconciliation_count', { count: data.length });
                 const issueLabels = { missing_order: t('dashboard_issue_missing_order'), amount_mismatch: t('dashboard_issue_amount_mismatch'), stale_pending: t('dashboard_issue_stale_pending') };
+                // transaction_id / details đến từ cổng thanh toán / webhook (dữ liệu ngoài) -> escape trước khi chèn HTML
                 list.innerHTML = data.map(a => `
                     <div class="bg-black/30 border border-rose-500/20 rounded-xl p-3 flex justify-between items-center gap-3">
                         <div>
-                            <p class="font-bold text-rose-300 text-sm">${issueLabels[a.issue_type] || a.issue_type} — GD ${a.transaction_id || ''}</p>
-                            <p class="text-xs text-gray-400 mt-1">${a.details || ''}</p>
+                            <p class="font-bold text-rose-300 text-sm">${__escHtml(issueLabels[a.issue_type] || a.issue_type)}${a.transaction_id ? ` — ${__escHtml(t('dashboard_txn_label'))} ${__escHtml(a.transaction_id)}` : ''}</p>
+                            <p class="text-xs text-gray-400 mt-1">${__escHtml(a.details || '')}</p>
                         </div>
-                        <button class="reconciliation-resolve-btn bg-white/10 hover:bg-white/20 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0" data-id="${a.id}">${t('dashboard_resolved_btn')}</button>
+                        <button class="reconciliation-resolve-btn bg-white/10 hover:bg-white/20 text-gray-300 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0" data-id="${__escHtml(a.id)}">${t('dashboard_resolved_btn')}</button>
                     </div>
                 `).join('');
                 list.querySelectorAll('.reconciliation-resolve-btn').forEach(btn => btn.addEventListener('click', async () => {
