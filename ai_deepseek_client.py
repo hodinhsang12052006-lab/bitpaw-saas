@@ -13,6 +13,8 @@ cho gọn và ít lỗi format hơn, nhưng KHÔNG hề gọi tới OpenAI thậ
   là API nội bộ tự viết, không phải endpoint OpenAI-compatible nên không dùng SDK ở nhánh này),
   Proxy đó mới cầm giữ key DeepSeek thật, Desktop app chỉ cầm 1 proxy_api_key riêng theo license.
 """
+import contextlib
+import contextvars
 import os
 
 import requests
@@ -23,6 +25,31 @@ _PROXY_URL = os.environ.get('BITPAW_AI_PROXY_URL', 'https://your-relay-project.v
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 _client_cache = {}
+# Số lần SDK tự thử lại (mặc định của SDK openai = 2). ai_gateway.chat đặt 0 trong lúc gọi vì gateway tự quyết thử lại
+# (chỉ lỗi tạm thời, không thử lại khi đã hết thời gian chờ) — tránh 1 lệnh kéo dài gấp 3 lần timeout.
+_SDK_RETRIES = contextvars.ContextVar('bitpaw_deepseek_sdk_retries', default=None)
+_usage_hook_warned = False
+
+
+@contextlib.contextmanager
+def sdk_retries(n):
+    tok = _SDK_RETRIES.set(n)
+    try:
+        yield
+    finally:
+        _SDK_RETRIES.reset(tok)
+
+
+def _report_usage(result, payload, business_id):
+    """Sổ chi phí AI (ai_gateway -> db.ai_usage) cho MỌI lệnh thành công, kể cả lệnh gọi thẳng hàm này. Best-effort."""
+    global _usage_hook_warned
+    try:
+        import ai_gateway
+        ai_gateway.on_client_completion(result, payload, business_id)
+    except Exception as e:
+        if not _usage_hook_warned:
+            _usage_hook_warned = True
+            print(f"[ai_deepseek_client] usage log skipped: {e}")
 
 
 def _get_deepseek_client(api_key):
@@ -54,16 +81,23 @@ def deepseek_chat_completion(payload, business_id=None, proxy_api_key=None, dire
                 timeout=timeout,
             )
             resp.raise_for_status()
-            return resp.json()
+            result = resp.json()
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"Gọi AI Proxy thất bại: {e}") from e
+        _report_usage(result, payload, business_id)
+        return result
 
     if not direct_api_key:
         raise RuntimeError("Thiếu DEEPSEEK_API_KEY khi gọi trực tiếp DeepSeek ở chế độ Web/SaaS.")
 
     try:
         client = _get_deepseek_client(direct_api_key)
+        retries = _SDK_RETRIES.get()
+        if retries is not None:
+            client = client.with_options(max_retries=retries)
         completion = client.chat.completions.create(timeout=timeout, **payload)
-        return completion.model_dump()
+        result = completion.model_dump()
     except Exception as e:
         raise RuntimeError(f"Gọi trực tiếp DeepSeek thất bại: {e}") from e
+    _report_usage(result, payload, business_id)
+    return result
