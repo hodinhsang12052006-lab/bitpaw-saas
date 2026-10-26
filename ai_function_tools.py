@@ -14,26 +14,36 @@ công cụ xác nhận):
 
 LỊCH SỬ: book_appointment() từng ghi vào SQLite riêng của Desktop App — nay ghi thẳng MongoDB `db.appointments`
 qua booking_engine (nguồn chân lý duy nhất, áp luật đặt lịch của tiệm — booking_rules.py).
+
+PHASE 2 (lễ tân AI cho cả 9 ngành): công cụ theo GÓI ĐẶT CHỖ của từng ngành (ai_packs/). Bộ lịch hẹn Nails/Spa ở file này
+là gói dựng sẵn 'appointment' (appointment_pack()); mọi ngành đi CHUNG 1 đường execute_tool_call -> pack.run(ctx).
+Thêm: change_service (đổi dịch vụ của lịch đã đặt, không huỷ-đặt lại), xác minh khách bằng mã SMS 1 lần
+(send_verification_code / verify_code — chỉ khi tiệm đã nối Twilio) để chat web xem/huỷ/dời lịch đặt qua điện thoại/form.
 """
 import contextlib
 import contextvars
 import hashlib
+import hmac
 import json
 import os
 import re
-from datetime import date, datetime, timedelta
+import secrets
+from datetime import date, datetime, timedelta, timezone
 
 from mongo_client import db, next_mongo_id
 from booking_engine import book_appointment as _book_appointment_shared, SlotAlreadyBookedError
 import booking_rules
+import ai_packs
 
 
 # ---------------------------------------------------------------- ngành có "gói đặt lịch" thật (Phase 0)
 # Chỉ Nails/Spa có lịch hẹn thật (booking_engine + booking_rules). Ngành khác (nhà hàng, karaoke, khách sạn, bán lẻ...)
 # trước đây vẫn nhận BOOKING_TOOLS -> AI ghi db.appointments "ma" mà màn đặt bàn/đặt phòng của họ không bao giờ thấy.
-BOOKING_PACK_INDUSTRIES = ('nail', 'spa')
+# Phase 2: ngành nào có gói trong ai_packs/ thì AI đặt chỗ THẬT theo gói đó (bàn, phòng theo giờ, phòng theo đêm...).
+BOOKING_PACK_INDUSTRIES = ('nail', 'spa')   # gói dựng sẵn 'appointment'
 BOOKING_PACK_TOOL_NAMES = ('check_availability', 'book_appointment', 'my_appointments', 'cancel_appointment',
-                           'reschedule_appointment', 'my_packages')
+                           'reschedule_appointment', 'change_service', 'my_packages')
+APPOINTMENT_MANAGE_TOOLS = ('my_appointments', 'cancel_appointment', 'reschedule_appointment', 'change_service', 'my_packages')
 
 
 def business_industry(business_id):
@@ -54,9 +64,19 @@ def business_industry(business_id):
     return booking_rules._cached(('industry', business_id), _load)
 
 
+def books_in_chat(business_id):
+    """True khi ngành của tiệm có gói đặt chỗ (ai_packs) -> AI đặt/xem/huỷ THẬT trong chat. Không rõ ngành -> False."""
+    return ai_packs.pack_for_business(business_id) is not None
+
+
 def has_booking_pack(business_id):
-    """True chỉ khi ngành của tiệm có lịch hẹn thật (Nails/Spa). Không rõ ngành -> False (an toàn: hỏi đáp + chuyển nhân viên)."""
-    return business_industry(business_id) in BOOKING_PACK_INDUSTRIES
+    """AI tự trả lời MẶC ĐỊNH BẬT (inbox_channels.ai_default_on) + câu 'trả lời & đặt lịch': gói dựng sẵn Nails/Spa, hoặc gói
+    mới mà bài kiểm tra ai_sim của ngành đó đã được đánh dấu ĐẠT (ai_packs.claim_ready). Gói mới chưa qua sim vẫn đặt chỗ
+    được khi chủ tiệm tự bật AI, nhưng không tự bật cho mọi tiệm của ngành. Không rõ ngành -> False (an toàn)."""
+    pack = ai_packs.pack_for_business(business_id)
+    if pack is None:
+        return False
+    return pack.builtin or ai_packs.claim_ready(business_industry(business_id))
 
 
 def reservation_link(business_id, industry=None):
@@ -90,9 +110,11 @@ def chat_token_hash(token):
 
 
 @contextlib.contextmanager
-def chat_scope(chat_token=None):
-    """Bọc 1 lượt AI trả lời: công cụ biết mã chat web của trình duyệt đang chat (không truyền qua tham số của model)."""
-    tok = _CHAT_SCOPE.set({'token_hash': chat_token_hash(chat_token)})
+def chat_scope(chat_token=None, lang=None, channel=None):
+    """Bọc 1 lượt AI trả lời: công cụ biết mã chat web của trình duyệt đang chat (không truyền qua tham số của model),
+    ngôn ngữ tin mới nhất của khách và kênh. Số điện thoại đã xác minh bằng mã SMS được tra 1 lần / lượt (verified_phone)."""
+    tok = _CHAT_SCOPE.set({'token_hash': chat_token_hash(chat_token), 'lang': lang if lang in ('vi', 'en') else None,
+                           'channel': channel, 'verified': {}})
     try:
         yield
     finally:
@@ -107,45 +129,128 @@ def _channel_of(customer_id):
     return 'web'
 
 
-def _ownership_filter(customer_id):
-    """Điều kiện Mongo cho các lịch hẹn CHỨNG MINH được là của cuộc chat này, hoặc None (không chứng minh được)."""
-    ch = _channel_of(customer_id)
-    phone = _phone_of(customer_id)
-    if ch in PHONE_VERIFIED_CHANNELS:
-        channel_user = customer_id.split(':', 2)[2] if str(customer_id).count(':') >= 2 else ''
-        digits = re.sub(r'\D', '', phone or '')
-        if digits and digits == re.sub(r'\D', '', channel_user):
-            return {'customer_phone': phone}
+def _business_of(customer_id):
+    return str(customer_id).split(':', 1)[0] if customer_id and ':' in str(customer_id) else None
+
+
+def _country_of(business_id):
+    try:
+        import customer_context
+        return customer_context.business(business_id).get('country')
+    except Exception:
         return None
-    if ch != 'web':
-        return {'ai_conversation_id': customer_id}
-    th = (_CHAT_SCOPE.get() or {}).get('token_hash')
-    if th and phone:
-        return {'customer_phone': phone, 'chat_token_hash': th}
+
+
+def _channel_verified_phone(customer_id):
+    """SMS / WhatsApp: SĐT do nhà mạng / WhatsApp xác nhận (khớp đúng người gửi của kênh) — hoặc None."""
+    if _channel_of(customer_id) not in PHONE_VERIFIED_CHANNELS:
+        return None
+    phone = _phone_of(customer_id)
+    channel_user = customer_id.split(':', 2)[2] if str(customer_id).count(':') >= 2 else ''
+    digits = re.sub(r'\D', '', phone or '')
+    if digits and digits == re.sub(r'\D', '', channel_user):
+        return phone
     return None
 
 
+def verified_phone(business_id, customer_id):
+    """SĐT ĐÃ XÁC MINH của cuộc chat: SMS/WhatsApp = SĐT của kênh; web/Messenger/... = SĐT khách vừa nhập đúng mã SMS
+    (verify_code, còn hiệu lực). None nếu chưa xác minh. Tra DB tối đa 1 lần / lượt trả lời."""
+    if not customer_id:
+        return None
+    ch = _channel_of(customer_id)
+    if ch in PHONE_VERIFIED_CHANNELS:
+        return _channel_verified_phone(customer_id)
+    key = _conv_key(customer_id)
+    if not key:
+        return None
+    scope = _CHAT_SCOPE.get()
+    cache = scope.get('verified') if isinstance(scope, dict) else None
+    ck = (business_id, key)
+    if cache is not None and ck in cache:
+        return cache[ck]
+    phone = None
+    try:
+        doc = db.ai_chat_verifications.find_one({'business_id': business_id, 'conv_key': key, 'status': 'verified',
+                                                 'valid_until': {'$gt': _utc_iso()}}, {'_id': 0, 'phone': 1},
+                                                sort=[('verified_at', -1)])
+        phone = (doc or {}).get('phone') or None
+    except Exception as e:
+        print(f"[ai tools] verified phone: {e}")
+    if cache is not None:
+        cache[ck] = phone
+    return phone
+
+
+def _ownership_filter(customer_id):
+    """Điều kiện Mongo cho các lịch hẹn CHỨNG MINH được là của cuộc chat này, hoặc None (không chứng minh được).
+    SĐT đã xác minh (kênh SMS/WhatsApp, hoặc mã SMS 1 lần) khớp mọi cách viết của số đó (form lưu đúng chữ khách gõ)."""
+    ch = _channel_of(customer_id)
+    phone = _phone_of(customer_id)
+    bid = _business_of(customer_id)
+    if ch in PHONE_VERIFIED_CHANNELS:
+        v = _channel_verified_phone(customer_id)
+        return {'customer_phone': {'$in': ai_packs.phone_variants(v, _country_of(bid)) or [v]}} if v else None
+    verified = verified_phone(bid, customer_id)
+    phone_part = ({'customer_phone': {'$in': ai_packs.phone_variants(verified, _country_of(bid)) or [verified]}}
+                  if verified else None)
+    if ch != 'web':
+        conv = {'ai_conversation_id': customer_id}
+        return {'$or': [conv, phone_part]} if phone_part else conv
+    th = (_CHAT_SCOPE.get() or {}).get('token_hash')
+    token_part = {'customer_phone': phone, 'chat_token_hash': th} if (th and phone) else None
+    if phone_part and token_part:
+        return {'$or': [phone_part, token_part]}
+    return phone_part or token_part
+
+
 def _matches(doc, flt):
-    return bool(flt) and all((doc or {}).get(k) == v for k, v in flt.items())
+    """doc có thoả bộ lọc quyền sở hữu không (cùng cú pháp Mongo con: bằng, $in, $or)."""
+    if not flt:
+        return False
+    doc = doc or {}
+    for k, v in flt.items():
+        if k == '$or':
+            if not any(_matches(doc, f) for f in v):
+                return False
+        elif isinstance(v, dict) and '$in' in v:
+            if doc.get(k) not in v['$in']:
+                return False
+        elif doc.get(k) != v:
+            return False
+    return True
 
 
 def _cannot_manage(business_id, customer_id, what='bookings'):
-    """Câu trả lời khi chat KHÔNG chứng minh được là chủ lịch hẹn: không xem/sửa gì, chỉ đường cho khách."""
+    """Câu trả lời khi chat KHÔNG chứng minh được là chủ lịch hẹn: không xem/sửa gì, chỉ đường cho khách. Tiệm đã nối Twilio
+    và chat có mã (web có mã trình duyệt / Messenger...): mời khách nhận mã SMS 1 lần gửi tới SĐT của lịch hẹn."""
     try:
         phone = booking_rules.business_phone(business_id)
     except Exception:
         phone = ''
-    vi = _is_vi_chat(customer_id) if customer_id else False
-    if vi:
-        tell = ("Vì bảo mật, em không xem hay thay đổi được " + ("gói liệu trình" if what == 'packages' else "lịch hẹn đã đặt")
-                + " từ khung chat này. " + (f"Mình gọi tiệm số {phone} " if phone else "Mình gọi điện cho tiệm ")
+    vi = _chat_lang(customer_id) == 'vi'
+    verify = can_verify(business_id, customer_id)
+    noun_vi = "gói liệu trình" if what == 'packages' else "lịch đã đặt"
+    noun_en = "packages" if what == 'packages' else "existing bookings"
+    if verify:
+        tell = (f"Để bảo mật, trước khi xem hay đổi {noun_vi} em cần xác minh mình: em có thể nhắn 1 mã 6 số tới SĐT đã dùng "
+                "khi đặt. Mình đặt bằng số điện thoại nào ạ?" if vi else
+                f"For your security I need to confirm it's you before I look at {noun_en}: I can text a 6-digit code to the "
+                "phone number on the booking. Which number is it under?")
+    elif vi:
+        tell = (f"Vì bảo mật, em không xem hay thay đổi được {noun_vi} từ khung chat này. "
+                + (f"Mình gọi tiệm số {phone} " if phone else "Mình gọi điện cho tiệm ")
                 + "hoặc trả lời tin nhắn SMS xác nhận lịch của tiệm nhé.")
     else:
-        tell = ("For your security I can't look up or change existing " + ("packages" if what == 'packages' else "bookings")
-                + " from this chat. " + (f"Please call us on {phone} " if phone else "Please call the business ")
+        tell = (f"For your security I can't look up or change {noun_en} from this chat. "
+                + (f"Please call us on {phone} " if phone else "Please call the business ")
                 + "or reply to your confirmation text message.")
-    return {"success": False, "reason": "not_verified", "tell_customer": tell,
-            "note": "Do not reveal, cancel or change any existing booking. You may still make a NEW booking."}
+    out = {"success": False, "reason": "not_verified", "tell_customer": tell, "can_verify_by_sms": verify,
+           "note": "Do not reveal, cancel or change any existing booking. You may still make a NEW booking."}
+    if verify:
+        out["next_step"] = ("Ask which phone number the booking is under, call send_verification_code(phone), then verify_code(code) "
+                            "with the 6 digits the customer types. Never say whether a number has bookings before it is verified.")
+    return out
 
 
 def _fn(name, desc, props, required=()):
@@ -179,6 +284,14 @@ BOOKING_TOOLS = [
     _fn("reschedule_appointment", "Dời 1 lịch hẹn của CHÍNH khách sang giờ mới (kiểm tra giờ trống tự động). Hỏi khách xác nhận giờ mới trước.",
         {"appointment_id": {"type": "integer"}, "new_time": {"type": "string", "description": "ISO 8601 giờ địa phương."}},
         ["appointment_id", "new_time"]),
+    _fn("change_service",
+        "Đổi DỊCH VỤ của 1 lịch hẹn đã đặt của CHÍNH khách (vd mani thường -> gel), giữ nguyên giờ nếu thời lượng mới vừa. "
+        "Dùng hàm này thay vì huỷ rồi đặt lại. Nếu không vừa giờ cũ, kết quả trả các giờ hợp lệ gần nhất — khách chọn xong thì "
+        "gọi lại với new_time. Hỏi khách xác nhận dịch vụ mới (giá, thời lượng) trước.",
+        {"appointment_id": {"type": "integer"},
+         "service_id": {"type": "string", "description": "service_id mới (đúng danh sách BOOKABLE SERVICES)."},
+         "new_time": {"type": "string", "description": "Giờ mới ISO 8601 giờ địa phương — CHỈ khi giờ cũ không vừa và khách đã chọn giờ khác."}},
+        ["appointment_id", "service_id"]),
     _fn("my_packages", "Xem gói liệu trình nhiều buổi khách đang có (còn bao nhiêu buổi, hạn dùng).", {}),
     _fn("ask_team",
         "Gửi 1 câu hỏi khách hỏi mà dữ liệu không có (giảm giá/ưu đãi, voucher chưa ghi, bãi đỗ, dị ứng, yêu cầu đặc biệt) cho nhân viên "
@@ -204,11 +317,26 @@ _REQUEST_BOOKING_TOOL = _fn(
 # Bộ công cụ cho ngành CHƯA có gói đặt lịch (nhà hàng, karaoke, khách sạn, bán lẻ, kỹ thuật, sản xuất, văn phòng):
 # chỉ hỏi đáp + chuyển yêu cầu cho người thật — không có công cụ nào ghi db.appointments.
 QA_TOOLS = [_REQUEST_BOOKING_TOOL] + [t for t in BOOKING_TOOLS if t['function']['name'] in ('ask_team', 'handoff_to_staff')]
+# Phase 2: công cụ chung của mọi ngành + gói lịch hẹn dựng sẵn (Nails/Spa)
+BASE_TOOLS = [t for t in BOOKING_TOOLS if t['function']['name'] in ai_packs.BASE_TOOL_NAMES]
+APPOINTMENT_TOOLS = [t for t in BOOKING_TOOLS if t['function']['name'] in BOOKING_PACK_TOOL_NAMES]
+
+# Xác minh khách bằng mã SMS 1 lần — chỉ đưa cho AI khi tiệm đã nối Twilio (can_verify) và ngành có công cụ quản lý lịch
+VERIFY_TOOLS = [
+    _fn("send_verification_code",
+        "Nhắn 1 mã 6 số tới SĐT khách dùng khi đặt (để xem/đổi/huỷ lịch đặt qua điện thoại, form hoặc máy khác). CHỈ gọi sau khi "
+        "công cụ quản lý lịch báo not_verified và khách đồng ý nhận mã. Kết quả không bao giờ cho biết SĐT đó có lịch hay không.",
+        {"phone": {"type": "string", "description": "SĐT khách nói đã dùng khi đặt."}}, ["phone"]),
+    _fn("verify_code",
+        "Kiểm tra mã 6 số khách vừa gõ (từ tin nhắn SMS). Đúng mã -> các công cụ xem/đổi/huỷ lịch dùng được cho SĐT đó trong chat này.",
+        {"code": {"type": "string", "description": "6 chữ số khách gõ."}}, ["code"]),
+]
 
 
 def customer_tools(business_id):
-    """Công cụ của trợ lý khách hàng theo ngành: Nails/Spa = đặt lịch thật; ngành khác = hỏi đáp + chuyển nhân viên."""
-    return BOOKING_TOOLS if has_booking_pack(business_id) else QA_TOOLS
+    """Công cụ của trợ lý khách hàng theo ngành: có gói đặt chỗ (ai_packs) = công cụ của gói + hỏi nhóm/chuyển nhân viên;
+    không có gói = hỏi đáp + chuyển yêu cầu cho nhân viên."""
+    return ai_packs.tools_for(business_id)
 
 
 SALES_TOOLS = [
@@ -484,9 +612,88 @@ def reschedule_appointment(business_id, customer_id, appointment_id=None, new_ti
         upd['slot_key'] = f"{a['staff_id']}|{new_bt}"
     else:
         unset['slot_key'] = ''
-    db.appointments.update_one({'id': a['id'], 'business_id': business_id}, {'$set': upd, **({'$unset': unset} if unset else {})})
+    try:
+        db.appointments.update_one({'id': a['id'], 'business_id': business_id}, {'$set': upd, **({'$unset': unset} if unset else {})})
+    except Exception as e:
+        if type(e).__name__ != 'DuplicateKeyError':   # khoá chỗ nguyên tử (business_id, slot_key): người khác vừa giữ giờ đó
+            raise
+        return {"success": False, "reason": "staff_busy", "message": booking_rules.REASON_TEXT['staff_busy'][0],
+                "other_times_same_day": booking_rules.available_slots(business_id, when.date(), a.get('service_id'), a.get('staff_id'),
+                                                                      limit=6, exclude_id=a['id'])}
     _note_for_staff(business_id, customer_id, f"Khách dời lịch #{a['id']} từ {str(a['book_time'])[:16]} sang {new_bt} qua chat AI.")
     return {"success": True, "appointment_id": a['id'], "old_time": str(a['book_time'])[:16], "new_time": new_bt}
+
+
+def change_service(business_id, customer_id, appointment_id=None, service_id=None, new_time=None):
+    """Đổi dịch vụ của lịch hẹn ĐÃ CÓ (sim thật: khách muốn đổi mani -> gel, AI huỷ rồi đặt lại, mất giờ đẹp và tạo 2 dòng).
+    Giờ cũ (hoặc new_time) phải vừa thời lượng dịch vụ mới (giờ mở cửa, sức chứa, thợ đã chọn còn rảnh — bỏ qua chính lịch này);
+    không vừa thì KHÔNG đổi gì, trả các giờ hợp lệ gần nhất để khách chọn."""
+    _require_customer(customer_id)
+    own = _ownership_filter(customer_id)
+    if own is None:
+        return _cannot_manage(business_id, customer_id)
+    a = _own_appt(business_id, customer_id, appointment_id, own)
+    if not a:
+        return _cannot_manage(business_id, customer_id)
+    if a.get('status') in ('cancelled', 'canceled'):
+        return {"success": False, "reason": "cancelled", "appointment_id": a['id'],
+                "message": "That booking is cancelled — make a new booking instead."}
+    if not service_id:
+        raise ToolExecutionError("Thiếu service_id mới.")
+    svc = _service(business_id, service_id)
+    if not svc:
+        raise ToolExecutionError(f"Không tìm thấy dịch vụ '{service_id}' của tiệm này — dùng đúng service_id trong danh sách.")
+    try:
+        when = datetime.fromisoformat(str(new_time or a['book_time'])[:19])
+    except (ValueError, TypeError):
+        raise ToolExecutionError("new_time không đúng ISO 8601.")
+    old_bt = str(a['book_time'])[:16]
+    new_bt = when.strftime('%Y-%m-%dT%H:%M')
+    if svc['id'] == a.get('service_id') and new_bt == old_bt:
+        return {"success": True, "unchanged": True, "appointment_id": a['id'], "service": svc['name'], "time": old_bt}
+    rules = booking_rules.get_rules(business_id)
+    dur = booking_rules.duration_of(rules, svc['id'])
+    try:
+        booking_rules.check_slot(business_id, when, svc['id'], a.get('staff_id'), rules=rules, exclude_id=a['id'])
+    except booking_rules.SlotUnavailable as e:
+        alt = booking_rules.available_slots(business_id, when.date(), svc['id'], a.get('staff_id'), limit=6, exclude_id=a['id'])
+        return {"success": False, "reason": e.reason, "message": booking_rules.REASON_TEXT.get(e.reason, (e.reason,))[0],
+                "appointment_id": a['id'], "new_service": svc['name'], "duration_minutes": dur, "current_time": old_bt,
+                "other_times_same_day": alt,
+                "note": "Nothing was changed. Do NOT cancel the booking: offer these times, and when the customer picks one call "
+                        "change_service again with new_time."}
+    now = datetime.now().isoformat()
+    upd = {'service_id': svc['id'], 'service_changed_from': a.get('service_id'), 'service_changed_at': now}
+    unset = {}
+    if new_bt != old_bt:
+        upd.update({'book_time': new_bt, 'rescheduled_from': a['book_time'], 'rescheduled_at': now})
+        if a.get('staff_id'):
+            upd['slot_key'] = f"{a['staff_id']}|{new_bt}"
+        else:
+            unset['slot_key'] = ''
+    try:
+        res = db.appointments.update_one({'id': a['id'], 'business_id': business_id, 'status': {'$nin': ['cancelled', 'canceled']}},
+                                         {'$set': upd, **({'$unset': unset} if unset else {})})
+    except Exception as e:
+        if type(e).__name__ != 'DuplicateKeyError':
+            raise
+        return {"success": False, "reason": "staff_busy", "message": booking_rules.REASON_TEXT['staff_busy'][0],
+                "other_times_same_day": booking_rules.available_slots(business_id, when.date(), svc['id'], a.get('staff_id'),
+                                                                      limit=6, exclude_id=a['id'])}
+    if getattr(res, 'matched_count', 1) == 0:   # huỷ đúng lúc đang đổi
+        return {"success": False, "reason": "cancelled", "appointment_id": a['id'],
+                "message": "That booking was just cancelled — make a new booking instead."}
+    old = _service(business_id, a.get('service_id')) or {}
+    _note_for_staff(business_id, customer_id, f"Khách đổi dịch vụ lịch #{a['id']}: {old.get('name') or a.get('service_id')} -> "
+                                              f"{svc['name']}" + (f", giờ {old_bt} -> {new_bt}" if new_bt != old_bt else '') + " qua chat AI.")
+    try:
+        import customer_context
+        price = customer_context.money(business_id, svc.get('price'))
+    except Exception:
+        price = svc.get('price')
+    return {"success": True, "appointment_id": a['id'], "old_service": old.get('name'), "new_service": svc['name'],
+            "price": price, "duration_minutes": dur, "time": new_bt, "time_changed": new_bt != old_bt,
+            "status": a.get('status') or 'pending'}
 
 
 def my_packages(business_id, customer_id):
