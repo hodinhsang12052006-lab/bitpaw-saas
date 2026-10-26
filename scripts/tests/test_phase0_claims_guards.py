@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Test OFFLINE cho Phase 0 "claims, guards, credentials":
 1. Thẻ giá (plans.py) nói đúng sự thật theo ngành: Pro "trả lời & đặt lịch" CHỈ nail/spa; ngành khác "trả lời & chuyển yêu cầu";
-   bỏ "xoay tua thợ công bằng" (chưa có).
+   bỏ "xoay tua thợ công bằng" (chưa có) — Phase 1 xây bảng tua thật (nail_turns.py) nên thẻ nail ghi lại "bảng xoay tua".
 2. Bot bán hàng (ai_sales_prompts): không còn giá cũ $99/$299/$599 + setup, không còn câu sai "hotel online booking NOT available",
    chỉ nạp dòng giá của ĐÚNG ngành trang đang xem (cả 9 dòng chỉ ở landing chung).
 3. /api/ai/copilot: chỉ admin/super_admin — nhân viên nhận 403 kèm lời nhắn rõ (VI/EN).
@@ -64,19 +64,24 @@ class PlanCardClaimTests(unittest.TestCase):
             self.assertIn('CRM win-back', en, ind)            # phần còn lại của dòng giữ nguyên
             self.assertIn('CRM nhắc khách cũ quay lại', vi, ind)
 
-    def test_no_fair_turn_rotation_claim_anywhere_on_cards(self):
+    def test_turn_claim_only_on_nail_and_only_because_the_board_exists(self):
+        # Phase 1 đã xây bảng xoay tua thật (nail_turns.py, /nail/turns) -> dòng thẻ giá nail được quay lại; ngành khác vẫn không
+        self.assertTrue(os.path.exists(os.path.join(ROOT, 'nail_turns.py')))
         for ind in plans.INDUSTRY_PRICES:
             for card in plans.tier_cards(ind):
                 for _ico, vi, en in card['items']:
-                    self.assertNotIn('turn rotation', en.lower(), (ind, card['key']))
-                    self.assertNotIn('xoay tua', vi.lower(), (ind, card['key']))
+                    self.assertNotIn('turn rotation', en.lower(), (ind, card['key']))   # câu cũ "fair turn rotation" không quay lại
+                    if ind != 'nail':
+                        self.assertNotIn('xoay tua', vi.lower(), (ind, card['key']))
+                        self.assertNotIn('turn board', en.lower(), (ind, card['key']))
 
     def test_nail_essential_keeps_true_lines(self):
         ess = next(c for c in plans.tier_cards('nail') if c['key'] == 'essential')
         ens = [en for _i, _v, en in ess['items']]
+        self.assertIn('Technician turn board: full & half turns by ticket price', ens)
         self.assertIn('Automatic tip & commission split', ens)
         self.assertIn('Online booking page + QR code for your salon', ens)
-        self.assertEqual(len(ens), 6)   # POS, tip/commission, booking page, time clock, apps, location
+        self.assertEqual(len(ens), 7)   # POS, turn board, tip/commission, booking page, time clock, apps, location
 
     def test_card_shape_and_prices_unchanged(self):
         for ind, tiers in plans.INDUSTRY_PRICES.items():

@@ -251,6 +251,13 @@
                 <span class="nav-icon-chip">{{ navico('fa-calendar-alt', ' group-hover:text-cyan-400 transition-colors') }}</span>
                 <span data-i18n="menu_booking">{{ menu_i18n.booking }}</span>
             </a>
+            {# Bảng xoay tua thợ (nail_turns.py) — chỉ tiệm Nails; nhân viên cũng xem được (thao tác theo quyền) #}
+            {% if active_industry_code == 'nail' %}
+            <a href="/nail/turns" class="flex items-center space-x-4 {% if request.path == '/nail/turns' %} bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-400 text-cyan-300 font-bold shadow-inner {% else %} hover:bg-white/5 text-gray-400 hover:text-white font-medium {% endif %} px-4 py-2.5 rounded-xl transition-all group">
+                <span class="nav-icon-chip">{{ nicon('queue', 'sm') }}</span>
+                <span>{{ menu_i18n.turn_board or ('Bảng xoay tua' if default_lang == 'vi' else 'Turn board') }}</span>
+            </a>
+            {% endif %}
             {% if not is_staff %}
             {# Poster QR đặt lịch in dán quầy (Nails + Spa) — trước đây Spa không có chỗ nào lấy QR đặt lịch #}
             <a href="{{ url_for('qr_poster_booking') }}" target="_blank" rel="noopener" class="flex items-center space-x-4 hover:bg-white/5 text-gray-400 hover:text-white font-medium px-4 py-2.5 rounded-xl transition-all group">
