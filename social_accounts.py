@@ -3,9 +3,10 @@ Tài khoản mạng xã hội của tiệm cho AI Social Manager (docs/AI_SUITE_
 Facebook Page, Instagram (Business/Creator), YouTube, TikTok, Google Business Profile.
 
 db.social_accounts (1 doc / tiệm / nền tảng):
-    {business_id, platform, status 'connected'|'needs_reconnect'|'disconnected', account_name, external_id, token_enc,
-     refresh_token_enc, token_expires_at (UTC dt), scopes [str], connected_via 'inbox'|'token'|'oauth', connected_at,
-     updated_at, last_error {code, message, at}, qa_test, (gbp) location_choices}
+    {business_id, platform, status 'connected'|'needs_reconnect'|'needs_location'|'disconnected', account_name, external_id,
+     token_enc, refresh_token_enc, token_expires_at (UTC dt), scopes [str], connected_via 'inbox'|'token'|'oauth',
+     connected_at, updated_at, last_error {code, message, at}, qa_test, (gbp) location_choices}
+    'needs_location' (chỉ Google Business): Google trả nhiều địa điểm -> chưa đăng được tới khi chủ tiệm chọn 1 (select_location).
 Cách nối:
   - facebook / instagram: lấy luôn kết nối Messenger / Instagram của Hộp thư chung (connect_from_inbox) hoặc dán Page token
     (connect_token) — BitPaw chưa làm Meta OAuth riêng cho đăng bài; quyền đăng bài cần Meta App Review (nói thẳng trên UI).
@@ -41,6 +42,10 @@ META_API = os.environ.get('SOCIAL_META_API_BASE', 'https://graph.facebook.com').
 # Video Facebook đi qua host riêng graph-video; ở chế độ thử dùng chung máy giả của Meta
 META_VIDEO_API = (os.environ.get('SOCIAL_META_VIDEO_BASE')
                   or (META_API if os.environ.get('SOCIAL_META_API_BASE') else 'https://graph-video.facebook.com')).rstrip('/')
+# Instagram Reels tải byte lên thẳng rupload.facebook.com (upload_type=resumable) — không phụ thuộc link /m/ của BitPaw
+# (Vercel chỉ trả ≤ vài MB/response, Instagram tải link không kèm Range nên video lớn sẽ bị cụt)
+META_RUPLOAD = (os.environ.get('SOCIAL_META_RUPLOAD_BASE')
+                or (META_API if os.environ.get('SOCIAL_META_API_BASE') else 'https://rupload.facebook.com')).rstrip('/')
 GOOGLE_API = os.environ.get('SOCIAL_GOOGLE_API_BASE', 'https://www.googleapis.com').rstrip('/')
 GOOGLE_OAUTH = os.environ.get('SOCIAL_GOOGLE_OAUTH_BASE', 'https://oauth2.googleapis.com').rstrip('/')
 GOOGLE_AUTH_URL = (os.environ.get('SOCIAL_GOOGLE_AUTH_URL')
@@ -85,11 +90,14 @@ REQUIREMENTS = {
 
 class SocialError(Exception):
     """Lỗi nói thẳng được với chủ tiệm. `code` để UI dịch (VI/EN); câu tiếng Anh là bản gốc.
-    transient=True: lỗi tạm (mạng, 5xx, giới hạn tốc độ) -> thử lại có giãn cách; reconnect=True: token hỏng -> cần nối lại."""
+    transient=True: lỗi tạm (mạng, 5xx, giới hạn tốc độ) -> thử lại có giãn cách; reconnect=True: token hỏng -> cần nối lại.
+    ambiguous=True: lỗi mạng SAU khi yêu cầu có thể đã tới nền tảng (hết giờ chờ trả lời, đứt giữa chừng) — với lệnh TẠO bài
+    thì không được tự gửi lại (có thể thành 2 bài)."""
 
-    def __init__(self, code, message, detail=None, transient=False, reconnect=False, platform=None):
+    def __init__(self, code, message, detail=None, transient=False, reconnect=False, platform=None, ambiguous=False):
         super().__init__(message)
         self.code, self.detail, self.transient, self.reconnect, self.platform = code, detail, transient, reconnect, platform
+        self.ambiguous = ambiguous
 
     def as_dict(self):
         return {'success': False, 'code': self.code, 'message': str(self)[:300],
@@ -197,13 +205,29 @@ def _usable(doc):
 
 
 # ---------------------------------------------------------------- HTTP
+def _maybe_sent(e):
+    """Lỗi mạng có thể xảy ra SAU khi nền tảng đã nhận yêu cầu? Chưa kết nối được (hết giờ kết nối, DNS, bị từ chối) thì
+    chắc chắn chưa gửi; hết giờ chờ trả lời / đứt kết nối giữa chừng thì có thể bài đã được tạo."""
+    R = requests.exceptions
+    if isinstance(e, R.ConnectTimeout):
+        return False
+    if isinstance(e, (R.ReadTimeout, R.ChunkedEncodingError)):
+        return True
+    if isinstance(e, R.ConnectionError):
+        s = repr(e)
+        return not any(x in s for x in ('NewConnectionError', 'NameResolutionError', 'Failed to establish',
+                                        'Failed to resolve', 'getaddrinfo', 'Name or service not known'))
+    return False
+
+
 def http(method, url, timeout=TIMEOUT, **kw):
-    """Mọi lệnh gọi nền tảng đi qua đây: luôn có timeout; lỗi mạng = lỗi tạm (thử lại sau)."""
+    """Mọi lệnh gọi nền tảng đi qua đây: luôn có timeout; lỗi mạng = lỗi tạm (thử lại sau), kèm cờ ambiguous khi yêu cầu
+    có thể đã tới nơi (bộ đăng không tự gửi lại lệnh tạo bài trong trường hợp đó)."""
     try:
         return requests.request(method, url, timeout=timeout, **kw)
     except requests.exceptions.RequestException as e:
         host = re.sub(r'^https?://', '', url).split('/')[0]
-        raise SocialError('unreachable', f"Could not reach {host}: {str(e)[:120]}", transient=True)
+        raise SocialError('unreachable', f"Could not reach {host}: {str(e)[:120]}", transient=True, ambiguous=_maybe_sent(e))
 
 
 def rjson(r):
@@ -265,23 +289,35 @@ def _doc(business_id, platform):
 
 
 def get_account(business_id, platform):
-    """Doc tài khoản dùng được (đã nối HOẶC cần nối lại — để báo đúng lỗi), hoặc None."""
+    """Doc tài khoản dùng được (đã nối, cần nối lại, hoặc Google Business chờ chọn địa điểm — để báo đúng lỗi), hoặc None."""
     d = _doc(business_id, platform)
-    if not _usable(d) or d.get('status') not in ('connected', 'needs_reconnect'):
+    if not _usable(d) or d.get('status') not in ('connected', 'needs_reconnect', 'needs_location'):
         return None
     return d
 
 
+def needs_location(d):
+    """Google Business chưa có địa điểm do chủ tiệm chọn: 'needs_location', hoặc tài khoản nối bằng bản cũ (tự lấy địa điểm
+    đầu tiên trong nhiều địa điểm, chưa ai xác nhận) — coi như chưa chọn, không đăng vào địa điểm đoán bừa."""
+    if not d or d.get('platform') != 'google_business':
+        return False
+    if d.get('status') == 'needs_location':
+        return True
+    return d.get('status') == 'connected' and len(d.get('location_choices') or []) > 1 and not d.get('location_picked')
+
+
 def is_connected(business_id, platform):
+    """Chỉ 'connected' mới đăng được: 'needs_location' (Google trả nhiều địa điểm, chủ tiệm chưa chọn) thì KHÔNG — tự lấy
+    địa điểm đầu tiên là đăng nhầm sang tiệm khác của cùng tài khoản Google."""
     d = get_account(business_id, platform)
-    return bool(d and d.get('status') == 'connected')
+    return bool(d and d.get('status') == 'connected' and not needs_location(d))
 
 
 def _save(business_id, platform, external_id, account_name, token, connected_via, refresh_token=None, expires_in=None,
-          scopes=None, extra=None):
+          scopes=None, extra=None, status='connected'):
     _ensure_indexes()
     old = _doc(business_id, platform) or {}
-    if test_mode() and old.get('status') == 'connected' and not old.get('qa_test'):
+    if test_mode() and old.get('status') in ('connected', 'needs_location') and not old.get('qa_test'):
         # máy local đang trỏ máy giả: không được ghi đè tài khoản THẬT của tiệm trong DB dùng chung
         raise SocialError('real_account_exists', 'This shop already has a real account connected — test runs must not overwrite it.',
                           platform=platform)
@@ -289,14 +325,14 @@ def _save(business_id, platform, external_id, account_name, token, connected_via
     ext = str(external_id or '')[:160]
     if refresh_token:
         rt_enc = _vault.encrypt_secret(refresh_token)
-    elif connected_via == 'oauth' and old.get('external_id') == ext and bool(old.get('qa_test')) == test_mode():
+    elif connected_via == 'oauth' and ext and old.get('external_id') == ext and bool(old.get('qa_test')) == test_mode():
         # Google không trả lại refresh token khi đã đồng ý trước đó: chỉ giữ token cũ nếu CÙNG kênh/địa điểm
-        # (giữ token của tài khoản khác = đăng nhầm sang kênh khác)
+        # (giữ token của tài khoản khác = đăng nhầm sang kênh khác; chưa chọn địa điểm = chưa biết là cùng -> không giữ)
         rt_enc = old.get('refresh_token_enc')
     else:
         rt_enc = None
     doc = {
-        'business_id': business_id, 'platform': platform, 'status': 'connected',
+        'business_id': business_id, 'platform': platform, 'status': status,
         'account_name': (account_name or '')[:120], 'external_id': ext,
         'token_enc': _vault.encrypt_secret(token),
         'refresh_token_enc': rt_enc,
@@ -417,7 +453,7 @@ def oauth_finish(business_id, platform, code, redirect_uri):
             raise SocialError('scope_missing', 'Google sign-in did not include every permission BitPaw needs — tick all boxes and try again.',
                               ' '.join(sorted(need - granted)), platform=platform)
         hdr = {'Authorization': f'Bearer {access}'}
-        extra = {}
+        extra, status = {}, 'connected'
         if platform == 'youtube':
             r = http('GET', f"{GOOGLE_API}/youtube/v3/channels", params={'part': 'snippet', 'mine': 'true'}, headers=hdr)
             if r.status_code >= 300:
@@ -428,10 +464,22 @@ def oauth_finish(business_id, platform, code, redirect_uri):
                                   platform=platform)
             ext, name = items[0].get('id'), ((items[0].get('snippet') or {}).get('title') or '')
         else:
-            ext, name, choices = _gbp_locations(hdr)
+            choices = _gbp_locations(hdr)
             extra['location_choices'] = choices
+            old = _doc(business_id, platform) or {}
+            keep = (next((c for c in choices if c['id'] == old.get('external_id')), None)
+                    if _usable(old) and old.get('location_picked') else None)
+            if len(choices) == 1 or keep:
+                # 1 địa điểm, hoặc nối lại mà địa điểm chủ tiệm ĐÃ CHỌN vẫn còn trong danh sách -> dùng luôn
+                pick = keep or choices[0]
+                ext, name = pick['id'], pick['name']
+                extra['location_picked'] = True
+            else:
+                # nhiều địa điểm (chuỗi tiệm / tài khoản agency): KHÔNG tự lấy cái đầu — chờ chủ tiệm chọn đúng tiệm này
+                ext, name, status = '', '', 'needs_location'
+                extra['location_picked'] = False
         return _save(business_id, platform, ext, name, access, 'oauth', refresh_token=tok.get('refresh_token'),
-                     expires_in=tok.get('expires_in') or 3600, scopes=sorted(granted or need), extra=extra)
+                     expires_in=tok.get('expires_in') or 3600, scopes=sorted(granted or need), extra=extra, status=status)
     key, sec = _tiktok_creds()
     r = http('POST', f"{TIKTOK_API}/v2/oauth/token/", data={'client_key': key, 'client_secret': sec, 'code': code,
                                                             'grant_type': 'authorization_code', 'redirect_uri': redirect_uri},
@@ -453,7 +501,8 @@ def oauth_finish(business_id, platform, code, redirect_uri):
 
 
 def _gbp_locations(hdr):
-    """Tài khoản + địa điểm Google Business Profile của người vừa đăng nhập (lấy địa điểm đầu, giữ danh sách để đổi)."""
+    """Danh sách địa điểm Google Business Profile của người vừa đăng nhập [{id: 'accounts/x/locations/y', name}]
+    (≥ 1, tối đa 30). Có nhiều địa điểm thì chủ tiệm phải tự chọn (select_location) — xem oauth_finish."""
     r = http('GET', f"{GBP_ACCOUNTS_API}/v1/accounts", headers=hdr)
     if r.status_code >= 300:
         raise google_error(r, 'google_business')
@@ -471,18 +520,22 @@ def _gbp_locations(hdr):
                 break
     if not choices:
         raise SocialError('gbp_no_location', 'No Business Profile location was found for this Google account.', platform='google_business')
-    return choices[0]['id'], choices[0]['name'], choices
+    return choices
 
 
 def select_location(business_id, location):
+    """Chủ tiệm chọn địa điểm Google Business Profile (trong danh sách Google đã trả lúc đăng nhập).
+    'needs_location' -> 'connected'; tài khoản đang 'needs_reconnect' thì giữ nguyên trạng thái đó."""
     d = get_account(business_id, 'google_business')
     if not d:
         raise SocialError('not_connected', 'Google Business Profile is not connected.', platform='google_business')
     pick = next((c for c in d.get('location_choices') or [] if c.get('id') == location), None)
     if not pick:
         raise SocialError('bad_location', 'Pick one of the locations Google listed for your account.', platform='google_business')
-    db.social_accounts.update_one({'business_id': business_id, 'platform': 'google_business'},
-                                  {'$set': {'external_id': pick['id'], 'account_name': pick['name'], 'updated_at': utcnow()}})
+    upd = {'external_id': pick['id'], 'account_name': pick['name'], 'location_picked': True, 'updated_at': utcnow()}
+    if d.get('status') == 'needs_location':
+        upd['status'] = 'connected'
+    db.social_accounts.update_one({'business_id': business_id, 'platform': 'google_business'}, {'$set': upd})
     return public_status(business_id)['google_business']
 
 
@@ -572,13 +625,24 @@ def note_error(business_id, platform, err):
                                   {'$set': {'last_error': _err_doc(err), 'updated_at': utcnow()}})
 
 
+def _google_grant_shared(business_id, platform):
+    """YouTube và Google Business dùng CHUNG 1 app Google (include_granted_scopes=true): thu hồi token của 1 bên là Google
+    thu hồi cả quyền đã cấp cho bên kia (nếu cùng tài khoản Google). Bên kia còn nối thì KHÔNG thu hồi phía Google."""
+    other = {'youtube': 'google_business', 'google_business': 'youtube'}.get(platform)
+    if not other:
+        return False
+    o = _doc(business_id, other) or {}
+    return _usable(o) and o.get('connected_via') == 'oauth' and o.get('status') in ('connected', 'needs_reconnect', 'needs_location')
+
+
 def disconnect(business_id, platform):
     d = _doc(business_id, platform) or {}
     if _usable(d) and d.get('connected_via') == 'oauth':
-        # thu hồi quyền phía Google/TikTok (cố gắng; lỗi mạng không chặn việc ngắt ở BitPaw)
+        # thu hồi quyền phía Google/TikTok (cố gắng; lỗi mạng không chặn việc ngắt ở BitPaw). Google: chỉ khi bên Google
+        # còn lại (YouTube / Business Profile) không còn nối — bỏ token ở BitPaw là đủ ngắt, không làm hỏng bên kia.
         tok = _vault.decrypt_secret(d.get('refresh_token_enc')) or _vault.decrypt_secret(d.get('token_enc'))
         try:
-            if tok and platform in GOOGLE_SCOPES:
+            if tok and platform in GOOGLE_SCOPES and not _google_grant_shared(business_id, platform):
                 http('POST', f"{GOOGLE_OAUTH}/revoke", params={'token': tok}, timeout=8)
             elif tok and platform == 'tiktok' and all(_tiktok_creds()):
                 key, sec = _tiktok_creds()
@@ -610,6 +674,8 @@ def public_status(business_id):
         d = docs.get(p) or {}
         usable = _usable(d)
         status = d.get('status') if usable and d.get('status') else 'disconnected'
+        if usable and needs_location(d):
+            status = 'needs_location'   # cả tài khoản nối bằng bản cũ (tự lấy địa điểm đầu) — chủ tiệm phải xác nhận
         last_error = d.get('last_error') if usable else None
         if d and not usable and d.get('status') == 'connected':
             last_error = {'code': 'test_connection', 'message': 'This connection was made by a test run and is not used here.', 'at': None}
@@ -625,7 +691,9 @@ def public_status(business_id):
             'can_oauth': p in OAUTH_PLATFORMS and oauth_configured(p), 'inbox_available': bool(inbox.get(p)),
             'methods': ['inbox', 'token'] if p in INBOX_CHANNEL else ['oauth'],
         }
-        if p == 'google_business' and usable:
-            row['location_choices'] = d.get('location_choices') or []
+        if p == 'google_business':
+            # Google trả nhiều địa điểm: chủ tiệm chọn 1 (POST {action:'connect_token', fields:{location: <id>}}) mới đăng được
+            row['needs_location'] = status == 'needs_location'
+            row['location_choices'] = (d.get('location_choices') or []) if usable else []
         out[p] = row
     return out

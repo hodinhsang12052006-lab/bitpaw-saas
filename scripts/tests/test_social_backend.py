@@ -165,7 +165,7 @@ def _project(doc, proj):
 
 class Res:
     def __init__(self, matched=0, inserted_id=None):
-        self.matched_count = self.modified_count = matched
+        self.matched_count = self.modified_count = self.deleted_count = matched
         self.inserted_id = inserted_id
 
 
@@ -283,8 +283,9 @@ MEDIA = {}
 
 
 class FakeGridOut:
-    def __init__(self, data, content_type, kind, business_id):
-        self._data, self.content_type, self.kind, self.business_id, self.length = data, content_type, kind, business_id, len(data)
+    def __init__(self, data, content_type, kind, business_id, length=None):
+        self._data, self.content_type, self.kind, self.business_id = data, content_type, kind, business_id
+        self.length = len(data) if length is None else length   # length giả: thử ảnh "nặng" mà không cấp phát nhiều MB
 
     def read(self):
         return self._data
@@ -298,18 +299,35 @@ def _ms_get(file_id, business_id=None):
 
 
 sys.modules['media_store'] = types.SimpleNamespace(
-    KINDS={'ai_image', 'ai_video', 'promo_video', 'social_upload'}, get=_ms_get,
+    KINDS={'ai_image', 'ai_video', 'promo_video', 'social_upload'}, get=_ms_get, FULL_MAX=3_200_000,
     public_url=lambda fid, ext: f"/m/{fid}.tok.{ext}",
     absolute_public_url=lambda fid, ext, base: f"{base.rstrip('/')}/m/{fid}.tok.{ext}")
 sys.modules['messaging'] = types.SimpleNamespace(get_settings=lambda bid: {'timezone': 'Australia/Sydney', 'language': 'en'})
-AI = {'fn': None, 'calls': 0}
+AI = {'fn': None, 'calls': 0, 'payloads': []}
 
 
 def _deepseek(system, user, temperature, max_tokens, business_id):
     AI['calls'] += 1
     if AI['fn'] is None:
         raise AssertionError('DeepSeek must not be called here')
-    return AI['fn'](system, user)
+    out = AI['fn'](system, user)
+    return out[0] if isinstance(out, tuple) else out
+
+
+def _ds_completion(payload, business_id=None, proxy_api_key=None, direct_api_key=None, timeout=45):
+    """Giả ai_deepseek_client.deepseek_chat_completion (kế hoạch tuần gọi thẳng để đọc finish_reason).
+    AI['fn'] trả text hoặc (text, finish_reason)."""
+    AI['calls'] += 1
+    AI['payloads'].append(payload)
+    if AI['fn'] is None:
+        raise AssertionError('DeepSeek must not be called here')
+    msgs = payload['messages']
+    out = AI['fn'](msgs[0]['content'], msgs[1]['content'])
+    text, finish = out if isinstance(out, tuple) else (out, 'stop')
+    return {'choices': [{'message': {'content': text}, 'finish_reason': finish}]}
+
+
+sys.modules['ai_deepseek_client'] = types.SimpleNamespace(deepseek_chat_completion=_ds_completion)
 
 
 sys.modules['ai_studio_bp'] = types.SimpleNamespace(_call_deepseek_text=_deepseek,
@@ -435,7 +453,7 @@ def reset():
     DB.reset()
     HTTP.reset()
     MEDIA.clear()
-    AI['fn'], AI['calls'] = None, 0
+    AI['fn'], AI['calls'], AI['payloads'] = None, 0, []
     os.environ.update(TEST_ENV)
     for k in ('VERCEL_ENV', 'SOCIAL_ALLOW_TICK'):
         os.environ.pop(k, None)
@@ -455,8 +473,9 @@ def account(bid, platform, ext, token='tok', qa=True, **extra):
     DB.social_accounts.insert_one(doc)
 
 
-def media(fid, ct, kind='social_upload', bid='biz1', data=None):
-    MEDIA[fid] = FakeGridOut(data or (b'\xff\xd8\xff' + b'x' * 64 if ct.startswith('image') else b'\x00' * 256), ct, kind, bid)
+def media(fid, ct, kind='social_upload', bid='biz1', data=None, length=None):
+    MEDIA[fid] = FakeGridOut(data or (b'\xff\xd8\xff' + b'x' * 64 if ct.startswith('image') else b'\x00' * 256), ct, kind, bid,
+                             length)
 
 
 def mp4(seconds, pad=2048):
@@ -564,17 +583,28 @@ def test_fb_native_schedule():
 def test_ig_reels_two_runs():
     reset()
     account('biz1', 'instagram', 'IG1', 'ig-token')
-    media('vid1', 'video/mp4', kind='ai_video')
+    vid = mp4(9, pad=9000)
+    media('vid1', 'video/mp4', kind='ai_video', data=vid)
 
     def create(c):
         check('reels media_type', c.data['media_type'] == 'REELS' and c.data['share_to_feed'] == 'true')
-        check('reels public https url', c.data['video_url'] == 'https://www.bitpawsoftware.com/m/vid1.tok.mp4')
-        return {'id': 'C1'}
+        # SOC-3: Reels tải byte thẳng lên Instagram (resumable) — không nhờ Instagram tải link /m/ (Vercel cắt file lớn)
+        check('reels resumable, no video_url', c.data.get('upload_type') == 'resumable' and 'video_url' not in c.data)
+        # link Meta trả về ở host khác host rupload đã cấu hình -> không dùng (token không đi tới host lạ)
+        return {'id': 'C1', 'uri': 'https://rupload.facebook.com/ig-api-upload/v23.0/C1'}
+
+    def rupload(c):
+        check('rupload OAuth header + offset + size', c.headers.get('Authorization') == 'OAuth ig-token'
+              and c.headers.get('offset') == '0' and c.headers.get('file_size') == str(len(vid)))
+        check('rupload sends the whole file', c.data == vid)
+        return {'success': True, 'message': 'Upload successful.'}
     HTTP.on('POST', r'/IG1/media$', create)
+    HTTP.on('POST', r'meta\.mock/ig-api-upload/v23\.0/C1$', rupload)
     p = post(caption='Watch this', hashtags=['nailart'], media_file_ids=['vid1'], targets=['instagram'])
     t0 = now0()
     st = sp.run_due('biz1', now=t0)
     t = target(p['id'], 'instagram')
+    check('reels uploaded once', len(HTTP.find('POST', 'ig-api-upload')) == 1)
     check('reels processing', st['processing'] == 1 and t['status'] == 'processing' and t['container_id'] == 'C1')
     check('post publishing', stored(p['id'])['status'] == 'publishing')
     check('not polled before next_attempt_at', sp.run_due('biz1', now=t0 + timedelta(seconds=10))['claimed'] == 0)
@@ -978,7 +1008,7 @@ def test_ai_captions_plan_review():
     seen = {}
 
     def planner_ai(s, u):
-        seen['user'] = u
+        seen['user'] = seen.get('user', '') + u   # các lô chạy song song: gom prompt của mọi lô
         items = json.loads(u.split('ITEMS:\n', 1)[1])
         return json.dumps({'posts': [{'idx': it['idx'], 'caption': f"Post {it['idx']} about {it['type']}",
                                       'instagram': f"IG {it['idx']} #nails", 'hashtags': ['nails', 'gel'],
@@ -1106,6 +1136,543 @@ def test_routes():
     r = c.post('/api/social/pump')
     check('pump ok', r.status_code == 200 and r.get_json()['success'])
     check('pump throttled', c.post('/api/social/pump').get_json().get('skipped') is True)
+
+
+# ================================================================ hồi quy các lỗi review (2026-10-25)
+def _iso(dt):
+    return dt.isoformat().replace('+00:00', 'Z')
+
+
+def _expect(name, fn, code, platform=None):
+    try:
+        fn()
+        check(name, False, f'expected {code}')
+    except sa.SocialError as e:
+        check(name, e.code == code and (platform is None or e.platform == platform), f'{e.code}/{e.platform}: {e}')
+
+
+def _app():
+    import flask
+    import social_bp
+    app = flask.Flask('t')
+    app.secret_key = 'x'
+    app.register_blueprint(social_bp.social_bp)
+    return app.test_client()
+
+
+def _login(c, uid, role):
+    with c.session_transaction() as s:
+        s['user_id'], s['business_id'], s['role'] = uid, 'biz1', role
+
+
+def test_sec2_staff_cannot_keep_or_set_schedule():
+    """SEC-2: nhân viên gửi status null / '' / không phải chuỗi không được giữ bài 'scheduled' đã duyệt để đăng nội dung mới."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1')
+    HTTP.on('POST', r'/PAGE1/feed$', {'id': 'PAGE1_x'})
+    c = _app()
+    when = _iso(now0() + timedelta(hours=3))
+    _login(c, 'owner1', 'admin')
+    j = c.post('/api/social/posts', json={'caption': 'Owner text', 'targets': [{'platform': 'facebook'}], 'status': 'scheduled',
+                                          'scheduled_at': when}).get_json()
+    pid = j['post']['id']
+    check('owner scheduled', j['post']['status'] == 'scheduled' and j['post']['approved_by'] == 'owner1')
+    _login(c, 'staff1', 'staff')
+    for bad in (None, ''):
+        DB.social_posts.update_one({'id': pid}, {'$set': {'status': 'scheduled', 'approved_by': 'owner1'}})
+        r = c.put(f'/api/social/posts/{pid}', json={'caption': f'Staff text {bad!r}', 'status': bad})
+        doc = stored(pid)
+        check(f'staff status={bad!r} -> pending_approval', r.status_code == 200 and doc['status'] == 'pending_approval'
+              and doc['approved_by'] is None, (r.get_json(), doc['status'], doc['approved_by']))
+    r = c.put(f'/api/social/posts/{pid}', json={'caption': 'x', 'status': ['scheduled']})
+    check('staff non-string status -> 400 bad_status', r.status_code == 400 and r.get_json()['code'] == 'bad_status')
+    r = c.put(f'/api/social/posts/{pid}', json={'caption': 'x', 'status': 'scheduled'})
+    check('staff asks scheduled -> pending_approval', stored(pid)['status'] == 'pending_approval')
+    check('nothing published without approval', sp.run_due('biz1', now=now0() + timedelta(hours=4))['claimed'] == 0
+          and not HTTP.find('POST', '/PAGE1/feed'))
+    # chặn cả ở tầng engine (gọi thẳng update_post / create_post với is_admin=False)
+    DB.social_posts.update_one({'id': pid}, {'$set': {'status': 'scheduled'}})
+    out = sp.update_post('biz1', pid, {'caption': 'direct', 'status': None}, 'staff1', is_admin=False)
+    check('engine: staff edit of scheduled -> pending', out['status'] == 'pending_approval')
+    p2 = sp.create_post('biz1', 'staff1', {'caption': 'c', 'targets': ['facebook'], 'status': 'scheduled'}, is_admin=False)
+    check('engine: staff create scheduled -> pending', p2['status'] == 'pending_approval' and p2['approved_by'] is None)
+
+
+def _gbp_oauth_routes(locations):
+    HTTP.on('POST', r'gauth\.mock/token$', {'access_token': 'ya29.G', 'refresh_token': 'rt-g', 'expires_in': 3599,
+                                            'scope': sa.GOOGLE_SCOPES['google_business']})
+    HTTP.on('GET', r'gbp\.mock/v1/accounts$', {'accounts': [{'name': 'accounts/1'}]})
+    HTTP.on('GET', r'gbp\.mock/v1/accounts/1/locations$', {'locations': locations})
+
+
+def test_sec3_gbp_multi_location_needs_choice():
+    """SEC-3: nhiều địa điểm Google -> 'needs_location' (không tự lấy cái đầu), không đăng được tới khi chủ tiệm chọn."""
+    reset()
+    _gbp_oauth_routes([{'name': 'locations/2', 'title': 'Shop A'}, {'name': 'locations/3', 'title': 'Shop B'}])
+    row = sa.oauth_finish('biz1', 'google_business', 'code-1', 'http://x/cb')
+    check('needs_location, not connected', row['status'] == 'needs_location' and row['connected'] is False
+          and row['needs_location'] is True and row['external_id'] == '' and len(row['location_choices']) == 2, row)
+    check('is_connected refuses', not sa.is_connected('biz1', 'google_business'))
+    _expect('schedule refused until a location is picked', lambda: post(caption='x', targets=['google_business']),
+            'needs_location', 'google_business')
+    _expect('unknown location refused', lambda: sa.connect_token('biz1', 'google_business', {'location': 'accounts/9/locations/9'}),
+            'bad_location')
+    c = _app()
+    _login(c, 'owner1', 'admin')
+    r = c.post('/api/social/accounts/google_business', json={'action': 'connect_token', 'fields': {'location': 'accounts/1/locations/3'}})
+    row = r.get_json()['data']
+    check('picked Shop B -> connected', r.status_code == 200 and row['connected'] and row['external_id'] == 'accounts/1/locations/3'
+          and row['account_name'] == 'Shop B' and row['needs_location'] is False, row)
+    HTTP.on('POST', r'gbp\.mock/v4/accounts/1/locations/3/localPosts$', {'name': 'accounts/1/locations/3/localPosts/L1', 'state': 'LIVE'})
+    p = post(caption='Shop B news', targets=['google_business'])
+    sp.run_due('biz1', now=now0())
+    check('posted to the chosen location only', target(p['id'], 'google_business')['status'] == 'published'
+          and not HTTP.find('POST', 'locations/2/localPosts'))
+    row = sa.oauth_finish('biz1', 'google_business', 'code-2', 'http://x/cb')
+    check('re-login keeps the chosen location', row['connected'] and row['external_id'] == 'accounts/1/locations/3')
+    # 1 địa điểm -> nối luôn (như trước)
+    reset()
+    _gbp_oauth_routes([{'name': 'locations/5', 'title': 'Only shop'}])
+    row = sa.oauth_finish('biz1', 'google_business', 'code-3', 'http://x/cb')
+    check('single location connects directly', row['connected'] and row['external_id'] == 'accounts/1/locations/5')
+    # tài khoản nối bằng bản cũ (tự lấy địa điểm đầu trong nhiều địa điểm, chưa ai xác nhận) -> coi như chưa chọn
+    reset()
+    choices = [{'id': 'accounts/1/locations/2', 'name': 'Shop A'}, {'id': 'accounts/1/locations/3', 'name': 'Shop B'}]
+    account('biz1', 'google_business', 'accounts/1/locations/2', 'ya29', connected_via='oauth',
+            token_expires_at=now0() + timedelta(hours=1), location_choices=choices)
+    st = sa.public_status('biz1')['google_business']
+    check('legacy auto-pick shown as needs_location', st['status'] == 'needs_location' and st['connected'] is False and st['needs_location'])
+    _expect('legacy auto-pick cannot post', lambda: post(caption='x', targets=['google_business']), 'needs_location')
+    _gbp_oauth_routes([{'name': 'locations/2', 'title': 'Shop A'}, {'name': 'locations/3', 'title': 'Shop B'}])
+    row = sa.oauth_finish('biz1', 'google_business', 'code-4', 'http://x/cb')
+    check('re-login does not keep an unconfirmed pick', row['status'] == 'needs_location')
+    row = sa.connect_token('biz1', 'google_business', {'location': 'accounts/1/locations/2'})
+    check('owner confirms Shop A -> connected', row['connected'] and row['external_id'] == 'accounts/1/locations/2')
+
+
+def _yt_routes(vid_id='VIDP'):
+    seen = []
+
+    def init(c):
+        seen.append(c.json['status'])
+        return FakeResp(200, {}, {'Location': 'http://google.mock/upload/session/p'})
+    HTTP.on('POST', r'google\.mock/upload/youtube/v3/videos$', init)
+    HTTP.on('PUT', r'google\.mock/upload/session/p$', {'id': vid_id, 'status': {'privacyStatus': 'private'}})
+    return seen
+
+
+def test_soc1_prepush_only_inside_own_window():
+    """SOC-1 / F1: bài nhận vì khung của YouTube không được đăng NGAY lên Facebook (và ngược lại)."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1', 'fb')
+    account('biz1', 'youtube', 'UC1', 'ya29', connected_via='oauth', token_expires_at=now0() + timedelta(hours=2))
+    media('vidP', 'video/mp4', kind='ai_video', data=mp4(8))
+    HTTP.on('POST', r'/PAGE1/videos$', lambda c: {'id': 'VD1'})
+    yt = _yt_routes()
+    t0 = now0()
+    far = post(caption='Far', title='Far', media_file_ids=['vidP'], targets=['facebook', 'youtube'],
+               scheduled_at=_iso(t0 + timedelta(days=40)))
+    sp.run_due('biz1', now=t0)
+    check('40 days: YouTube pre-pushed natively', target(far['id'], 'youtube')['status'] == 'scheduled_remote'
+          and yt and yt[0]['privacyStatus'] == 'private' and 'publishAt' in yt[0])
+    check('40 days: Facebook NOT posted early', target(far['id'], 'facebook')['status'] == 'pending'
+          and not HTTP.find('POST', '/PAGE1/videos') and stored(far['id'])['status'] == 'scheduled')
+    HTTP.calls.clear()
+    near = post(caption='Near', title='Near', media_file_ids=['vidP'], targets=['facebook', 'youtube'],
+                scheduled_at=_iso(t0 + timedelta(minutes=13)))
+    sp.run_due('biz1', now=t0)
+    fbcall = HTTP.find('POST', '/PAGE1/videos')
+    check('13 min: Facebook pre-pushed with published=false', target(near['id'], 'facebook')['status'] == 'scheduled_remote'
+          and len(fbcall) == 1 and fbcall[0].data.get('published') == 'false')
+    check('13 min: YouTube NOT uploaded early', target(near['id'], 'youtube')['status'] == 'pending'
+          and not HTTP.find('POST', 'upload/youtube'))
+    # tới giờ: YouTube tải lên bình thường (công khai, không publishAt)
+    yt.clear()
+    sp.run_due('biz1', now=t0 + timedelta(minutes=13, seconds=5))
+    check('due: YouTube uploaded at its time', target(near['id'], 'youtube')['status'] == 'published'
+          and yt and yt[0]['privacyStatus'] == 'public' and 'publishAt' not in yt[0])
+
+
+def test_soc12_youtube_unlisted_never_native_and_no_starvation():
+    """SOC-12: chủ tiệm chọn 'unlisted' -> không dùng publishAt (sẽ thành công khai); bài đó không chặn đẩy trước bài khác."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1', 'fb')
+    account('biz1', 'youtube', 'UC1', 'ya29', connected_via='oauth', token_expires_at=now0() + timedelta(days=3))
+    media('vidU', 'video/mp4', kind='promo_video', data=mp4(6))
+    yt = _yt_routes('VIDU')
+    HTTP.on('POST', r'/PAGE1/feed$', {'id': 'PAGE1_9'})
+    t0 = now0()
+    u = post(caption='Unlisted', title='Unlisted', media_file_ids=['vidU'], scheduled_at=_iso(t0 + timedelta(days=1)),
+             targets=[{'platform': 'youtube', 'options': {'privacy_status': 'unlisted'}}])
+    f = post(caption='FB later', targets=['facebook'], scheduled_at=_iso(t0 + timedelta(days=2)))
+    sp.run_due('biz1', now=t0)
+    check('unlisted video not pre-pushed', target(u['id'], 'youtube')['status'] == 'pending' and not yt)
+    check('other post still pre-pushed (no starvation)', target(f['id'], 'facebook')['status'] == 'scheduled_remote')
+    sp.run_due('biz1', now=t0 + timedelta(days=1, seconds=5))
+    check('due: uploaded as unlisted without publishAt', target(u['id'], 'youtube')['status'] == 'published'
+          and yt[0]['privacyStatus'] == 'unlisted' and 'publishAt' not in yt[0], yt)
+
+
+def _fb_prepushed(caption='Sched', hours=2, pid='PAGE1_5'):
+    HTTP.on('POST', r'/PAGE1/feed$', {'id': pid})
+    p = post(caption=caption, targets=['facebook'], scheduled_at=_iso(now0() + timedelta(hours=hours)))
+    sp.run_due('biz1', now=now0())
+    check('fixture pre-pushed', target(p['id'], 'facebook')['status'] == 'scheduled_remote')
+    return p
+
+
+def test_soc2_cancel_delete_keep_remote_id_on_failure():
+    """SOC-2: gỡ lịch trên Meta lỗi -> KHÔNG báo đã huỷ, giữ remote_id; force mới huỷ (vẫn giữ remote_id + cảnh báo)."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1', 'fb')
+    p = _fb_prepushed()
+    HTTP.on('DELETE', r'/v23\.0/PAGE1_5$', (500, {'error': {'message': 'boom', 'code': 2, 'is_transient': True}}))
+    _expect('cancel refused when Meta delete fails', lambda: sp.cancel('biz1', p['id']), 'remote_cancel_failed', 'facebook')
+    t = target(p['id'], 'facebook')
+    check('still scheduled with remote id kept', stored(p['id'])['status'] == 'scheduled' and t['status'] == 'scheduled_remote'
+          and t['remote_id'] == 'PAGE1_5' and stored(p['id'])['lease_owner'] is None)
+    _expect('delete refused too', lambda: sp.delete('biz1', p['id']), 'remote_cancel_failed')
+    check('doc still there', stored(p['id']) is not None)
+    HTTP.on('DELETE', r'/v23\.0/PAGE1_5$', (400, {'error': {'message': 'Session has expired', 'code': 190}}))
+    _expect('token error -> refused', lambda: sp.cancel('biz1', p['id']), 'remote_cancel_failed')
+    check('account marked needs_reconnect', DB.social_accounts.find_one({'platform': 'facebook'})['status'] == 'needs_reconnect')
+    c = _app()
+    _login(c, 'owner1', 'admin')
+    r = c.post(f"/api/social/posts/{p['id']}/cancel", json={})
+    check('route: 409 remote_cancel_failed', r.status_code == 409 and r.get_json()['code'] == 'remote_cancel_failed')
+    r = c.post(f"/api/social/posts/{p['id']}/cancel", json={'force': True})
+    j = r.get_json()
+    t = target(p['id'], 'facebook')
+    check('force: canceled, remote id kept, warning returned', r.status_code == 200 and j['post']['status'] == 'canceled'
+          and t['status'] == 'scheduled_remote' and t['remote_id'] == 'PAGE1_5'
+          and [w['code'] for w in j['warnings']] == ['remote_cancel_failed'], j)
+    # gỡ được -> huỷ bình thường, đích làm lại từ đầu
+    reset()
+    account('biz1', 'facebook', 'PAGE1', 'fb')
+    p = _fb_prepushed(pid='PAGE1_6')
+    HTTP.on('DELETE', r'/v23\.0/PAGE1_6$', {'success': True})
+    out = sp.cancel('biz1', p['id'])
+    check('cancel ok -> remote removed', out['status'] == 'canceled' and target(p['id'], 'facebook')['remote_id'] is None
+          and out['warnings'] == [])
+
+
+def test_soc4_no_delete_before_validation_or_after_live():
+    """SOC-4: sửa bị từ chối (giờ đã qua) thì KHÔNG xoá bài hẹn trên Meta; bài đã tới giờ (đã lên) không bị xoá khi sửa /
+    đăng ngay / huỷ; gỡ được 1 nền tảng rồi nền tảng sau lỗi thì phần đã gỡ vẫn được ghi lại."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1', 'fb')
+    p = _fb_prepushed()
+    HTTP.on('DELETE', r'/v23\.0/PAGE1_5$', {'success': True})
+    _expect('edit with past time refused', lambda: sp.update_post('biz1', p['id'], {'scheduled_at': _iso(now0() - timedelta(hours=1))}, 'u1'),
+            'time_in_past')
+    check('no DELETE before validation passed', not HTTP.find('DELETE', 'PAGE1_5')
+          and target(p['id'], 'facebook')['status'] == 'scheduled_remote')
+    # Meta đã đăng lúc tới giờ, BitPaw chưa kịp kiểm tra
+    DB.social_posts.update_one({'id': p['id']}, {'$set': {'scheduled_at': now0() - timedelta(minutes=2)}})
+    _expect('edit of live post refused', lambda: sp.update_post('biz1', p['id'], {'caption': 'new'}, 'u1'), 'already_live', 'facebook')
+    _expect('publish_now of live post refused', lambda: sp.publish_now('biz1', p['id'], 'u1'), 'already_live')
+    _expect('cancel of live post refused', lambda: sp.cancel('biz1', p['id']), 'already_live')
+    check('live post never deleted', not HTTP.find('DELETE', 'PAGE1_5') and not HTTP.find('POST', '/PAGE1/feed')[1:])
+    w = sp.delete('biz1', p['id'])
+    check('BitPaw-only delete leaves it on Facebook', stored(p['id']) is None and [x['code'] for x in w] == ['already_live']
+          and not HTTP.find('DELETE', 'PAGE1_5'))
+    # gỡ Facebook xong, YouTube lỗi -> Facebook đã gỡ được ghi lại, YouTube giữ remote_id
+    reset()
+    account('biz1', 'facebook', 'PAGE1', 'fb')
+    account('biz1', 'youtube', 'UC1', 'ya29', connected_via='oauth', token_expires_at=now0() + timedelta(hours=5))
+    media('vidQ', 'video/mp4', kind='ai_video', data=mp4(5))
+    HTTP.on('POST', r'/PAGE1/videos$', {'id': 'VD9'})
+    _yt_routes('VIDQ')
+    q = post(caption='Both', title='Both', media_file_ids=['vidQ'], targets=['facebook', 'youtube'],
+             scheduled_at=_iso(now0() + timedelta(hours=2)))
+    sp.run_due('biz1', now=now0())
+    check('both pre-pushed', target(q['id'], 'facebook')['status'] == 'scheduled_remote' and target(q['id'], 'youtube')['status'] == 'scheduled_remote')
+    HTTP.on('DELETE', r'/v23\.0/VD9$', {'success': True})
+    HTTP.on('DELETE', r'google\.mock/youtube/v3/videos$', (503, {'error': {'message': 'backend', 'errors': [{'reason': 'backendError'}]}}))
+    _expect('edit stops when YouTube cannot be unscheduled', lambda: sp.update_post('biz1', q['id'], {'caption': 'edit'}, 'u1'),
+            'remote_cancel_failed', 'youtube')
+    check('facebook removal persisted, youtube kept', target(q['id'], 'facebook')['status'] == 'pending'
+          and target(q['id'], 'facebook')['remote_id'] is None and target(q['id'], 'youtube')['remote_id'] == 'VIDQ'
+          and stored(q['id'])['caption'] == 'Both' and stored(q['id'])['lease_owner'] is None)
+
+
+def test_soc10_stale_read_cannot_overwrite_prepush():
+    """SOC-10: đọc bài -> bộ đăng đẩy lên Meta xen giữa -> huỷ/sửa dựa trên bản cũ bị từ chối ('busy'), lịch Meta không mất."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1', 'fb')
+    HTTP.on('POST', r'/PAGE1/feed$', {'id': 'PAGE1_7'})
+    p = post(caption='Race', targets=['facebook'], scheduled_at=_iso(now0() + timedelta(hours=2)))
+    stale = sp.get_post('biz1', p['id'])
+    sp.run_due('biz1', now=now0())   # đẩy trước lên Meta SAU khi màn hình đã đọc bài
+    orig, calls = sp._get, {'n': 0}
+
+    def stale_get(bid, pid):
+        calls['n'] += 1
+        return copy.deepcopy(stale) if calls['n'] == 1 else orig(bid, pid)
+    sp._get = stale_get
+    try:
+        _expect('cancel on stale copy -> busy', lambda: sp.cancel('biz1', p['id']), 'busy')
+    finally:
+        sp._get = orig
+    t = target(p['id'], 'facebook')
+    check('Meta schedule kept', stored(p['id'])['status'] == 'scheduled' and t['status'] == 'scheduled_remote'
+          and t['remote_id'] == 'PAGE1_7' and stored(p['id'])['lease_owner'] is None)
+    # đang khoá để sửa -> bộ đăng không nhận bài; trả khoá -> nhận lại được
+    p2 = post(caption='Locked', targets=['facebook'], scheduled_at=_iso(now0() + timedelta(hours=2)))
+    scope = sp._scope('biz1', None)
+    me = sp._lock(sp.get_post('biz1', p2['id']), sa.utcnow())
+    check('runner cannot claim while edit lock held', sp._claim(scope, now0(), 'w', 'prepush') is None)
+    sp._unlock(stored(p2['id']), me)
+    got = sp._claim(scope, now0(), 'w', 'prepush')
+    check('claimable again after unlock', got is not None and got['id'] == p2['id'])
+
+
+def test_soc3_big_photos_refused_for_url_fetch():
+    """SOC-3: ảnh lớn hơn media_store.FULL_MAX bị từ chối khi lên lịch cho Instagram / Google (tải qua link = ảnh cụt)."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1')
+    account('biz1', 'instagram', 'IG1')
+    account('biz1', 'google_business', 'accounts/1/locations/2', 'ya29', connected_via='oauth',
+            token_expires_at=now0() + timedelta(hours=1))
+    media('big', 'image/jpeg', length=3_500_000)
+    for p in ('instagram', 'google_business'):
+        _expect(f'{p}: big photo refused at schedule', lambda p=p: post(caption='x', media_file_ids=['big'], targets=['facebook', p]),
+                'media_too_large', p)
+    d = post(caption='x', media_file_ids=['big'], targets=['facebook', 'instagram'], status='draft')
+    w = {x['platform']: x for x in d['warnings']}
+    check('draft shows blocking warning', w['instagram']['code'] == 'media_too_large' and w['instagram']['blocking'] is True
+          and 'MB' in w['instagram']['message'])
+    check('nothing sent anywhere', not [c for c in HTTP.calls if c.method == 'POST'])
+    ok = post(caption='fine', media_file_ids=['big'], targets=['facebook'])
+    check('facebook alone still fine (uploads bytes)', ok['status'] == 'scheduled')
+    # bài cũ (lên lịch trước bản sửa) -> adapter vẫn chặn, không gửi ảnh cụt
+    DB.social_posts.update_one({'id': ok['id']}, {'$set': {'targets': [sp._fresh_target('instagram', {})]}})
+    sp.run_due('biz1', now=now0())
+    check('adapter fails honestly, no IG call', target(ok['id'], 'instagram')['error']['code'] == 'media_too_large'
+          and not HTTP.find('POST', '/IG1/media'))
+    media('small', 'image/jpeg', length=3_000_000)
+    check('photo under the limit accepted', post(caption='s', media_file_ids=['small'], targets=['instagram'])['status'] == 'scheduled')
+
+
+def test_soc8_facebook_photo_limits():
+    """SOC-8: WebP / > 4 MB bị báo trước + bỏ qua (không 'rejected' lúc đăng); PNG > 1 MB chỉ là lưu ý."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1')
+    HTTP.on('POST', r'/PAGE1/photos$', {'id': 'PH', 'post_id': 'PAGE1_p'})
+    media('webp', 'image/webp')
+    p = post(caption='w', media_file_ids=['webp'], targets=['facebook'])
+    check('webp warned', [(x['code'], x['skip']) for x in p['warnings']] == [('fb_photo_format', True)])
+    media('huge', 'image/jpeg', length=5_000_000)
+    p2 = post(caption='h', media_file_ids=['huge'], targets=['facebook'])
+    check('>4MB warned', p2['warnings'][0]['code'] == 'fb_photo_too_large')
+    media('png', 'image/png', length=1_500_000)
+    p3 = post(caption='p', media_file_ids=['png'], targets=['facebook'])
+    check('big PNG is only a note', [(x['code'], x['skip'], x['blocking']) for x in p3['warnings']] == [('fb_png_large', False, False)])
+    sp.run_due('biz1', now=now0())
+    check('webp + huge skipped without calling Facebook', target(p['id'], 'facebook')['status'] == 'skipped'
+          and target(p2['id'], 'facebook')['status'] == 'skipped' and len(HTTP.find('POST', '/PAGE1/photos')) == 1)
+    check('big PNG still posted', target(p3['id'], 'facebook')['status'] == 'published')
+
+
+def test_f6_ambiguous_create_never_reposted():
+    """F6: mất phản hồi SAU khi gửi lệnh tạo bài -> 'publish_uncertain' (không tự gửi lại); 'sending' còn sót -> không gửi lại."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1')
+    seen = {}
+
+    def feed_timeout(c):
+        seen['status_during_call'] = target(c_pid['id'], 'facebook')['status']
+        raise requests.exceptions.ReadTimeout('read timed out')
+    HTTP.on('POST', r'/PAGE1/feed$', feed_timeout)
+    c_pid = {}
+    p = post(caption='Maybe', targets=['facebook'])
+    c_pid['id'] = p['id']
+    t0 = now0()
+    sp.run_due('biz1', now=t0)
+    t = target(p['id'], 'facebook')
+    check("'sending' written before the create call", seen.get('status_during_call') == 'sending')
+    check('read timeout -> failed publish_uncertain', t['status'] == 'failed' and t['error']['code'] == 'publish_uncertain')
+    sp.run_due('biz1', now=t0 + timedelta(hours=1))
+    check('never re-posted automatically', len(HTTP.find('POST', '/PAGE1/feed')) == 1)
+    # chủ tiệm kiểm tra rồi bấm Đăng ngay -> gửi lại có chủ đích
+    HTTP.on('POST', r'/PAGE1/feed$', {'id': 'PAGE1_ok'})
+    got, _ = sp.publish_now('biz1', p['id'], 'u1')
+    check('owner can resend on purpose', got['status'] == 'published')
+    # lỗi CHƯA kết nối được (connect timeout) vẫn là lỗi tạm -> thử lại
+    reset()
+    account('biz1', 'facebook', 'PAGE1')
+
+    def connect_fail(c):
+        raise requests.exceptions.ConnectTimeout('connect timed out')
+    HTTP.on('POST', r'/PAGE1/feed$', connect_fail)
+    p = post(caption='Retry', targets=['facebook'])
+    sp.run_due('biz1', now=now0())
+    t = target(p['id'], 'facebook')
+    check('connect timeout -> transient retry', t['status'] == 'pending' and t['attempts'] == 1 and t['error']['code'] == 'unreachable')
+    # máy chết giữa lệnh tạo bài: đích còn 'sending', hết hạn thuê -> máy sau KHÔNG gửi lại
+    reset()
+    account('biz1', 'facebook', 'PAGE1')
+    p = post(caption='Crashed', targets=['facebook'])
+    DB.social_posts.update_one({'id': p['id']}, {'$set': {'status': 'publishing', 'targets.0.status': 'sending',
+                                                         'lease_owner': 'dead', 'lease_until': now0() - timedelta(minutes=1)}})
+    HTTP.calls.clear()
+    sp.run_due('biz1', now=now0())
+    t = target(p['id'], 'facebook')
+    check('stale sending -> publish_uncertain, no call', t['status'] == 'failed' and t['error']['code'] == 'publish_uncertain'
+          and not HTTP.calls and stored(p['id'])['status'] == 'failed')
+    # đẩy trước lên Meta bị chết giữa chừng (bài vẫn 'scheduled'): Đăng ngay lần 1 = cảnh báo + ghi nhận, lần 2 = gửi có chủ đích
+    reset()
+    account('biz1', 'facebook', 'PAGE1')
+    p = post(caption='Prepush crashed', targets=['facebook'], scheduled_at=_iso(now0() + timedelta(days=2)))
+    DB.social_posts.update_one({'id': p['id']}, {'$set': {'targets.0.status': 'sending'}})
+    _expect('first publish_now warns instead of re-sending', lambda: sp.publish_now('biz1', p['id'], 'u1'), 'publish_uncertain', 'facebook')
+    check('target recorded as uncertain, nothing sent', target(p['id'], 'facebook')['status'] == 'failed'
+          and not HTTP.calls and stored(p['id'])['lease_owner'] is None)
+    HTTP.on('POST', r'/PAGE1/feed$', {'id': 'PAGE1_again'})
+    got, _ = sp.publish_now('biz1', p['id'], 'u1')
+    check('second press sends on purpose', got['status'] == 'published' and len(HTTP.find('POST', '/PAGE1/feed')) == 1)
+
+
+def test_soc6_instagram_photo_not_posted_twice():
+    """SOC-6: media_publish mất phản hồi -> giữ container, lần sau hỏi trạng thái (PUBLISHED) thay vì đăng ảnh lần 2."""
+    reset()
+    account('biz1', 'instagram', 'IG1', 'ig')
+    media('jp', 'image/jpeg')
+    HTTP.on('POST', r'/IG1/media$', {'id': 'C7'})
+    HTTP.on('GET', r'/IG1/content_publishing_limit$', {'data': [{'quota_usage': 1, 'config': {'quota_total': 50}}]})
+    seen = {}
+
+    def publish_timeout(c):
+        t = target(pid['id'], 'instagram')
+        seen['saved'] = (t['status'], t['container_id'])
+        raise requests.exceptions.ReadTimeout('read timed out')
+    HTTP.on('POST', r'/IG1/media_publish$', publish_timeout)
+    pid = {}
+    p = post(caption='Photo', media_file_ids=['jp'], targets=['instagram'])
+    pid['id'] = p['id']
+    t0 = now0()
+    sp.run_due('biz1', now=t0)
+    t = target(p['id'], 'instagram')
+    check('container saved before media_publish', seen.get('saved') == ('processing', 'C7'))
+    check('kept as processing with the same container', t['status'] == 'processing' and t['container_id'] == 'C7' and t['attempts'] == 1)
+    HTTP.on('GET', r'/v23\.0/C7$', {'status_code': 'PUBLISHED'})
+    sp.run_due('biz1', now=t0 + timedelta(minutes=3))
+    check('detected as already published', target(p['id'], 'instagram')['status'] == 'published')
+    check('one container, one media_publish', len(HTTP.find('POST', '/IG1/media')) - len(HTTP.find('POST', 'media_publish')) == 1
+          and len(HTTP.find('POST', 'media_publish')) == 1)
+
+
+def test_soc7_tiktok_post_id_after_moderation():
+    """SOC-7: TikTok xong nhưng chưa có id (đang kiểm duyệt) -> hỏi lại sau, rồi lấy link + số liệu thật."""
+    reset()
+    account('biz1', 'tiktok', 'OPEN1', 'act', connected_via='oauth', token_expires_at=now0() + timedelta(days=3))
+    media('tv', 'video/mp4', kind='promo_video', data=mp4(10))
+    HTTP.on('POST', r'/v2/post/publish/creator_info/query/$', {'data': {'privacy_level_options': ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'],
+                                                                         'max_video_post_duration_sec': 60, 'creator_username': 'gn'},
+                                                                'error': {'code': 'ok'}})
+    HTTP.on('POST', r'/v2/post/publish/video/init/$', {'data': {'publish_id': 'pub9', 'upload_url': 'http://tiktok-upload.mock/u/9'},
+                                                       'error': {'code': 'ok'}})
+    HTTP.on('PUT', r'tiktok-upload\.mock/u/9$', FakeResp(201, {}))
+    status = {'ids': []}
+    HTTP.on('POST', r'/v2/post/publish/status/fetch/$', lambda c: {'data': {'status': 'PUBLISH_COMPLETE',
+                                                                             'publicaly_available_post_id': status['ids']},
+                                                                    'error': {'code': 'ok'}})
+    HTTP.on('POST', r'/v2/video/query/$', {'data': {'videos': [{'id': '7311', 'view_count': 90, 'like_count': 9}]}, 'error': {'code': 'ok'}})
+    opts = {'privacy_level': 'PUBLIC_TO_EVERYONE', 'disable_comment': False, 'disable_duet': False, 'disable_stitch': False,
+            'brand_content_toggle': False, 'brand_organic_toggle': False}
+    p = post(caption='Public clip', media_file_ids=['tv'], targets=[{'platform': 'tiktok', 'options': opts}])
+    t0 = now0()
+    sp.run_due('biz1', now=t0)
+    sp.run_due('biz1', now=t0 + timedelta(minutes=1))
+    t = target(p['id'], 'tiktok')
+    check('published, waiting for post id', t['status'] == 'published' and not t.get('remote_id') and t.get('needs_post_id') is True)
+    check('still in moderation -> ask again later', sp.sync_metrics('biz1', now=t0 + timedelta(minutes=5)) == 0
+          and target(p['id'], 'tiktok').get('needs_post_id') is True)
+    status['ids'] = [7311]
+    n = sp.sync_metrics('biz1', now=t0 + timedelta(hours=1))
+    t = target(p['id'], 'tiktok')
+    check('id + link + real metrics after moderation', n == 1 and t['remote_id'] == '7311' and t['needs_post_id'] is False
+          and t['permalink'] == 'https://www.tiktok.com/@gn/video/7311'
+          and DB.social_post_metrics.find_one({'post_id': p['id']})['metrics'] == {'views': 90, 'likes': 9})
+
+
+def test_soc9_google_revoke_only_when_last_google_platform():
+    """SOC-9: ngắt YouTube khi Google Business còn nối -> KHÔNG thu hồi quyền Google (sẽ làm hỏng bên kia)."""
+    reset()
+    for p, ext in (('youtube', 'UC1'), ('google_business', 'accounts/1/locations/2')):
+        account('biz1', p, ext, f'tok-{p}', connected_via='oauth', token_expires_at=now0() + timedelta(hours=1))
+    HTTP.on('POST', r'gauth\.mock/revoke$', {})
+    sa.disconnect('biz1', 'youtube')
+    check('no revoke while GBP connected', not HTTP.find('POST', '/revoke')
+          and sa.public_status('biz1')['youtube']['status'] == 'disconnected' and sa.is_connected('biz1', 'google_business'))
+    sa.disconnect('biz1', 'google_business')
+    check('last Google platform revokes', len(HTTP.find('POST', '/revoke')) == 1)
+
+
+def test_soc13_14_caption_limits_not_silently_cut():
+    """SOC-13/14: Facebook nhận tới 63.206 ký tự (không cắt ở 5000); mô tả YouTube tính theo BYTE; quá giới hạn thì báo rõ."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1')
+    account('biz1', 'instagram', 'IG1')
+    account('biz1', 'youtube', 'UC1', 'ya29', connected_via='oauth', token_expires_at=now0() + timedelta(hours=1))
+    long_fb = 'A' * 6000
+    sent = {}
+    HTTP.on('POST', r'/PAGE1/feed$', lambda c: sent.update(msg=c.data['message']) or {'id': 'PAGE1_L'})
+    p = post(caption=long_fb, targets=['facebook'])
+    sp.run_due('biz1', now=now0())
+    check('6000-char Facebook post sent whole', len(stored(p['id'])['caption']) == 6000 and sent.get('msg') == long_fb)
+    _expect('IG own caption over 2200 refused', lambda: post(caption='x', captions={'instagram': 'b' * 2300}, targets=['facebook'],
+                                                             status='draft'), 'caption_too_long', 'instagram')
+    media('j', 'image/jpeg')
+    _expect('base text too long for IG refused at schedule', lambda: post(caption='c' * 3000, media_file_ids=['j'],
+                                                                          targets=['facebook', 'instagram']), 'caption_too_long', 'instagram')
+    media('v', 'video/mp4', kind='ai_video', data=mp4(5))
+    vi = 'Chăm sóc móng đẹp ' * 220   # ~4000 ký tự nhưng > 5000 byte UTF-8
+    check('fixture: under 5000 chars, over 5000 bytes', len(vi) < 5000 and len(vi.encode('utf-8')) > 5000)
+    _expect('YouTube description counted in bytes', lambda: post(caption=vi, title='T', media_file_ids=['v'], targets=['youtube']),
+            'caption_too_long', 'youtube')
+    cut = sp.caption_for({'caption': 'ệ' * 2000}, 'youtube')
+    check('byte cut never breaks a letter', len(cut.encode('utf-8')) <= 5000 and set(cut) == {'ệ'})
+
+
+def test_soc15_best_times_ignore_other_world():
+    """SOC-15: số liệu của bài khác "thế giới" (thật vs chạy thử) không bao giờ thành giờ tốt nhất đã học."""
+    reset()
+    base = datetime(2026, 9, 7, 10, 0, tzinfo=timezone.utc)
+    for i in range(12):
+        _metric_post(300 + i, base + timedelta(weeks=i), 0.5)
+        DB.social_posts.update_one({'id': 300 + i}, {'$set': {'qa_test': False}})   # bài THẬT, máy đang ở chế độ thử
+    d = pl.best_times('biz1', 'facebook')
+    check('real-world numbers not mixed into test mode', d['source'] == 'default' and d['sample_size'] == 0, d)
+
+
+def test_f5_weekly_plan_batches_keep_partial_results():
+    """F5: kế hoạch tuần chia lô (JSON mode, token theo số bài); lô bị cắt / lỗi không làm mất các bài đã viết."""
+    reset()
+    account('biz1', 'facebook', 'PAGE1')
+    for i in range(1, 8):
+        DB.products.insert_one({'id': i, 'business_id': 'biz1', 'name': f'Service {i}', 'price': 10 + i, 'is_active': 1, 'image': ''})
+
+    def ai(s, u):
+        idxs = [it['idx'] for it in json.loads(u.split('ITEMS:\n', 1)[1])]
+        if 6 in idxs:
+            raise RuntimeError('DeepSeek down for this batch')
+        if 3 in idxs:   # bị cắt giữa bài thứ 3 (hết max_tokens)
+            return ('{"posts": [{"idx": 3, "caption": "P3", "hashtags": ["a"]}, {"idx": 4, "caption": "P4"}, '
+                    '{"idx": 5, "capt', 'length')
+        return json.dumps({'posts': [{'idx': i, 'caption': f'P{i}'} for i in idxs]})
+    AI['fn'] = ai
+    plan, posts = pl.weekly_plan('biz1', 'u1', None, ['facebook'], 7, 'en')
+    sizes = sorted(len(json.loads(p['messages'][1]['content'].split('ITEMS:\n', 1)[1])) for p in AI['payloads'])
+    check('3 batches of <=3 items', sizes == [1, 3, 3], sizes)
+    check('json mode + token budget per batch', all(p.get('response_format') == {'type': 'json_object'} and
+                                                    p['max_tokens'] == 300 + 700 * len(json.loads(p['messages'][1]['content'].split('ITEMS:\n', 1)[1]))
+                                                    for p in AI['payloads']))
+    check('complete posts kept (incl. truncated batch)', sorted(p['caption'] for p in posts) == ['P0', 'P1', 'P2', 'P3', 'P4'])
+    check('plan says what is missing', plan['unwritten'] == 2 and '5 of 7' in plan['note'] and '5/7' in plan['note_vi'])
+    AI['fn'] = lambda s, u: (_ for _ in ()).throw(RuntimeError('down'))
+    _expect('all batches down -> ai_unavailable (honest reason)', lambda: pl.weekly_plan('biz1', 'u1', None, ['facebook'], 4, 'en'),
+            'ai_unavailable')
 
 
 TESTS = [v for k, v in list(globals().items()) if k.startswith('test_') and callable(v)]

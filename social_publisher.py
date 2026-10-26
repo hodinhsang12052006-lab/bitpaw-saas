@@ -18,6 +18,11 @@ Máy trạng thái (run_due):
     tới giờ thì kiểm tra lại. Nền tảng khác: tới giờ mới đăng.
   - Lỗi tạm (5xx, giới hạn tốc độ, mạng) -> thử lại sau 2^n phút (tối đa 5 lần); token hỏng (190 / invalid_grant / 401)
     -> tài khoản 'needs_reconnect' + đích 'failed'; lỗi khác -> 'failed' với mã lỗi để UI nói rõ.
+  - Lệnh TẠO bài (không lặp lại được): ghi đích 'sending' TRƯỚC khi gọi. Mất phản hồi giữa chừng (hết giờ chờ, máy chủ bị
+    tắt) thì KHÔNG tự gửi lại (có thể thành 2 bài) -> 'failed' mã 'publish_uncertain': chủ tiệm kiểm tra trên nền tảng rồi
+    bấm "Đăng ngay" nếu bài chưa lên. Instagram lưu container trước media_publish nên lần sau hỏi lại được (PUBLISHED).
+  - Sửa / huỷ / đăng ngay: khoá bài (cùng khoá thuê của bộ đăng) + so updated_at -> bộ đăng không chen vào giữa chừng; gỡ
+    lịch đã đẩy lên Facebook/YouTube không được thì DỪNG và giữ remote_id (không bao giờ "Đã huỷ" mà bài vẫn tự lên).
 """
 import json
 import os
@@ -35,19 +40,29 @@ import social_accounts as sa
 from social_accounts import GRAPH_V, SocialError, as_utc, http, iso_z, rjson, utcnow
 
 EDITABLE = ('draft', 'pending_approval', 'scheduled')
-OPEN_T = ('pending', 'processing', 'scheduled_remote')
+# 'sending' = đang gọi lệnh tạo bài (ghi trước khi gọi); còn 'sending' khi nhận lại bài = máy trước chết giữa chừng
+OPEN_T = ('pending', 'processing', 'scheduled_remote', 'sending')
 LEASE = timedelta(minutes=5)
 MAX_ATTEMPTS = 5
 STALE_AFTER = timedelta(hours=24)          # trễ quá 1 ngày (cron hỏng...) thì KHÔNG đăng bài "chúc cuối tuần" vào thứ Hai
 PROCESSING_TIMEOUT = timedelta(minutes=60)
 # Đẩy trước lên nền tảng khi hẹn giờ đủ xa: Meta cho hẹn 10 phút–30 ngày; YouTube publishAt cần video 'private'
 PREPUSH = {'facebook': (timedelta(minutes=12), timedelta(days=29)), 'youtube': (timedelta(minutes=15), timedelta(days=60))}
+LIVE_MARGIN = timedelta(minutes=1)         # bài hẹn trên nền tảng sắp/đã tới giờ = coi như đã lên, không xoá nữa
 META_TRANSIENT = {1, 2, 4, 17, 32, 341, 613, 80001}
 TIKTOK_PRIVACY = ('PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY')
 TIKTOK_FLAGS = ('disable_comment', 'disable_duet', 'disable_stitch', 'brand_content_toggle', 'brand_organic_toggle')
+TT_POST_ID_WINDOW = timedelta(hours=48)    # TikTok chỉ trả id bài công khai SAU kiểm duyệt (vài phút–vài giờ)
 YT_PRIVACY = ('public', 'unlisted', 'private')
-CAPTION_MAX = {'facebook': 5000, 'instagram': 2200, 'tiktok': 2200, 'youtube': 5000, 'google_business': 1500}
+# Giới hạn chữ của từng nền tảng (Facebook: 63.206 ký tự; YouTube: mô tả ≤ 5000 BYTE — chữ có dấu tốn 2–3 byte)
+CAPTION_MAX = {'facebook': 63206, 'instagram': 2200, 'tiktok': 2200, 'youtube': 5000, 'google_business': 1500}
+BASE_CAPTION_MAX = max(CAPTION_MAX.values())
+YT_DESC_BYTES = 5000
+# Ảnh Facebook /photos: tối đa 4 MB, không nhận WebP; PNG > 1 MB Meta khuyên tránh (dễ bị nén vỡ hạt) — chỉ nhắc
+FB_PHOTO_MAX = 4_000_000
+FB_PNG_SOFT = 1_000_000
 UPLOAD_TIMEOUT = (10, 150)                 # < LEASE: 1 lần tải video không thể kéo quá hạn thuê
+VIDEO_START_MIN = 15                       # còn < 15 giây trong hạn chạy thì để lượt sau mới bắt đầu tải video
 # Chỉ media "công khai theo thiết kế" mới được đăng (ảnh check-in/avatar nhân viên thì không bao giờ)
 SHAREABLE_KINDS = {'ai_image', 'ai_video', 'promo_video', 'social_upload', 'product_image'}
 AI_KINDS = {'ai_image', 'ai_video'}
@@ -95,6 +110,20 @@ def media_url(item, absolute=False):
         return sa.public_base() + path if absolute else path
     import media_store
     return media_store.absolute_public_url(fid, ext, sa.public_base()) if absolute else media_store.public_url(fid, ext)
+
+
+def url_fetch_max():
+    """Ảnh lớn nhất Instagram / Google Business tải trọn được qua link BitPaw: 2 nền tảng này tải 1 lần KHÔNG kèm Range, mà
+    response của Vercel chỉ chứa được ≤ media_store.FULL_MAX byte (lớn hơn thì chỉ nhận lát đầu = ảnh cụt)."""
+    try:
+        import media_store
+        return int(getattr(media_store, 'FULL_MAX', 3_200_000))
+    except Exception:
+        return 3_200_000
+
+
+def _mb(n):
+    return f"{n / 1_000_000:.1f} MB"
 
 
 def _gf(g, name):
@@ -156,8 +185,7 @@ def strip_hashtags(text):
     return re.sub(r'[ \t]{2,}', ' ', re.sub(r'\n{3,}', '\n\n', t)).strip()
 
 
-def caption_for(post, platform):
-    """Chữ đăng lên 1 nền tảng: bản AI/chủ tiệm viết riêng cho nền tảng đó, không có thì bản chung + hashtag."""
+def _caption_full(post, platform):
     own = ((post.get('captions') or {}).get(platform) or '').strip()
     text = own or (post.get('caption') or '').strip()
     if platform == 'google_business':
@@ -166,7 +194,34 @@ def caption_for(post, platform):
         tags = ' '.join('#' + h for h in post.get('hashtags') or [] if ('#' + h).lower() not in text.lower())
         if tags:
             text = f"{text}\n\n{tags}".strip()
+    return text
+
+
+def _cut_bytes(text, n):
+    """Cắt theo BYTE UTF-8 (không cắt đôi 1 chữ có dấu)."""
+    return text.encode('utf-8')[:n].decode('utf-8', 'ignore')
+
+
+def caption_for(post, platform):
+    """Chữ đăng lên 1 nền tảng: bản AI/chủ tiệm viết riêng cho nền tảng đó, không có thì bản chung + hashtag.
+    Lên lịch đã kiểm tra độ dài (_check_caption) — cắt ở đây chỉ là chốt chặn cuối cho bài cũ."""
+    text = _caption_full(post, platform)
+    if platform == 'youtube':
+        return _cut_bytes(text, YT_DESC_BYTES)
     return text[:CAPTION_MAX[platform]]
+
+
+def _check_caption(post, platform):
+    """Quá giới hạn của nền tảng thì nói rõ để chủ tiệm rút gọn — không lặng lẽ cắt mất phần cuối."""
+    text, label = _caption_full(post, platform), sa.LABELS[platform]
+    if platform == 'youtube':
+        n = len(re.sub(r'[<>]', '', text).encode('utf-8'))
+        if n > YT_DESC_BYTES:
+            raise SocialError('caption_too_long', f"The YouTube description is too long: {n} bytes (max {YT_DESC_BYTES}; "
+                              'accented letters count as 2–3 bytes) — shorten it.', f"{n}/{YT_DESC_BYTES}", platform=platform)
+    elif len(text) > CAPTION_MAX[platform]:
+        raise SocialError('caption_too_long', f"The {label} text is too long: {len(text)} characters (max "
+                          f"{CAPTION_MAX[platform]}) — shorten it.", f"{len(text)}/{CAPTION_MAX[platform]}", platform=platform)
 
 
 def _bool(v):
@@ -241,12 +296,25 @@ def _norm(business_id, data, old):
     out = {}
     new = old is None
     if 'caption' in data or new:
-        out['caption'] = _text(data.get('caption'), 5000)
+        cap = _text(data.get('caption'), None)
+        if len(cap) > BASE_CAPTION_MAX:
+            raise SocialError('caption_too_long', f"The text is too long: {len(cap)} characters (max {BASE_CAPTION_MAX}).",
+                              f"{len(cap)}/{BASE_CAPTION_MAX}")
+        out['caption'] = cap
     if 'captions' in data or new:
         caps = data.get('captions') or {}
         if not isinstance(caps, dict):
             raise SocialError('bad_captions', 'captions must be an object {platform: text}.')
-        out['captions'] = {p: _text(t, CAPTION_MAX[p]) for p, t in caps.items() if p in sa.PLATFORMS and _text(t, 1)}
+        out['captions'] = {}
+        for p, t in caps.items():
+            if p not in sa.PLATFORMS or not _text(t, 1):
+                continue
+            t = _text(t, None)
+            if len(t) > CAPTION_MAX[p]:
+                # không lặng lẽ cắt: chủ tiệm phải thấy phần cuối bị mất
+                raise SocialError('caption_too_long', f"The {sa.LABELS[p]} text is too long: {len(t)} characters (max "
+                                  f"{CAPTION_MAX[p]}) — shorten it.", f"{len(t)}/{CAPTION_MAX[p]}", platform=p)
+            out['captions'][p] = t
         if isinstance(caps.get('youtube_title'), str) and 'title' not in data:
             out['title'] = re.sub(r'[<>]', '', _text(caps['youtube_title'], 100))
     if 'title' in data or (new and 'title' not in out):
@@ -285,18 +353,31 @@ def _due_time(t, now):
 
 
 def _validate_ready(business_id, doc, platforms=None):
-    """Điều kiện để lên lịch / đăng: có nơi đăng, có nội dung, tài khoản đã nối, TikTok đã chọn đủ tuỳ chọn."""
+    """Điều kiện để lên lịch / đăng: có nơi đăng, có nội dung, tài khoản đã nối (Google Business đã chọn địa điểm), chữ
+    không quá giới hạn, ảnh không quá cỡ nền tảng tải được, TikTok đã chọn đủ tuỳ chọn. Lỗi ở đây = chưa gửi nơi nào
+    (không bao giờ đăng nửa vời rồi mới báo)."""
     targets = doc.get('targets') or []
     if not targets:
         raise SocialError('no_targets', 'Pick at least one place to post.')
     if not (doc.get('caption') or doc.get('captions') or doc.get('media')):
         raise SocialError('empty_post', 'Write a caption or add a photo/video first.')
+    warns = compat_warnings(doc)
+    skipped = {w['platform'] for w in warns if w['skip']}
     for t in targets:
         p = t['platform']
         if platforms is not None and p not in platforms:
             continue
         if not sa.is_connected(business_id, p):
+            acc = sa.get_account(business_id, p)
+            if sa.needs_location(acc):
+                raise SocialError('needs_location', 'Choose which Google Business Profile location to post to (Accounts tab).',
+                                  platform=p)
             raise SocialError('not_connected', f"{sa.LABELS[p]} is not connected.", platform=p)
+        for w in warns:
+            if w['platform'] == p and w['blocking']:
+                raise SocialError(w['code'], w['message'], platform=p)
+        if p not in skipped:
+            _check_caption(doc, p)
         if p == 'tiktok':
             miss = _tiktok_missing(t.get('options'))
             if miss:
@@ -304,24 +385,56 @@ def _validate_ready(business_id, doc, platforms=None):
                                   'and branded-content settings.', ','.join(miss), platform='tiktok')
 
 
+def _media_problem(platform, media_type, ct, size):
+    """Mã lỗi media cho 1 nền tảng (None nếu ổn). Dùng chung cho cảnh báo trước (compat_warnings) và adapter lúc đăng."""
+    if platform == 'instagram':
+        if media_type == 'text':
+            return 'ig_needs_media'
+        if media_type == 'image' and ct != 'image/jpeg':
+            return 'ig_needs_jpeg'
+        if media_type == 'image' and size > url_fetch_max():
+            return 'media_too_large'
+    elif platform == 'youtube' and media_type != 'video':
+        return 'youtube_needs_video'
+    elif platform == 'tiktok' and media_type != 'video':
+        return 'tiktok_needs_video'
+    elif platform == 'google_business':
+        if media_type == 'video':
+            return 'gbp_no_video'
+        if media_type == 'image' and size > url_fetch_max():
+            return 'media_too_large'
+    elif platform == 'facebook' and media_type == 'image':
+        if ct == 'image/webp':
+            return 'fb_photo_format'
+        if size > FB_PHOTO_MAX:
+            return 'fb_photo_too_large'
+        if ct == 'image/png' and size > FB_PNG_SOFT:
+            return 'fb_png_large'
+    return None
+
+
+def _media_message(code, platform, size):
+    if code == 'media_too_large':
+        return (f"This photo is {_mb(size)} — too large for {sa.LABELS[platform]} to download from BitPaw (max "
+                f"{_mb(url_fetch_max())}). Use a smaller photo or remove {sa.LABELS[platform]}.")
+    if code == 'fb_photo_too_large':
+        return f"Facebook accepts photos up to {_mb(FB_PHOTO_MAX)} — this one is {_mb(size)}, so it will not be sent there."
+    return SKIP_MESSAGES[code]
+
+
 def compat_warnings(post):
-    """Đích sẽ bị bỏ qua lúc đăng (nói trước cho chủ tiệm thay vì để tới giờ mới biết)."""
+    """Nói trước cho chủ tiệm (thay vì để tới giờ mới biết): {platform, code, message, skip, blocking}.
+    skip=True: đích sẽ bị bỏ qua lúc đăng; blocking=True: không cho lên lịch tới khi sửa (vd ảnh quá cỡ Instagram/Google
+    tải được — gửi đi là ảnh cụt); cả 2 False: chỉ là lưu ý (vẫn đăng)."""
     mt, out = post.get('media_type') or 'text', []
-    ct = ((post.get('media') or [{}])[0] or {}).get('content_type') or ''
+    m = (post.get('media') or [{}])[0] or {}
+    ct, size = m.get('content_type') or '', int(m.get('size') or 0)
     for t in post.get('targets') or []:
-        p, code = t['platform'], None
-        if p == 'instagram' and mt == 'text':
-            code = 'ig_needs_media'
-        elif p == 'instagram' and mt == 'image' and ct != 'image/jpeg':
-            code = 'ig_needs_jpeg'
-        elif p == 'youtube' and mt != 'video':
-            code = 'youtube_needs_video'
-        elif p == 'tiktok' and mt != 'video':
-            code = 'tiktok_needs_video'
-        elif p == 'google_business' and mt == 'video':
-            code = 'gbp_no_video'
+        p = t['platform']
+        code = _media_problem(p, mt, ct, size)
         if code:
-            out.append({'platform': p, 'code': code, 'message': SKIP_MESSAGES[code]})
+            out.append({'platform': p, 'code': code, 'message': _media_message(code, p, size),
+                        'skip': code not in NOTE_ONLY and code not in BLOCKING, 'blocking': code in BLOCKING})
     return out
 
 
@@ -331,7 +444,14 @@ SKIP_MESSAGES = {
     'youtube_needs_video': 'YouTube needs a video — this post will not be sent there.',
     'tiktok_needs_video': 'TikTok needs a video — this post will not be sent there.',
     'gbp_no_video': 'Google Business Profile does not take videos — this post will not be sent there.',
+    'fb_photo_format': 'Facebook does not accept WebP photos — this photo will not be sent there (use JPEG or PNG).',
+    'fb_photo_too_large': 'Facebook accepts photos up to 4 MB — this photo will not be sent there.',
+    'fb_png_large': 'Facebook recommends PNG photos under 1 MB — this one may look blurry after Facebook compresses it '
+                    '(a JPEG usually looks better).',
+    'media_too_large': 'This photo is too large for the platform to download from BitPaw — use a smaller photo.',
 }
+BLOCKING = {'media_too_large'}
+NOTE_ONLY = {'fb_png_large'}
 
 
 # ---------------------------------------------------------------- CRUD
@@ -346,11 +466,16 @@ def get_post(business_id, post_id):
     return _get(business_id, post_id)
 
 
-def create_post(business_id, user_id, data, created_by='owner', plan_id=None):
+def create_post(business_id, user_id, data, created_by='owner', plan_id=None, is_admin=True):
     _ensure_indexes()
-    status = (data or {}).get('status') or 'draft'
+    raw = (data or {}).get('status') if isinstance(data, dict) else None
+    if raw is not None and not isinstance(raw, str):
+        raise SocialError('bad_status', 'A new post can be a draft, waiting for approval, or scheduled.')
+    status = raw or 'draft'
     if status not in ('draft', 'scheduled', 'pending_approval'):
         raise SocialError('bad_status', 'A new post can be a draft, waiting for approval, or scheduled.')
+    if not is_admin and status == 'scheduled':
+        status = 'pending_approval'   # nhân viên soạn bài -> chủ tiệm duyệt mới đăng
     f = _norm(business_id, data, None)
     now = utcnow()
     doc = {'id': next_mongo_id('social_posts'), 'business_id': business_id, 'status': status, 'created_by': created_by,
@@ -366,44 +491,114 @@ def create_post(business_id, user_id, data, created_by='owner', plan_id=None):
     return doc
 
 
-def _unschedule_remote(doc, strict):
-    """Bài đã đẩy trước lên Facebook/YouTube (hẹn giờ phía nền tảng) mà chủ tiệm sửa/huỷ: gỡ lịch bên đó trước,
-    nếu không bản cũ vẫn tự lên đúng giờ. strict=True (sửa bài): gỡ không được thì DỪNG để không đăng 2 bản."""
-    warnings, changed = [], False
+UNCERTAIN_MSG = ("BitPaw lost the connection while sending this post to {p} — it may already be live there. Check {p}; "
+                 "if it is not there, press 'Publish now' to send it again.")
+
+
+def _lock(doc, now):
+    """Khoá bài trong lúc chủ tiệm sửa / huỷ / xoá / đăng ngay (dùng chung khoá thuê với bộ đăng): bộ đăng không nhận bài
+    giữa chừng; bài đã đổi kể từ lúc đọc (updated_at khác — vd vừa được đẩy lên Facebook) thì dừng, không ghi đè."""
+    me = f"user-{secrets.token_hex(6)}"
+    flt = {'$and': [{'id': doc['id'], 'business_id': doc['business_id'], 'status': doc['status'],
+                     'updated_at': doc.get('updated_at')}, _lease_free(now)]}
+    if db.social_posts.update_one(flt, {'$set': {'lease_owner': me, 'lease_until': now + LEASE}}).matched_count != 1:
+        raise SocialError('busy', 'This post changed or is being sent right now — reload and try again.')
+    return me
+
+
+def _unlock(doc, me):
+    db.social_posts.update_one({'id': doc['id'], 'business_id': doc['business_id'], 'lease_owner': me},
+                               {'$set': {'lease_owner': None, 'lease_until': None}})
+
+
+def _write_locked(doc, me, fields):
+    """Ghi kết quả + trả khoá — chỉ khi vẫn đang giữ khoá của chính lần sửa này."""
+    res = db.social_posts.update_one({'id': doc['id'], 'business_id': doc['business_id'], 'lease_owner': me},
+                                     {'$set': {**fields, 'updated_at': utcnow(), 'lease_owner': None, 'lease_until': None}})
+    if res.matched_count != 1:
+        raise SocialError('busy', 'This post changed — reload and try again.')
+
+
+def _unschedule_remote(doc, now, me, mode, force=False):
+    """Bài đã đẩy trước lên Facebook/YouTube (nền tảng tự đăng đúng giờ) mà chủ tiệm sửa / đăng ngay / huỷ / xoá: gỡ lịch
+    bên đó trước, nếu không bản cũ vẫn tự lên. mode: 'edit' (sửa, đăng ngay) | 'cancel' | 'delete'.
+      - đã tới giờ hẹn (nền tảng đã/sắp đăng): KHÔNG xoá bài đang chạy (mất lượt thích, bình luận) — sửa / đăng ngay / huỷ bị
+        từ chối ('already_live'); xoá khỏi BitPaw thì để nguyên trên nền tảng (kèm cảnh báo).
+      - gỡ không được: giữ nguyên 'scheduled_remote' + remote_id và DỪNG ('remote_cancel_failed') — không bao giờ báo "đã huỷ"
+        mà bài vẫn tự lên. force=True (chủ tiệm xác nhận đã tự xoá bên nền tảng) thì huỷ/xoá ở BitPaw, giữ remote_id + cảnh báo.
+      - đích 'sending' (lần gửi trước mất phản hồi): có thể đã lên — sửa / đăng ngay bị từ chối, huỷ / xoá kèm cảnh báo.
+    Đích gỡ xong được ghi ngay vào DB (kể cả khi đích sau đó lỗi) để không trỏ tới bài đã xoá."""
+    sched = as_utc(doc.get('scheduled_at'))
+    live = bool(sched and sched <= now + LIVE_MARGIN)
+    warnings, changed, fail = [], False, None
     for i, t in enumerate(doc.get('targets') or []):
-        if t.get('status') != 'scheduled_remote' or not t.get('remote_id'):
+        p, st = t.get('platform'), t.get('status')
+        label = sa.LABELS.get(p, p)
+        if st == 'sending':
+            if mode == 'edit':
+                # lần gửi trước mất phản hồi (máy chết giữa chừng): đánh dấu 'failed / publish_uncertain' rồi dừng — chủ tiệm
+                # kiểm tra trên nền tảng trước; bấm lại lần nữa là xác nhận gửi lại (không kẹt mãi, không tự đăng 2 lần)
+                msg = (f"BitPaw lost the connection while sending this post to {label} — it may already be scheduled or live "
+                       f"there. Check {label} first (delete it there if you see it), then save or publish again.")
+                doc['targets'][i] = {**t, 'status': 'failed', 'next_attempt_at': None,
+                                     'error': {'code': 'publish_uncertain', 'message': msg, 'at': now}}
+                changed = True
+                fail = SocialError('publish_uncertain', msg, platform=p)
+                break
+            warnings.append({'platform': p, 'code': 'publish_uncertain', 'message': UNCERTAIN_MSG.format(p=label)})
             continue
-        p = t['platform']
+        if st != 'scheduled_remote' or not t.get('remote_id'):
+            continue
+        if live:
+            msg = f"{label} has already published this post at its scheduled time — edit or delete it on {label}."
+            if mode == 'delete' or (force and mode == 'cancel'):
+                warnings.append({'platform': p, 'code': 'already_live', 'message': msg})
+                continue
+            fail = SocialError('already_live', msg, platform=p)
+            break
         try:
             acc = sa.get_account(doc['business_id'], p)
             if not acc:
-                raise SocialError('not_connected', f"{sa.LABELS[p]} is not connected.", platform=p)
+                raise SocialError('not_connected', f"{label} is not connected.", platform=p)
             ADAPTERS[p]['unschedule'](t, sa.access_token(acc))
         except SocialError as e:
-            msg = f"Could not remove the scheduled post from {sa.LABELS[p]} — delete it there ({e})."
-            if strict:
-                raise SocialError('remote_cancel_failed', msg, e.code, platform=p)
-            warnings.append({'platform': p, 'code': 'remote_cancel_failed', 'message': msg})
+            if e.reconnect:
+                sa.mark_needs_reconnect(doc['business_id'], p, e)
+            msg = (f"Could not remove the scheduled post from {label} ({e}). It is still scheduled there — reconnect {label} "
+                   f"and try again, or delete it on {label} first.")
+            if force and mode != 'edit':
+                warnings.append({'platform': p, 'code': 'remote_cancel_failed', 'message': msg})
+                continue   # giữ 'scheduled_remote' + remote_id trong bản ghi
+            fail = SocialError('remote_cancel_failed', msg, e.code, platform=p)
+            break
         doc['targets'][i] = _fresh_target(p, t.get('options') or {})
         changed = True
     if changed:
-        db.social_posts.update_one({'id': doc['id'], 'business_id': doc['business_id']},
+        db.social_posts.update_one({'id': doc['id'], 'business_id': doc['business_id'], 'lease_owner': me},
                                    {'$set': {'targets': doc['targets'], 'updated_at': utcnow()}})
+    if fail:
+        raise fail
     return warnings
 
 
-def update_post(business_id, post_id, data, user_id=None):
+def update_post(business_id, post_id, data, user_id=None, is_admin=True):
     doc = _get(business_id, post_id)
     now = utcnow()
     if doc['status'] not in EDITABLE:
         raise SocialError('not_editable', 'This post is already being published or is finished — it can no longer be edited.')
     if _leased(doc, now):
         raise SocialError('busy', 'This post is being sent right now — try again in a minute.')
-    status = (data or {}).get('status') or doc['status']
+    raw = data.get('status') if isinstance(data, dict) else None
+    if raw is not None and not isinstance(raw, str):
+        raise SocialError('bad_status', 'Status must be draft, pending_approval or scheduled.')
+    status = raw or doc['status']
     if status not in EDITABLE:
         raise SocialError('bad_status', 'Status must be draft, pending_approval or scheduled.')
+    if not is_admin and (status == 'scheduled' or doc['status'] == 'scheduled'):
+        # nhân viên không bao giờ tự lên lịch hay giữ lịch đã duyệt sau khi sửa: quay lại chờ chủ tiệm duyệt
+        status = 'pending_approval'
+    # kiểm tra hết TRƯỚC khi đụng tới bài đã hẹn trên Facebook/YouTube (sửa bị từ chối thì bài hẹn bên đó còn nguyên)
     f = _norm(business_id, data, doc)
-    _unschedule_remote(doc, strict=True)
     if 'targets' not in f:
         # nội dung đổi -> lỗi/lần thử cũ (từ lần đẩy trước lên Facebook/YouTube) không còn đúng: làm lại từ đầu
         f['targets'] = [_fresh_target(t['platform'], t.get('options') or {}) for t in doc['targets']]
@@ -413,11 +608,15 @@ def update_post(business_id, post_id, data, user_id=None):
         new['scheduled_at'] = f['scheduled_at']
         _validate_ready(business_id, new)
         f['approved_by'], f['approved_at'] = user_id, now
-    f.update(status=status, updated_at=now)
-    res = db.social_posts.update_one({'$and': [{'id': post_id, 'business_id': business_id, 'status': doc['status']}, _lease_free(now)]},
-                                     {'$set': f})
-    if res.matched_count != 1:
-        raise SocialError('busy', 'This post changed while you were editing — reload and try again.')
+    else:
+        f['approved_by'], f['approved_at'] = None, None   # nội dung mới chưa ai duyệt
+    f['status'] = status
+    me = _lock(doc, now)
+    try:
+        _unschedule_remote(doc, now, me, 'edit')
+        _write_locked(doc, me, f)
+    finally:
+        _unlock(doc, me)
     out = _get(business_id, post_id)
     out['warnings'] = compat_warnings(out)
     return out
@@ -438,9 +637,11 @@ def approve(business_id, post_id, user_id):
             when = now
     new = {**doc, 'scheduled_at': when}
     _validate_ready(business_id, new)
-    res = db.social_posts.update_one({'id': post_id, 'business_id': business_id, 'status': 'pending_approval'},
+    # updated_at: duyệt đúng bản chủ tiệm vừa đọc — nhân viên sửa xen giữa thì phải xem lại
+    res = db.social_posts.update_one({'$and': [{'id': post_id, 'business_id': business_id, 'status': 'pending_approval',
+                                                'updated_at': doc.get('updated_at')}, _lease_free(now)]},
                                      {'$set': {'status': 'scheduled', 'scheduled_at': when, 'approved_by': user_id,
-                                               'approved_at': now, 'updated_at': now}})
+                                               'approved_at': now, 'updated_at': max(now, utcnow())}})
     if res.matched_count != 1:
         raise SocialError('busy', 'This post changed — reload and try again.')
     out = _get(business_id, post_id)
@@ -448,7 +649,9 @@ def approve(business_id, post_id, user_id):
     return out
 
 
-def cancel(business_id, post_id):
+def cancel(business_id, post_id, force=False):
+    """Huỷ bài chưa đăng. Bài đã hẹn trên Facebook/YouTube: gỡ bên đó trước; gỡ không được thì báo lỗi (bài vẫn còn hẹn,
+    remote_id giữ nguyên) — force=True khi chủ tiệm đã tự xoá bên nền tảng."""
     doc = _get(business_id, post_id)
     if doc['status'] == 'canceled':
         return {**doc, 'warnings': []}
@@ -457,21 +660,30 @@ def cancel(business_id, post_id):
         raise SocialError('not_cancelable', 'This post was already sent (or is being sent) — delete it on the platform instead.')
     if _leased(doc, now):
         raise SocialError('busy', 'This post is being sent right now — try again in a minute.')
-    warnings = _unschedule_remote(doc, strict=False)
-    res = db.social_posts.update_one({'$and': [{'id': post_id, 'business_id': business_id, 'status': doc['status']}, _lease_free(now)]},
-                                     {'$set': {'status': 'canceled', 'updated_at': now}})
-    if res.matched_count != 1:
-        raise SocialError('busy', 'This post changed — reload and try again.')
+    me = _lock(doc, now)
+    try:
+        warnings = _unschedule_remote(doc, now, me, 'cancel', force=force)
+        _write_locked(doc, me, {'status': 'canceled'})
+    finally:
+        _unlock(doc, me)
     return {**_get(business_id, post_id), 'warnings': warnings}
 
 
-def delete(business_id, post_id):
-    """Xoá bài khỏi BitPaw (bài đã lên nền tảng vẫn còn trên nền tảng)."""
+def delete(business_id, post_id, force=False):
+    """Xoá bài khỏi BitPaw (bài đã lên nền tảng vẫn còn trên nền tảng). Bài còn hẹn trên Facebook/YouTube mà gỡ không được
+    thì KHÔNG xoá (mất remote_id = hết cách gỡ) — trừ khi force=True."""
     doc = _get(business_id, post_id)
-    if _leased(doc, utcnow()):
+    now = utcnow()
+    if _leased(doc, now):
         raise SocialError('busy', 'This post is being sent right now — try again in a minute.')
-    warnings = _unschedule_remote(doc, strict=False) if doc['status'] in EDITABLE else []
-    db.social_posts.delete_one({'id': post_id, 'business_id': business_id})
+    me = _lock(doc, now)
+    try:
+        warnings = _unschedule_remote(doc, now, me, 'delete', force=force) if doc['status'] in EDITABLE else []
+        res = db.social_posts.delete_one({'id': post_id, 'business_id': business_id, 'lease_owner': me})
+        if res.deleted_count != 1:
+            raise SocialError('busy', 'This post changed — reload and try again.')
+    finally:
+        _unlock(doc, me)
     db.social_post_metrics.delete_many({'business_id': business_id, 'post_id': post_id})
     return warnings
 
@@ -483,12 +695,9 @@ def publish_now(business_id, post_id, user_id, deadline=25):
     if _leased(doc, now):
         raise SocialError('busy', 'This post is being sent right now — try again in a minute.')
     if doc['status'] in EDITABLE:
-        new = {**doc, 'scheduled_at': now}
-        _validate_ready(business_id, new)
-        _unschedule_remote(doc, strict=True)
-        upd = {'status': 'scheduled', 'scheduled_at': now, 'approved_by': user_id, 'approved_at': now, 'updated_at': now,
-               'targets': [_fresh_target(t['platform'], t.get('options') or {}) for t in doc['targets']]}
-        flt = {'id': post_id, 'business_id': business_id, 'status': doc['status']}
+        _validate_ready(business_id, {**doc, 'scheduled_at': now})
+        upd = {'status': 'scheduled', 'scheduled_at': now, 'approved_by': user_id, 'approved_at': now}
+        fresh = True
     elif doc['status'] in ('failed', 'partial', 'publishing'):
         retry = [t['platform'] for t in doc['targets'] if t.get('status') == 'failed']
         _validate_ready(business_id, doc, platforms=set(retry))
@@ -496,13 +705,19 @@ def publish_now(business_id, post_id, user_id, deadline=25):
                     else {**t, 'next_attempt_at': None} if t.get('status') == 'pending' else t) for t in doc['targets']]
         if not any(t['status'] in OPEN_T for t in targets):
             raise SocialError('nothing_to_publish', 'Nothing left to send for this post.')
-        upd = {'status': 'publishing', 'targets': targets, 'updated_at': now}
-        flt = {'id': post_id, 'business_id': business_id, 'status': doc['status']}
+        upd = {'status': 'publishing', 'targets': targets}
+        fresh = False
     else:
         raise SocialError('nothing_to_publish', 'This post was already published or canceled.')
-    res = db.social_posts.update_one({'$and': [flt, _lease_free(now)]}, {'$set': upd})
-    if res.matched_count != 1:
-        raise SocialError('busy', 'This post changed — reload and try again.')
+    me = _lock(doc, now)
+    try:
+        if fresh:
+            # bài đã hẹn trên Facebook/YouTube: gỡ lịch bên đó trước (đã tới giờ = đã lên -> từ chối, không đăng bản 2)
+            _unschedule_remote(doc, now, me, 'edit')
+            upd['targets'] = [_fresh_target(t['platform'], t.get('options') or {}) for t in doc['targets']]
+        _write_locked(doc, me, upd)
+    finally:
+        _unlock(doc, me)
     stats = run_due(business_id, limit=1, now=now, post_id=post_id, deadline=deadline)
     return _get(business_id, post_id), stats
 
@@ -608,15 +823,52 @@ def _tiktok(r):
 
 
 # ---------------------------------------------------------------- bối cảnh 1 lần đăng
+def _native_window(platform, target, sched, now):
+    """Giờ hẹn nằm trong khung nền tảng TỰ đăng đúng giờ? (Meta 12 phút–29 ngày; YouTube 15 phút–60 ngày và chỉ khi video để
+    công khai — publishAt luôn biến video thành công khai, sẽ bỏ qua lựa chọn 'unlisted'/'private' của chủ tiệm.)"""
+    if platform not in PREPUSH or not sched:
+        return None
+    if platform == 'youtube' and ((target or {}).get('options') or {}).get('privacy_status') not in (None, '', 'public'):
+        return None
+    lo, hi = PREPUSH[platform]
+    return sched if now + lo <= sched <= now + hi else None
+
+
+class _LeaseLost(Exception):
+    """Mất khoá thuê giữa chừng (máy khác đã nhận bài) — dừng ngay, không gọi nền tảng nữa."""
+
+
 class _Ctx:
-    def __init__(self, post, target, account, token, now):
+    def __init__(self, post, target, account, token, now, phase='due', save=None):
         self.post, self.target, self.account, self.token, self.now = post, target, account, token, now
         self.platform = target['platform']
         self.options = target.get('options') or {}
         self.media = (post.get('media') or [None])[0]
         self.media_type = post.get('media_type') or 'text'
         self.scheduled_at = as_utc(post.get('scheduled_at'))
+        self.phase, self._save, self.sent = phase, save, False
         self._bytes = None
+
+    def checkpoint(self, fields):
+        """Ghi NGAY trạng thái đích vào DB trước 1 bước không làm lại được (máy chết giữa chừng thì lần sau biết)."""
+        if self._save is not None and not self._save(fields):
+            raise _LeaseLost()
+        if fields.get('status') != 'sending':
+            self.target.update(fields)
+
+    def create(self, method, url, **kw):
+        """Gọi lệnh TẠO bài công khai (không lặp lại được). Ghi 'sending' trước; mất phản hồi sau khi đã gửi (hết giờ chờ,
+        đứt kết nối) -> 'publish_uncertain': KHÔNG tự gửi lại — bài có thể đã lên, gửi nữa là thành 2 bài."""
+        self.checkpoint({'status': 'sending', 'sending_since': self.now})
+        try:
+            r = http(method, url, **kw)
+        except SocialError as e:
+            if e.ambiguous:
+                raise SocialError('publish_uncertain', UNCERTAIN_MSG.format(p=sa.LABELS[self.platform]), str(e)[:200],
+                                  platform=self.platform)
+            raise
+        self.sent = True
+        return r
 
     def caption(self):
         return caption_for(self.post, self.platform)
@@ -637,9 +889,10 @@ class _Ctx:
         return f"bitpaw-{self.post['id']}.{_EXT.get(self.media['content_type'], 'bin')}"
 
     def native_at(self, platform):
-        lo, hi = PREPUSH[platform]
-        s = self.scheduled_at
-        return s if s and self.now + lo <= s <= self.now + hi else None
+        return _native_window(platform, self.target, self.scheduled_at, self.now)
+
+    def media_size(self):
+        return int((self.media or {}).get('size') or 0)
 
 
 def _skip(code, message=None):
@@ -670,14 +923,21 @@ def _fb_permalink(path_or_url):
 
 def _fb_publish(ctx):
     page, tok, link = ctx.account['external_id'], ctx.token, ctx.post.get('link')
-    msg = ctx.caption()
     native = ctx.native_at('facebook')
+    if ctx.phase == 'prepush' and not native:
+        return None   # ngoài khung Meta tự đăng: KHÔNG đăng ngay — đợi tới giờ hẹn
+    if ctx.media_type == 'image':
+        code = _media_problem('facebook', 'image', ctx.media.get('content_type'), ctx.media_size())
+        if code and code not in NOTE_ONLY:
+            return _skip(code, _media_message(code, 'facebook', ctx.media_size()))
+    msg = ctx.caption()
     sched = {'published': 'false', 'scheduled_publish_time': str(int(native.timestamp()))} if native else {}
     base = f"{sa.META_API}/{GRAPH_V}/{page}"
     if ctx.media_type == 'video':
-        r = http('POST', f"{sa.META_VIDEO_API}/{GRAPH_V}/{page}/videos",
-                 data={'description': _with_link(msg, link), 'title': (ctx.post.get('title') or '')[:100], 'access_token': tok, **sched},
-                 files={'source': (ctx.filename(), ctx.media_bytes(), ctx.media['content_type'])}, timeout=UPLOAD_TIMEOUT)
+        r = ctx.create('POST', f"{sa.META_VIDEO_API}/{GRAPH_V}/{page}/videos",
+                       data={'description': _with_link(msg, link), 'title': (ctx.post.get('title') or '')[:100], 'access_token': tok,
+                             **sched},
+                       files={'source': (ctx.filename(), ctx.media_bytes(), ctx.media['content_type'])}, timeout=UPLOAD_TIMEOUT)
         vid = str(_meta(r, 'facebook').get('id') or '')
         out = {'remote_id': vid, 'remote_kind': 'video', 'permalink': f"https://www.facebook.com/{page}/videos/{vid}"}
     elif ctx.media_type == 'image':
@@ -687,12 +947,12 @@ def _fb_publish(ctx):
             r = http('POST', f"{base}/photos", data={'published': 'false', 'temporary': 'true', 'access_token': tok},
                      files=src, timeout=UPLOAD_TIMEOUT)
             photo_id = _meta(r, 'facebook').get('id')
-            r = http('POST', f"{base}/feed", data={'message': _with_link(msg, link), 'access_token': tok, **sched,
-                                                  'attached_media': json.dumps([{'media_fbid': str(photo_id)}])})
+            r = ctx.create('POST', f"{base}/feed", data={'message': _with_link(msg, link), 'access_token': tok, **sched,
+                                                        'attached_media': json.dumps([{'media_fbid': str(photo_id)}])})
             pid = str(_meta(r, 'facebook').get('id') or '')
         else:
-            r = http('POST', f"{base}/photos", data={'caption': _with_link(msg, link), 'access_token': tok}, files=src,
-                     timeout=UPLOAD_TIMEOUT)
+            r = ctx.create('POST', f"{base}/photos", data={'caption': _with_link(msg, link), 'access_token': tok}, files=src,
+                           timeout=UPLOAD_TIMEOUT)
             j = _meta(r, 'facebook')
             pid = str(j.get('post_id') or j.get('id') or '')
         out = {'remote_id': pid, 'remote_kind': 'post', 'permalink': f"https://www.facebook.com/{pid}"}
@@ -700,7 +960,7 @@ def _fb_publish(ctx):
         data = {'message': msg, 'access_token': tok, **sched}
         if link:
             data['link'] = link
-        pid = str(_meta(http('POST', f"{base}/feed", data=data), 'facebook').get('id') or '')
+        pid = str(_meta(ctx.create('POST', f"{base}/feed", data=data), 'facebook').get('id') or '')
         out = {'remote_id': pid, 'remote_kind': 'post', 'permalink': f"https://www.facebook.com/{pid}"}
     if native:
         return {'status': 'scheduled_remote', **out, 'next_attempt_at': native + timedelta(minutes=2)}
@@ -726,18 +986,60 @@ def _fb_unschedule(target, token):
 
 
 # ---------------------------------------------------------------- Instagram
+def _ig_upload_url(uri, cid):
+    """Link tải byte của container Reels. Chỉ dùng link Meta trả về khi nó đúng host rupload đã cấu hình (token đi kèm không
+    bao giờ gửi tới host lạ); còn lại tự ghép theo tài liệu Meta: {rupload}/ig-api-upload/{version}/{container}."""
+    if isinstance(uri, str) and uri.startswith(sa.META_RUPLOAD + '/'):
+        return uri
+    return f"{sa.META_RUPLOAD}/ig-api-upload/{GRAPH_V}/{cid}"
+
+
+def _rupload(r):
+    j = rjson(r)
+    if r.status_code < 300 and j.get('success', True) is not False:
+        return j
+    info = j.get('debug_info') if isinstance(j.get('debug_info'), dict) else {}
+    err = j.get('error') if isinstance(j.get('error'), dict) else {}
+    msg = info.get('message') or err.get('message') or f"HTTP {r.status_code}"
+    if r.status_code == 401 or err.get('code') == 190 or info.get('type') == 'OAuthException':
+        raise SocialError('token_invalid', 'The Instagram access token is invalid or has expired — reconnect Instagram.', msg,
+                          reconnect=True, platform='instagram')
+    if r.status_code >= 500 or r.status_code == 429 or info.get('retriable'):
+        raise SocialError('provider_busy', 'Instagram is busy — will retry.', msg, transient=True, platform='instagram')
+    raise SocialError('ig_upload_failed', f"Instagram did not accept the video upload: {msg}", msg, platform='instagram')
+
+
 def _ig_publish(ctx):
-    if ctx.media_type == 'text':
-        return _skip('ig_needs_media')
+    ct, size = (ctx.media or {}).get('content_type'), ctx.media_size()
+    code = _media_problem('instagram', ctx.media_type, ct, size)
+    if code == 'media_too_large':
+        # Instagram tải ảnh qua link không kèm Range: ảnh lớn hơn 1 response Vercel = ảnh cụt -> không gửi
+        return _fail(code, _media_message(code, 'instagram', size))
+    if code:
+        return _skip(code)
     base = f"{sa.META_API}/{GRAPH_V}/{ctx.account['external_id']}"
     if ctx.media_type == 'image':
-        if ctx.media['content_type'] != 'image/jpeg':
-            return _skip('ig_needs_jpeg')
         r = http('POST', f"{base}/media", data={'image_url': ctx.media_url(), 'caption': ctx.caption(), 'access_token': ctx.token})
-        return _ig_finish(ctx, str(_meta(r, 'instagram').get('id') or ''))
-    r = http('POST', f"{base}/media", data={'media_type': 'REELS', 'video_url': ctx.media_url(), 'caption': ctx.caption(),
+        cid = str(_meta(r, 'instagram').get('id') or '')
+        if not cid:
+            raise SocialError('provider_busy', 'Instagram did not create the post container — will retry.', transient=True,
+                              platform='instagram')
+        # lưu container TRƯỚC media_publish: mất phản hồi lúc đăng thì lần sau hỏi trạng thái container (PUBLISHED = đã lên)
+        # thay vì tạo container mới và đăng ảnh lần 2
+        ctx.checkpoint({'status': 'processing', 'container_id': cid, 'processing_since': ctx.now, 'next_attempt_at': ctx.now})
+        return _ig_finish(ctx, cid)
+    # Reels: tải thẳng byte lên Instagram (upload_type=resumable) — không nhờ Instagram tải link /m/ của BitPaw (Vercel chỉ trả
+    # vài MB/response, Instagram tải link không kèm Range nên video lớn sẽ bị cụt)
+    r = http('POST', f"{base}/media", data={'media_type': 'REELS', 'upload_type': 'resumable', 'caption': ctx.caption(),
                                            'share_to_feed': 'true', 'access_token': ctx.token})
-    cid = str(_meta(r, 'instagram').get('id') or '')
+    j = _meta(r, 'instagram')
+    cid = str(j.get('id') or '')
+    if not cid:
+        raise SocialError('provider_busy', 'Instagram did not create the video container — will retry.', transient=True,
+                          platform='instagram')
+    data = ctx.media_bytes()
+    _rupload(http('POST', _ig_upload_url(j.get('uri'), cid), data=data, timeout=UPLOAD_TIMEOUT,
+                  headers={'Authorization': f'OAuth {ctx.token}', 'offset': '0', 'file_size': str(len(data))}))
     return {'status': 'processing', 'container_id': cid, 'processing_since': ctx.now, 'next_attempt_at': ctx.now + timedelta(seconds=30)}
 
 
@@ -784,6 +1086,9 @@ def _ig_check(ctx):
 def _yt_publish(ctx):
     if ctx.media_type != 'video':
         return _skip('youtube_needs_video')
+    native = ctx.native_at('youtube')   # None khi chủ tiệm chọn 'unlisted'/'private' (publishAt sẽ biến video thành công khai)
+    if ctx.phase == 'prepush' and not native:
+        return None   # ngoài khung YouTube tự đăng: KHÔNG tải lên công khai ngay — đợi tới giờ hẹn
     data, ct = ctx.media_bytes(), ctx.media['content_type']
     caption = ctx.caption()
     title = re.sub(r'[<>]', '', (ctx.post.get('title') or caption.split('\n')[0] or 'Video'))[:90].strip() or 'Video'
@@ -793,12 +1098,13 @@ def _yt_publish(ctx):
             break
         tags.append(h)
         total += len(h) + 1
-    native = ctx.native_at('youtube')
     status = {'privacyStatus': 'private' if native else ctx.options.get('privacy_status') or 'public',
               'selfDeclaredMadeForKids': False, 'containsSyntheticMedia': bool(ctx.post.get('is_ai_generated'))}
     if native:
         status['publishAt'] = iso_z(native)   # YouTube tự chuyển công khai đúng giờ (video phải để private tới lúc đó)
-    body = {'snippet': {'title': title, 'description': re.sub(r'[<>]', '', caption)[:5000], 'tags': tags, 'categoryId': '22'},
+    # YouTube giới hạn mô tả 5000 BYTE (không phải ký tự): cắt theo byte UTF-8 để chữ có dấu không làm hỏng lần tải
+    body = {'snippet': {'title': title, 'description': _cut_bytes(re.sub(r'[<>]', '', caption), YT_DESC_BYTES), 'tags': tags,
+                        'categoryId': '22'},
             'status': status}
     hdr = {'Authorization': f'Bearer {ctx.token}'}
     r = http('POST', f"{sa.GOOGLE_API}/upload/youtube/v3/videos", params={'uploadType': 'resumable', 'part': 'snippet,status'},
@@ -808,11 +1114,13 @@ def _yt_publish(ctx):
     loc = r.headers.get('Location')
     if not loc:
         raise SocialError('provider_busy', 'YouTube did not open an upload session — will retry.', transient=True, platform='youtube')
-    r = http('PUT', loc, data=data, headers={**hdr, 'Content-Type': ct}, timeout=UPLOAD_TIMEOUT)
+    r = ctx.create('PUT', loc, data=data, headers={**hdr, 'Content-Type': ct}, timeout=UPLOAD_TIMEOUT)
     j = _google(r, 'youtube')
     vid = j.get('id')
     if not vid:
-        raise SocialError('provider_busy', 'YouTube did not confirm the upload — will retry.', transient=True, platform='youtube')
+        # tải xong (2xx) mà không có id: video có thể đã nằm trên kênh — không tự tải lại thành 2 video
+        raise SocialError('publish_uncertain', UNCERTAIN_MSG.format(p='YouTube'), 'upload finished without a video id',
+                          platform='youtube')
     out = {'remote_id': vid, 'permalink': f"https://youtu.be/{vid}", 'visibility': (j.get('status') or {}).get('privacyStatus')}
     if native:
         return {'status': 'scheduled_remote', **out, 'next_attempt_at': native + timedelta(minutes=3)}
@@ -891,8 +1199,8 @@ def _tt_publish(ctx):
     publish_id, upload_url = init.get('publish_id'), init.get('upload_url')
     if not publish_id or not upload_url:
         raise SocialError('provider_busy', 'TikTok did not open an upload — will retry.', transient=True, platform='tiktok')
-    r = http('PUT', upload_url, data=data, headers={'Content-Range': f'bytes 0-{n - 1}/{n}', 'Content-Type': ct,
-                                                     'Content-Length': str(n)}, timeout=UPLOAD_TIMEOUT)
+    r = ctx.create('PUT', upload_url, data=data, headers={'Content-Range': f'bytes 0-{n - 1}/{n}', 'Content-Type': ct,
+                                                           'Content-Length': str(n)}, timeout=UPLOAD_TIMEOUT)
     if r.status_code >= 500:
         raise SocialError('provider_busy', 'TikTok upload failed — will retry.', f"HTTP {r.status_code}", transient=True, platform='tiktok')
     if r.status_code >= 300:
@@ -920,17 +1228,34 @@ def tiktok_creator_info(business_id):
     return {k: d.get(k) for k in keys if k in d}
 
 
+def _tt_status(token, publish_id):
+    return _tiktok(http('POST', f"{sa.TIKTOK_API}/v2/post/publish/status/fetch/", json={'publish_id': publish_id},
+                        headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json; charset=UTF-8'}))
+
+
+def _tt_post_ids(d):
+    # TikTok viết sai chính tả 'publicaly' trong API thật — đọc cả 2 cách
+    return d.get('publicaly_available_post_id') or d.get('publicly_available_post_id') or []
+
+
+def _tt_ids(target, ids):
+    out = {'remote_id': str(ids[0]), 'needs_post_id': False}
+    if target.get('creator_username'):
+        out['permalink'] = f"https://www.tiktok.com/@{target['creator_username']}/video/{ids[0]}"
+    return out
+
+
 def _tt_check(ctx):
-    d = _tiktok(http('POST', f"{sa.TIKTOK_API}/v2/post/publish/status/fetch/", json={'publish_id': ctx.target.get('container_id')},
-                     headers={'Authorization': f'Bearer {ctx.token}', 'Content-Type': 'application/json; charset=UTF-8'}))
+    d = _tt_status(ctx.token, ctx.target.get('container_id'))
     s = d.get('status')
     if s == 'PUBLISH_COMPLETE':
-        ids = d.get('publicaly_available_post_id') or d.get('publicly_available_post_id') or []
+        ids = _tt_post_ids(d)
         out = {'status': 'published'}
         if ids:
-            out['remote_id'] = str(ids[0])
-            if ctx.target.get('creator_username'):
-                out['permalink'] = f"https://www.tiktok.com/@{ctx.target['creator_username']}/video/{ids[0]}"
+            out.update(_tt_ids(ctx.target, ids))
+        elif ctx.options.get('privacy_level') != 'SELF_ONLY':
+            # TikTok chỉ trả id bài công khai SAU kiểm duyệt (vài phút–vài giờ): sync_metrics hỏi lại tới 48 giờ để có link + số
+            out.update(needs_post_id=True, post_id_until=ctx.now + TT_POST_ID_WINDOW)
         return out
     if s == 'FAILED':
         return _fail('tiktok_failed', f"TikTok could not publish the video: {d.get('fail_reason') or 'unknown reason'}")
@@ -939,8 +1264,12 @@ def _tt_check(ctx):
 
 # ---------------------------------------------------------------- Google Business Profile
 def _gbp_publish(ctx):
-    if ctx.media_type == 'video':
-        return _skip('gbp_no_video')
+    code = _media_problem('google_business', ctx.media_type, (ctx.media or {}).get('content_type'), ctx.media_size())
+    if code == 'media_too_large':
+        # Google tải ảnh qua link (không kèm Range): ảnh lớn hơn 1 response Vercel = ảnh cụt -> không gửi
+        return _fail(code, _media_message(code, 'google_business', ctx.media_size()))
+    if code:
+        return _skip(code)
     body = {'languageCode': sa.shop_language(ctx.post['business_id']), 'summary': ctx.caption()[:1500], 'topicType': 'STANDARD'}
     link = None
     try:
@@ -954,8 +1283,8 @@ def _gbp_publish(ctx):
         body['callToAction'] = {'actionType': 'LEARN_MORE', 'url': ctx.post['link']}
     if ctx.media_type == 'image':
         body['media'] = [{'mediaFormat': 'PHOTO', 'sourceUrl': ctx.media_url()}]
-    j = _google(http('POST', f"{sa.GBP_API}/v4/{ctx.account['external_id']}/localPosts", json=body,
-                     headers={'Authorization': f'Bearer {ctx.token}'}), 'google_business')
+    j = _google(ctx.create('POST', f"{sa.GBP_API}/v4/{ctx.account['external_id']}/localPosts", json=body,
+                           headers={'Authorization': f'Bearer {ctx.token}'}), 'google_business')
     return _gbp_state(ctx, j)
 
 
@@ -1012,10 +1341,12 @@ def _claim(scope, now, worker, phase):
                         {'status': {'$in': ['publishing', 'partial']}, 'targets': {'$elemMatch': open_due}}]}
         upd = {'status': 'publishing', 'lease_owner': worker, 'lease_until': now + LEASE, 'updated_at': now}
     else:
-        ors = [{'scheduled_at': {'$gte': now + lo, '$lte': now + hi},
-                'targets': {'$elemMatch': {'platform': p, 'status': 'pending',
-                                           '$or': [{'next_attempt_at': None}, {'next_attempt_at': {'$lte': now}}]}}}
-               for p, (lo, hi) in PREPUSH.items()]
+        ors = []
+        for p, (lo, hi) in PREPUSH.items():
+            em = {'platform': p, 'status': 'pending', '$or': [{'next_attempt_at': None}, {'next_attempt_at': {'$lte': now}}]}
+            if p == 'youtube':
+                em['options.privacy_status'] = {'$in': [None, '', 'public']}   # khớp _native_window (không nhận lại mãi)
+            ors.append({'scheduled_at': {'$gte': now + lo, '$lte': now + hi}, 'targets': {'$elemMatch': em}})
         cond = {'status': 'scheduled', '$or': ors}
         upd = {'lease_owner': worker, 'lease_until': now + LEASE}
     return db.social_posts.find_one_and_update({'$and': [scope, cond, _lease_free(now)]}, {'$set': upd},
@@ -1028,9 +1359,14 @@ def _extend_lease(post_id, worker, now):
     return db.social_posts.update_one({'id': post_id, 'lease_owner': worker}, {'$set': {'lease_until': until}}).matched_count == 1
 
 
+def _stamp(now):
+    # updated_at là "phiên bản" để màn sửa/huỷ biết bài vừa đổi — luôn tiến lên (now của cron có thể là mốc cũ)
+    return max(now, utcnow())
+
+
 def _save_target(post_id, idx, fields, worker, now):
     upd = {f'targets.{idx}.{k}': v for k, v in fields.items()}
-    upd['updated_at'] = now
+    upd['updated_at'] = _stamp(now)
     return db.social_posts.update_one({'id': post_id, 'lease_owner': worker}, {'$set': upd}).matched_count == 1
 
 
@@ -1045,17 +1381,25 @@ def _final_status(targets):
     return 'failed'
 
 
-def _run_target(post, target, now):
+def _run_target(post, target, now, phase='due', save=None):
+    """Chạy 1 đích. Trả field cần ghi, hoặc None = không làm gì lượt này (vd ngoài khung tự đăng khi đẩy trước).
+    save(fields): ghi ngay vào DB giữa chừng (checkpoint) — dùng trước lệnh tạo bài."""
     platform, bid = target['platform'], post['business_id']
     attempts = int(target.get('attempts') or 0)
+    ctx = None
     try:
         acc = sa.get_account(bid, platform)
         if not acc:
             raise SocialError('not_connected', f"{sa.LABELS[platform]} is not connected.", platform=platform)
         if acc.get('status') == 'needs_reconnect':
             raise SocialError('needs_reconnect', f"{sa.LABELS[platform]} needs to be reconnected.", platform=platform)
-        ctx = _Ctx(post, target, acc, sa.access_token(acc), now)
+        if sa.needs_location(acc):
+            raise SocialError('needs_location', 'Choose which Google Business Profile location to post to (Accounts tab).',
+                              platform=platform)
+        ctx = _Ctx(post, target, acc, sa.access_token(acc), now, phase, save)
         res = ADAPTERS[platform]['publish' if target.get('status') == 'pending' else 'check'](ctx)
+        if res is None:
+            return None
         if res.get('error'):
             res['error'] = {**res['error'], 'at': now}
         else:
@@ -1076,8 +1420,14 @@ def _run_target(post, target, now):
             return {'status': target.get('status') or 'pending', 'attempts': attempts, 'error': err,
                     'next_attempt_at': now + timedelta(minutes=2 ** attempts)}
         return {'status': 'failed', 'error': err, 'next_attempt_at': None}
+    except _LeaseLost:
+        raise
     except Exception as e:   # lỗi ngoài dự kiến: không để bài kẹt mãi — tính như lỗi tạm, hết lượt thì báo lỗi
         print(f"[social] {platform} post {post.get('id')}: {e!r}")
+        if ctx is not None and ctx.sent:
+            # lệnh tạo bài đã gửi xong rồi mới lỗi: có thể đã lên — không tự gửi lại
+            return {'status': 'failed', 'next_attempt_at': None,
+                    'error': {'code': 'publish_uncertain', 'message': UNCERTAIN_MSG.format(p=sa.LABELS[platform]), 'at': now}}
         attempts += 1
         err = {'code': 'internal', 'message': 'Unexpected error while posting.', 'at': now}
         if attempts >= MAX_ATTEMPTS:
@@ -1092,29 +1442,42 @@ def _process(doc, now, worker, phase, stats, deadline_at):
     stale = phase == 'due' and doc.get('status') == 'scheduled' and sched and now - sched > STALE_AFTER
     targets = doc.get('targets') or []
     for idx, t in enumerate(targets):
-        if t.get('status') not in OPEN_T:
+        st = t.get('status')
+        if st not in OPEN_T:
             continue
-        if phase == 'prepush' and (t['platform'] not in PREPUSH or t.get('status') != 'pending'):
+        if phase == 'prepush' and (st != 'pending' or not _native_window(t['platform'], t, sched, now)):
+            # bài được nhận vì khung của NỀN TẢNG KHÁC: đích này ngoài khung tự đăng của mình -> đợi tới giờ, không đăng sớm
             continue
         nxt = as_utc(t.get('next_attempt_at'))
         if nxt and nxt > now:
             continue
         if deadline_at and time.monotonic() > deadline_at:
             break
-        if stale and t.get('status') == 'pending' and not t.get('attempts'):
+        if deadline_at and st == 'pending' and doc.get('media_type') == 'video' and deadline_at - time.monotonic() < VIDEO_START_MIN:
+            break   # sắp hết giờ chạy: không bắt đầu tải video (bị tắt giữa chừng = không biết đã lên chưa) — để lượt sau
+        if st == 'sending':
+            # máy trước chết giữa lệnh tạo bài (hết hạn thuê): bài có thể đã lên — không gửi lại, báo chủ tiệm kiểm tra
+            fields = {'status': 'failed', 'next_attempt_at': None,
+                      'error': {'code': 'publish_uncertain', 'message': UNCERTAIN_MSG.format(p=sa.LABELS[t['platform']]), 'at': now}}
+        elif stale and st == 'pending' and not t.get('attempts'):
             fields = {'status': 'failed', 'next_attempt_at': None,
                       'error': {'code': 'missed_time', 'message': 'Not sent: it was more than 24 hours past the scheduled time.', 'at': now}}
         else:
             if not _extend_lease(pid, worker, now):
                 return
-            fields = _run_target(doc, t, now)
+            try:
+                fields = _run_target(doc, t, now, phase, lambda f, i=idx: _save_target(pid, i, f, worker, now))
+            except _LeaseLost:
+                return
+            if fields is None:
+                continue
         if not _save_target(pid, idx, fields, worker, now):
             return   # mất khoá thuê (quá hạn, máy khác đã nhận) — dừng, không ghi đè
         t.update(fields)
         key = {'published': 'published', 'failed': 'failed', 'skipped': 'skipped', 'processing': 'processing',
                'scheduled_remote': 'processing'}.get(fields['status'], 'retrying')
         stats[key] = stats.get(key, 0) + 1
-    rel = {'lease_owner': None, 'lease_until': None, 'updated_at': now}
+    rel = {'lease_owner': None, 'lease_until': None, 'updated_at': _stamp(now)}
     if phase == 'due':
         rel['status'] = _final_status(targets)
     db.social_posts.update_one({'id': pid, 'lease_owner': worker}, {'$set': rel})
@@ -1262,17 +1625,51 @@ def _cadence(age):
     return timedelta(hours=48)
 
 
+def _account_token(bid, p, accounts):
+    """(acc, token) dùng chung trong 1 lượt đọc số liệu; lỗi (chưa nối / token hỏng) cũng nhớ để không hỏi lại."""
+    key = (bid, p)
+    if key not in accounts:
+        acc = sa.get_account(bid, p)
+        if not acc or acc.get('status') != 'connected':
+            accounts[key] = SocialError('not_connected', f"{sa.LABELS[p]} is not connected.", platform=p)
+        else:
+            try:
+                accounts[key] = (acc, sa.access_token(acc))
+            except SocialError as e:
+                accounts[key] = e
+                if e.reconnect:
+                    sa.mark_needs_reconnect(bid, p, e)
+    if isinstance(accounts[key], SocialError):
+        raise accounts[key]
+    return accounts[key]
+
+
+def _tt_resolve_id(tok, t, now):
+    """Bài TikTok công khai đã lên nhưng chưa có id (TikTok còn kiểm duyệt): hỏi lại status/fetch.
+    Trả field cập nhật (có id -> remote_id + link), {'needs_post_id': False} khi quá 48 giờ (thôi hỏi), hoặc None (hỏi sau)."""
+    ids = _tt_post_ids(_tt_status(tok, t.get('container_id')))
+    if ids:
+        return _tt_ids(t, ids)
+    if now > (as_utc(t.get('post_id_until')) or now):
+        return {'needs_post_id': False}
+    return None
+
+
 def sync_metrics(business_id=None, max_targets=30, now=None, deadline=None):
-    """Đọc số liệu THẬT của bài đã đăng (≤ 60 ngày). Trả số đích đã cập nhật số liệu."""
+    """Đọc số liệu THẬT của bài đã đăng (≤ 60 ngày). Trả số đích đã cập nhật số liệu.
+    Bài TikTok công khai chưa có id (đang kiểm duyệt) được hỏi lại id ở đây (≤ 48 giờ) để có link + số liệu."""
     if business_id is None and not sa.tick_allowed():
         return 0
     if business_id is not None and not sa.business_allowed(business_id):
         return 0
     _ensure_indexes()
     now = as_utc(now) or utcnow()
+    when = [{'metrics_next_at': None}, {'metrics_next_at': {'$lte': now}}]
     due = {'status': 'published', 'remote_id': {'$nin': [None, '']}, 'platform': {'$in': list(METRIC_PLATFORMS)},
-           'metrics_done': {'$ne': True}, '$or': [{'metrics_next_at': None}, {'metrics_next_at': {'$lte': now}}]}
-    q = {'$and': [_scope(business_id, None), {'status': {'$in': ['published', 'partial', 'publishing']}}, {'targets': {'$elemMatch': due}}]}
+           'metrics_done': {'$ne': True}, '$or': when}
+    due_id = {'status': 'published', 'platform': 'tiktok', 'needs_post_id': True, '$or': when}
+    q = {'$and': [_scope(business_id, None), {'status': {'$in': ['published', 'partial', 'publishing']}},
+                  {'$or': [{'targets': {'$elemMatch': due}}, {'targets': {'$elemMatch': due_id}}]}]}
     done, tried, accounts = 0, 0, {}
     deadline_at = time.monotonic() + deadline if deadline else None
     for post in list(db.social_posts.find(q, {'_id': 0}).sort('scheduled_at', -1).limit(max_targets)):
@@ -1281,44 +1678,39 @@ def sync_metrics(business_id=None, max_targets=30, now=None, deadline=None):
             if tried >= max_targets or (deadline_at and time.monotonic() > deadline_at):
                 return done
             nxt = as_utc(t.get('metrics_next_at'))
-            if (t.get('status') != 'published' or not t.get('remote_id') or t.get('platform') not in METRIC_PLATFORMS
-                    or t.get('metrics_done') or (nxt and nxt > now)):
+            p = t.get('platform')
+            want_id = p == 'tiktok' and t.get('status') == 'published' and t.get('needs_post_id') and not t.get('remote_id')
+            if (nxt and nxt > now) or (not want_id and (t.get('status') != 'published' or not t.get('remote_id')
+                                                        or p not in METRIC_PLATFORMS or t.get('metrics_done'))):
                 continue
             tried += 1
-            p = t['platform']
             age = now - (as_utc(t.get('published_at')) or as_utc(post.get('scheduled_at')) or now)
             upd = {}
             if age > timedelta(days=60):
-                upd['metrics_done'] = True
+                upd.update(metrics_done=True, needs_post_id=False)
             else:
-                key = (bid, p)
                 try:
-                    if key not in accounts:
-                        acc = sa.get_account(bid, p)
-                        if not acc or acc.get('status') != 'connected':
-                            accounts[key] = SocialError('not_connected', f"{sa.LABELS[p]} is not connected.", platform=p)
+                    acc, tok = _account_token(bid, p, accounts)
+                    if want_id:
+                        got = _tt_resolve_id(tok, t, now)
+                        if got is None:
+                            upd['metrics_next_at'] = now + timedelta(minutes=30)
                         else:
-                            try:
-                                accounts[key] = (acc, sa.access_token(acc))
-                            except SocialError as e:
-                                accounts[key] = e
-                                if e.reconnect:
-                                    sa.mark_needs_reconnect(bid, p, e)
-                    if isinstance(accounts[key], SocialError):
-                        raise accounts[key]
-                    acc, tok = accounts[key]
-                    m = METRIC_FETCH[p](acc, tok, t, upd)
-                    if m:
-                        db.social_post_metrics.update_one({'business_id': bid, 'post_id': post['id'], 'platform': p},
-                                                          {'$set': {'remote_id': t['remote_id'], 'fetched_at': now, 'metrics': m,
-                                                                    'qa_test': bool(post.get('qa_test'))}},
-                                                          upsert=True)
-                        done += 1
-                    upd.update(metrics_at=now, metrics_error=None, metrics_next_at=now + _cadence(age))
+                            upd.update(got)
+                            t.update(got)
+                    if t.get('remote_id') and 'metrics_next_at' not in upd:
+                        m = METRIC_FETCH[p](acc, tok, t, upd)
+                        if m:
+                            db.social_post_metrics.update_one({'business_id': bid, 'post_id': post['id'], 'platform': p},
+                                                              {'$set': {'remote_id': t['remote_id'], 'fetched_at': now, 'metrics': m,
+                                                                        'qa_test': bool(post.get('qa_test'))}},
+                                                              upsert=True)
+                            done += 1
+                        upd.update(metrics_at=now, metrics_error=None, metrics_next_at=now + _cadence(age))
                 except SocialError as e:
                     if e.reconnect:
                         sa.mark_needs_reconnect(bid, p, e)
-                        accounts[key] = e
+                        accounts[(bid, p)] = e
                     upd.update(metrics_error={'code': e.code, 'message': str(e)[:200], 'at': now},
                                metrics_next_at=now + timedelta(hours=6))
             db.social_posts.update_one({'id': post['id'], 'business_id': bid},
