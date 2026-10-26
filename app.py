@@ -7185,45 +7185,21 @@ def api_public_hotel_reservation_create(business_id):
     URL, KHÔNG tin field trong JSON body (chặn spam đơn giả sang tiệm khác — xem giải thích đầy
     đủ ở route F&B). KHÔNG gán room_id cụ thể ở bước này (khách chỉ chọn loại phòng mong muốn,
     không biết phòng nào đang trống ngày đó) — admin xếp phòng cụ thể trên /hotel/reservations,
-    lúc đó mới chặn trùng lịch."""
+    lúc đó mới chặn trùng lịch. Kiểm tra + ghi nằm ở reservations_hotel.create_request (dùng chung với trợ lý AI)."""
     data = request.json or {}
     _err, _ok = _public_reservation_check(business_id, data)
     if _err:
         return _err
     data, _vi = _ok
-    name = (data.get('name') or '').strip()
-    phone = (data.get('phone') or '').strip()
-    checkin_date = (data.get('checkin_date') or '').strip()
-    checkout_date = (data.get('checkout_date') or '').strip()
+    import reservations_hotel
     try:
-        party_size = int(data.get('party_size') or 1)
-    except (TypeError, ValueError):
-        party_size = 1
-    if not business_id or not name or not phone or not checkin_date or not checkout_date:
-        return jsonify({'success': False, 'message': 'Vui lòng nhập đầy đủ tên, số điện thoại và ngày nhận/trả phòng.' if _vi else 'Please enter your name, phone number and dates.'}), 400
-    if checkout_date <= checkin_date:
-        return jsonify({'success': False, 'message': 'Ngày trả phòng phải sau ngày nhận phòng.' if _vi else 'Check-out must be after check-in.'}), 400
-    if party_size < 1:
-        party_size = 1
-    if (datetime.strptime(checkout_date, '%Y-%m-%d') - datetime.strptime(checkin_date, '%Y-%m-%d')).days > 60:
-        return jsonify({'success': False, 'message': 'Tối đa 60 đêm cho 1 yêu cầu.' if _vi else 'Up to 60 nights per request.'}), 400
-    try:
-        reservation_doc = {
-            'id': next_mongo_id('hotel_reservations'),
-            'business_id': business_id,
-            'guest_name': name,
-            'guest_phone': phone,
-            'party_size': party_size,
-            'checkin_date': checkin_date,
-            'checkout_date': checkout_date,
-            'room_type': data.get('room_type') or None,
-            'room_id': None,
-            'note': (data.get('note') or '').strip() or None,
-            'status': 'pending',
-            'created_at': datetime.now().isoformat(),
-        }
-        db.hotel_reservations.insert_one(reservation_doc)
+        reservation_doc = reservations_hotel.create_request(
+            business_id, guest_name=data.get('name'), guest_phone=data.get('phone'),
+            checkin_date=data.get('checkin_date'), checkout_date=data.get('checkout_date'),
+            party_size=data.get('party_size'), room_type=data.get('room_type'), note=data.get('note'), source='web')
         return jsonify({'success': True, 'id': reservation_doc['id']})
+    except reservations_hotel.HotelRequestError as e:
+        return jsonify({'success': False, 'message': e.text('vi' if _vi else 'en')}), 400
     except Exception as e:
         return jsonify({'success': False, 'message': f'Không thể tạo yêu cầu đặt phòng: {str(e)}'}), 500
 
