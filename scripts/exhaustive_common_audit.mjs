@@ -6,6 +6,15 @@ import fs from 'fs';
 import path from 'path';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5001';
+// Tài khoản super admin cho test: CHỈ đọc từ biến môi trường (mật khẩu cũ từng ghi cứng ở đây, đã lộ trong lịch sử git —
+// chủ hệ thống phải đổi mật khẩu đó). BITPAW_QA_SUPERADMIN_* ưu tiên; SUPERADMIN_EMAIL/_PASSWORD cũ vẫn đọc được.
+const SUPER_EMAIL = process.env.BITPAW_QA_SUPERADMIN_EMAIL || process.env.SUPERADMIN_EMAIL || '';
+const SUPER_PASS = process.env.BITPAW_QA_SUPERADMIN_PASSWORD || process.env.SUPERADMIN_PASSWORD || '';
+if (!SUPER_EMAIL || !SUPER_PASS) {
+  console.error('Missing super-admin test login: set BITPAW_QA_SUPERADMIN_EMAIL and BITPAW_QA_SUPERADMIN_PASSWORD '
+    + '(Thiếu tài khoản super admin cho test: hãy đặt 2 biến môi trường này).');
+  process.exit(1);
+}
 const SHOT_DIR = 'audit-results/screenshots/common';
 const VIDEO_DIR = 'audit-results/videos';
 const MANIFEST_FILE = 'audit-results/exhaustive_manifest.json';
@@ -131,9 +140,7 @@ async function main() {
   }
 
   // ---- 6) Super Admin (dùng credentials thật của chủ hệ thống — chỉ xem, không đổi cấu hình) ----
-  const superEmail = process.env.SUPERADMIN_EMAIL || 'hodinhsang30052003@gmail.com';
-  const superPass = process.env.SUPERADMIN_PASSWORD || '0794678904Az@';
-  await login(page, superEmail, superPass);
+  await login(page, SUPER_EMAIL, SUPER_PASS);
   await page.goto(`${BASE}/super_admin`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
   await shot(page, '24_super_admin_dashboard', err);

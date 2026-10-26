@@ -157,7 +157,8 @@ def forget(business_id):
 
 # ---- Nội dung thẻ giá theo ngành (vi, en) ---------------------------------------------------------
 _CORE = {  # 2–3 dòng "đúng nghề" cho Essential
-    'nail': [('fa-arrows-rotate', 'Xoay tua thợ công bằng, chia tip & hoa hồng tự động', 'Fair turn rotation, automatic tip & commission split'),
+    # Bỏ "xoay tua thợ công bằng" (26/10/2026): tính năng CHƯA có cho nail — thẻ giá chỉ ghi điều đã chạy thật.
+    'nail': [('fa-hand-holding-dollar', 'Chia tip & hoa hồng thợ tự động', 'Automatic tip & commission split'),
              ('fa-calendar-check', 'Trang đặt lịch online + mã QR cho tiệm', 'Online booking page + QR code for your salon')],
     'spa': [('fa-spa', 'Menu liệu trình, hoa hồng kỹ thuật viên', 'Treatment menu, therapist commission'),
             ('fa-calendar-check', 'Trang đặt lịch online + mã QR', 'Online booking page + QR code')],
@@ -190,6 +191,17 @@ _PRO_EXTRA = {  # 1–2 dòng mở thêm ở Pro theo ngành
                   ('fa-screwdriver-wrench', 'Kho phụ tùng theo từng việc, nhắn "thợ đang đến"', 'Parts per job, "on my way" texts')],
     'office': [('fa-check-double', 'Duyệt nghỉ phép, đề xuất chi, KPI', 'Leave & expense approvals, KPI')],
 }
+# Ngành mà trợ lý AI ĐẶT LỊCH THẬT được (dịch vụ + thợ + giờ trống). Ngành khác AI chỉ trả lời câu hỏi và chuyển yêu cầu
+# (đặt bàn/phòng/việc) cho đội của tiệm — thẻ giá Pro và bot bán hàng (ai_sales_prompts.bitpaw_facts) dùng CHUNG câu dưới đây.
+AI_BOOKING_INDUSTRIES = ('nail', 'spa')
+
+
+def ai_assistant_claim(industry):
+    """(vi, en) — câu "trợ lý AI 24/7" đúng sự thật cho từng ngành."""
+    if industry in AI_BOOKING_INDUSTRIES:
+        return ('Trợ lý AI trả lời & đặt lịch 24/7', '24/7 AI assistant that answers & books')
+    return ('Trợ lý AI trả lời khách 24/7 & chuyển yêu cầu cho đội của bạn',
+            '24/7 AI assistant that answers questions & passes requests to your team')
 
 
 def tier_cards(industry):
@@ -213,10 +225,11 @@ def tier_cards(industry):
                       ('fa-store', f'1 chi nhánh · tối đa {lim} nhân viên', f'1 location · up to {lim} staff')]
             bonus = ('Tự cài trong 1 ngày, không phí cài đặt', 'Self-setup in a day — no setup fee')
         elif key == 'pro':
+            ai_vi, ai_en = ai_assistant_claim(ind)
             items = [('fa-layer-group', 'Mọi thứ trong Essential, không giới hạn nhân viên', 'Everything in Essential, unlimited staff'),
                      ('fa-user-gear', 'BitPaw cài đặt giúp + website riêng cho tiệm', 'Done-for-you setup + your own website'),
                      ('fa-comment-sms', 'SMS nhắc lịch, nhắn lại cuộc gọi nhỡ, xin đánh giá 5 sao', 'SMS reminders, missed-call text back, 5-star review requests'),
-                     ('fa-robot', 'Trợ lý AI trả lời & đặt chỗ 24/7, CRM nhắc khách cũ quay lại', '24/7 AI assistant that answers & books, CRM win-back')]
+                     ('fa-robot', f'{ai_vi}, CRM nhắc khách cũ quay lại', f'{ai_en}, CRM win-back')]
             items += _PRO_EXTRA[ind]
             items += [('fa-calendar-week', 'Lịch ca, duyệt nghỉ phép, báo cáo lãi lỗ', 'Shift roster, leave approvals, profit reports')]
             bonus = ('Tặng 1 máy Square Terminal cài sẵn', 'Includes 1 pre-configured Square Terminal') if pay else \
@@ -240,10 +253,13 @@ def catalog():
     return {ind: {'label': INDUSTRY_LABELS[ind], 'cards': tier_cards(ind)} for ind in INDUSTRY_PRICES}
 
 
-def facts_lines():
-    """Dòng giá cho bot bán hàng."""
+def facts_lines(industry=None):
+    """Dòng giá cho bot bán hàng. Biết ngành của trang khách đang xem -> CHỈ dòng của ngành đó (nạp cả 9 dòng làm bot
+    báo nhầm giá ngành khác); không biết ngành (landing chung) -> cả 9 dòng."""
     out = []
     for ind, tiers in INDUSTRY_PRICES.items():
+        if industry in INDUSTRY_PRICES and ind != industry:
+            continue
         parts = []
         for key in PLAN_ORDER:
             m, s = tiers[key]

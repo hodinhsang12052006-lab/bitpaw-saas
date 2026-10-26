@@ -24,8 +24,10 @@ RESET = "\033[0m"
 BOLD = "\033[1m"
 
 URL = "http://localhost:5001"
-ADMIN_EMAIL = "hodinhsang30052003@gmail.com"
-ADMIN_PASSWORD = "0794678904Az@"
+# Tài khoản super admin cho test: CHỈ đọc từ biến môi trường (mật khẩu cũ từng ghi cứng ở đây, đã lộ trong lịch sử git —
+# chủ hệ thống phải đổi mật khẩu đó). BITPAW_QA_SUPERADMIN_* ưu tiên; SUPERADMIN_EMAIL/_PASSWORD cũ vẫn đọc được.
+ADMIN_EMAIL = os.environ.get("BITPAW_QA_SUPERADMIN_EMAIL") or os.environ.get("SUPERADMIN_EMAIL", "")
+ADMIN_PASSWORD = os.environ.get("BITPAW_QA_SUPERADMIN_PASSWORD") or os.environ.get("SUPERADMIN_PASSWORD", "")
 
 def log_success(msg):
     print(f"{GREEN}[✓] {msg}{RESET}")
@@ -349,4 +351,7 @@ def main():
         print(f"\n{BOLD}{YELLOW}=== KẾT THÚC E2E BOT SCANNING ==={RESET}\n")
 
 if __name__ == "__main__":
+    if not (ADMIN_EMAIL and ADMIN_PASSWORD):
+        raise SystemExit("Missing super-admin test login: set BITPAW_QA_SUPERADMIN_EMAIL and BITPAW_QA_SUPERADMIN_PASSWORD "
+                         "(Thiếu tài khoản super admin cho test: hãy đặt 2 biến môi trường này).")
     main()
