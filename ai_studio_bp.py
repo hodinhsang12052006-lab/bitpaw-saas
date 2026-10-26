@@ -209,13 +209,15 @@ def _media_items(business_id, kind, limit):
         if kind:
             q['kind'] = kind
         for j in db.ai_media_jobs.find(q, {'_id': 0}).sort('id', -1).limit(limit):
+            # url/public_url/play_url/download_url: play/tải qua link /m/ có Range (video > 4,5 MB, iPhone cần Range)
+            links = media_store.file_links(j['file_id'], j.get('content_type')) if j.get('file_id') else \
+                {'url': None, 'public_url': None, 'play_url': None, 'download_url': None}
             items.append({
                 'id': j['id'], 'kind': j.get('kind'), 'preset': j.get('preset'), 'prompt': j.get('prompt'),
-                'status': j.get('status'), 'file_id': j.get('file_id'), 'public_url': j.get('public_url'),
-                'url': f"/api/storage/file/{j['file_id']}" if j.get('file_id') else None,
+                'status': j.get('status'), 'file_id': j.get('file_id'), **links,
                 'content_type': j.get('content_type'), 'created_at': media_store.iso(j.get('created_at')),
                 'cost_estimate_usd': j.get('cost_estimate_usd'), 'source': 'replicate', 'aspect': j.get('aspect'),
-                'duration': j.get('duration'), 'model': j.get('model'), 'is_ai_generated': True,
+                'duration': j.get('duration'), 'model': j.get('model'), 'size': j.get('size'), 'is_ai_generated': True,
             })
     file_kinds = _FILE_KINDS.get(kind, media_store.UPLOAD_KINDS)
     family = kind if kind in ('image', 'video') else None
@@ -224,7 +226,8 @@ def _media_items(business_id, kind, limit):
             continue
         items.append({
             'id': f['file_id'], 'kind': f['kind'], 'preset': None, 'prompt': None, 'status': 'succeeded',
-            'file_id': f['file_id'], 'public_url': f['public_url'], 'url': f['url'], 'content_type': f['content_type'],
+            'file_id': f['file_id'], 'public_url': f['public_url'], 'url': f['url'], 'play_url': f['play_url'],
+            'download_url': f['download_url'], 'content_type': f['content_type'],
             'created_at': f['created_at'], 'cost_estimate_usd': 0, 'source': f['source'], 'size': f.get('size'),
             'is_ai_generated': False,
         })
@@ -244,11 +247,12 @@ def media_list():
     except ValueError:
         limit = 40
     try:
+        ai_media.sweep_stale(business_id, limit=1)   # job mồ côi thôi giữ chỗ hạn mức (tối đa 1 lần hỏi Replicate)
         items = _media_items(business_id, kind, limit)
         quota = ai_media.quota_status(business_id)
     except MediaError as e:
         return _media_err(e)
-    return jsonify({"success": True, "items": items, "quota": quota})
+    return jsonify({"success": True, "items": items, "quota": quota, "limits": media_store.public_limits()})
 
 
 @ai_studio_bp.route('/media/<file_id>', methods=['DELETE'])
@@ -275,9 +279,12 @@ def media_delete(file_id):
 @ai_studio_bp.route('/quota', methods=['GET'])
 @login_required
 def media_quota():
+    # 'presets' (kèm giá ước tính USD) luôn trả về — giao diện tự quyết ai được thấy giá
+    ai_media.sweep_stale(_bid(), limit=1)
     q = ai_media.quota_status(_bid())
     return jsonify({"success": True, **q, "quota": q, "presets": ai_media.presets_public(),
-                    "configured": bool((os.environ.get('REPLICATE_API_TOKEN') or '').strip())})
+                    "configured": bool((os.environ.get('REPLICATE_API_TOKEN') or '').strip()),
+                    "limits": media_store.public_limits()})
 
 
 @ai_studio_bp.route('/replicate_webhook', methods=['POST'])
@@ -292,15 +299,28 @@ def replicate_webhook():
     except ValueError:
         return jsonify({"success": False, "code": "bad_job"}), 400
     job = db.ai_media_jobs.find_one({'id': job_id}, {'_id': 0, 'prediction_id': 1, 'status': 1})
-    body = request.get_json(silent=True) or {}
+    body = request.get_json(silent=True)
+    body = body if isinstance(body, dict) else {}
+    pid = body.get('id')
+    if job and not job.get('prediction_id') and job.get('status') in ai_media.ACTIVE:
+        # create_job chết sau khi Replicate nhận lệnh nhưng trước khi lưu prediction_id (URL webhook mang đúng id job
+        # do create_job đặt, chữ ký đã kiểm) -> nhận prediction này, không để kết quả đã trả tiền rơi mất
+        adopted = ai_media.adopt_prediction(job_id, pid, body.get('model'))
+        if adopted:
+            job = adopted
     # Job lạ / chưa lưu prediction_id / id không khớp -> 200 để Replicate thôi gửi lại; giao diện tự hỏi lại sau
-    if not job or not job.get('prediction_id') or body.get('id') != job['prediction_id']:
+    if not job or not job.get('prediction_id') or pid != job['prediction_id']:
         return jsonify({"success": True, "ignored": True})
     try:
         job = ai_media.refresh_job(job_id)
     except MediaError as e:
         return jsonify(e.as_dict()), 503   # Replicate sẽ gửi lại webhook
-    return jsonify({"success": True, "status": (job or {}).get('status')})
+    status = (job or {}).get('status')
+    if status in ai_media.ACTIVE:
+        # Sự kiện 'completed' mà job chưa xong: bên khác đang giữ quyền lưu / tải kết quả lỗi tạm / hỏi Replicate lỗi
+        # mạng -> 503 để Replicate gửi lại sau (trả 200 thì job có thể kẹt 'running' mãi)
+        return jsonify({"success": False, "code": "retry_later", "status": status}), 503
+    return jsonify({"success": True, "status": status})
 
 
 # ---------------------------------------------------------------- kịch bản video quảng cáo (render trên trình duyệt)

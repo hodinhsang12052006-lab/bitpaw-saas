@@ -22,6 +22,7 @@ from datetime import timedelta
 
 import requests
 from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 from mongo_client import db, next_mongo_id
 import media_store
@@ -31,9 +32,18 @@ REPLICATE_API = os.environ.get('REPLICATE_API_BASE', 'https://api.replicate.com'
 OUTPUT_HOSTS = ('replicate.delivery', 'replicate.com')
 ACTIVE = ('queued', 'running')
 TERMINAL = ('succeeded', 'failed', 'canceled')
-DATA_URI_MAX = 1_000_000          # ảnh nguồn ≤ 1 MB gửi thẳng data: URI, lớn hơn phải là link HTTPS công khai
+# Ảnh nguồn ≤ 1 MB gửi thẳng data: URI; lớn hơn tải byte lên Replicate Files API rồi đưa link của Replicate.
+# KHÔNG đưa link /m/ của mình: Replicate tải 1 lần không Range, ảnh > FULL_MAX sẽ nhận bản cụt (206).
+DATA_URI_MAX = 1_000_000
 STALE_AFTER = timedelta(minutes=30)
+CREATE_LOST_AFTER = timedelta(minutes=10)   # polling: chưa có prediction_id sau 10 phút = lệnh tạo đã chết
+ORPHAN_AFTER = timedelta(minutes=20)        # quét nền: job đứng yên quá 20 phút (không ai hỏi lại) -> xử lý
+SWEEP_EVERY = timedelta(minutes=2)          # 1 job chỉ bị quét (hỏi Replicate) tối đa 2 phút/lần
 MAX_STORE_ATTEMPTS = 3
+_PID_RE = re.compile(r'[A-Za-z0-9_-]{4,64}')
+# Hạn mức tháng: kind job -> tên ô trong quota_status và trong document giữ chỗ db.ai_media_quota
+QUOTA_FIELDS = {'image': 'images', 'video': 'video_seconds'}
+_INTERNAL = ('_id', 'storing_until', 'store_attempts', 'public_base', 'quota_key', 'source_file', 'swept_at')
 
 IMAGE_ASPECTS = ('1:1', '4:5', '9:16', '16:9', '3:4', '4:3', '2:3', '3:2')   # có ở cả 3 model ảnh
 
@@ -50,8 +60,10 @@ MODELS = {
                    'input': lambda p, a, d, img: {'prompt': p, 'aspect_ratio': a}},
     },
     'video': {
+        # Giá Replicate ở 480p: t2v $0.05/video (không có biến thể interpolate); i2v $0.065/video khi bật interpolate_output
         'draft': {'model': 'wan-video/wan-2.2-t2v-fast', 'model_i2v': 'wan-video/wan-2.2-i2v-fast',
-                  'price_per_video': 0.065, 'durations': (5,), 'aspects': ('9:16', '16:9'),
+                  'price_per_video': {'wan-video/wan-2.2-t2v-fast': 0.05, 'wan-video/wan-2.2-i2v-fast': 0.065},
+                  'durations': (5,), 'aspects': ('9:16', '16:9'),
                   # i2v lấy khung hình theo ảnh gốc -> không gửi aspect_ratio
                   'input': lambda p, a, d, img: ({'prompt': p, 'image': img, 'resolution': '480p', 'interpolate_output': True}
                                                  if img else
@@ -60,8 +72,10 @@ MODELS = {
                      'aspects': ('9:16', '16:9', '1:1'),
                      'input': lambda p, a, d, img: dict({'prompt': p, 'duration': d, 'resolution': '720p', 'aspect_ratio': a},
                                                         **({'image': img} if img else {}))},
+        # Veo mặc định 1080p (file ~gấp đôi, cùng giá) -> ép 720p cho vừa giới hạn phát/đăng
         'premium': {'model': 'google/veo-3.1-fast', 'price_per_second': 0.15, 'durations': (4, 8), 'aspects': ('9:16', '16:9'),
-                    'input': lambda p, a, d, img: dict({'prompt': p, 'duration': d, 'aspect_ratio': a, 'generate_audio': True},
+                    'input': lambda p, a, d, img: dict({'prompt': p, 'duration': d, 'aspect_ratio': a, 'resolution': '720p',
+                                                        'generate_audio': True},
                                                        **({'image': img} if img else {}))},
     },
 }
@@ -90,14 +104,18 @@ def _headers(extra=None):
 
 
 # ---------------------------------------------------------------- giá + hạn mức
-def estimate(kind, preset, duration=None):
+def estimate(kind, preset, duration=None, model=None):
+    """Chi phí Replicate ước tính (USD). model: model thật sẽ chạy (vd i2v khi làm ảnh động) — giá có thể khác."""
     cfg = (MODELS.get(kind) or {}).get(preset)
     if not cfg:
         raise MediaError('bad_preset', f'Unknown preset: {kind}/{preset}')
     if kind == 'image':
         return round(cfg['price'], 4)
     if 'price_per_video' in cfg:
-        return round(cfg['price_per_video'], 4)
+        ppv = cfg['price_per_video']
+        if isinstance(ppv, dict):
+            ppv = ppv.get(model or cfg['model'], ppv[cfg['model']])
+        return round(ppv, 4)
     return round(cfg['price_per_second'] * int(duration or cfg['durations'][0]), 4)
 
 
@@ -111,6 +129,9 @@ def presets_public():
             if kind == 'video':
                 row['durations'] = list(cfg['durations'])
                 row['estimates_usd'] = {str(d): estimate(kind, name, d) for d in cfg['durations']}
+                # "Làm ảnh động" (có ảnh nguồn) có thể chạy model khác giá (draft: wan i2v)
+                i2v = cfg.get('model_i2v') or cfg['model']
+                row['estimates_animate_usd'] = {str(d): estimate(kind, name, d, model=i2v) for d in cfg['durations']}
             else:
                 row['estimate_usd'] = estimate(kind, name)
             out[kind].append(row)
@@ -140,11 +161,19 @@ def _units(job):
     return 1 if job.get('kind') == 'image' else int(job.get('duration') or 0)
 
 
+def _quota_key(business_id, month):
+    # _id cố định theo (tiệm, tháng): upsert song song không thể sinh 2 document (index _id luôn unique)
+    return f'{business_id}|{month}'
+
+
 def quota_status(business_id):
+    """used = sổ ai_usage tháng này; pending = job đang chạy; reserved = ô giữ chỗ nguyên tử (db.ai_media_quota) mà
+    create_job tăng/giảm — bình thường reserved == used + pending."""
     import plans
     plan = plans.business_plan(db, business_id)
     limits = (getattr(plans, 'AI_MEDIA_QUOTA', {}) or {}).get(plan) or {'images': 0, 'video_seconds': 0}
     start = _month_start()
+    month = start.strftime('%Y-%m')
     used = {'image': 0, 'video': 0}
     for row in db.ai_usage.aggregate([
         {'$match': {'business_id': business_id, 'kind': {'$in': ['image', 'video']}, 'created_at': {'$gte': start}}},
@@ -157,32 +186,93 @@ def quota_status(business_id):
                                    {'_id': 0, 'kind': 1, 'duration': 1}):
         if j.get('kind') in pending:
             pending[j['kind']] += _units(j)
-    return {
-        'plan': plan,
-        'images': {'used': used['image'], 'pending': pending['image'], 'limit': int(limits.get('images') or 0)},
-        'video_seconds': {'used': used['video'], 'pending': pending['video'], 'limit': int(limits.get('video_seconds') or 0)},
-        'month': start.strftime('%Y-%m'),
-    }
+    try:
+        held = db.ai_media_quota.find_one({'_id': _quota_key(business_id, month)}) or {}
+    except Exception as e:
+        print(f'[ai_media] quota doc: {e}')
+        held = {}
+    out = {'plan': plan, 'month': month}
+    for kind, field in QUOTA_FIELDS.items():
+        out[field] = {'used': used[kind], 'pending': pending[kind], 'limit': int(limits.get(field) or 0),
+                      'reserved': int(held[field]) if field in held else used[kind] + pending[kind]}
+    return out
+
+
+def _taken(bucket):
+    return max(bucket['used'] + bucket['pending'], int(bucket.get('reserved') or 0))
 
 
 def _check_quota(business_id, kind, units):
+    """Kiểm tra RẺ, không nguyên tử (chặn sớm trước khi tốn DeepSeek). Chốt thật là _reserve() trong create_job."""
     q = quota_status(business_id)
-    bucket = q['images'] if kind == 'image' else q['video_seconds']
-    if bucket['used'] + bucket['pending'] + units > bucket['limit']:
+    bucket = q[QUOTA_FIELDS[kind]]
+    if _taken(bucket) + units > bucket['limit']:
         raise MediaError('quota_exceeded', 'Monthly AI media quota reached for your plan.', detail=q, status=402)
     return q
+
+
+def _reserve(business_id, kind, units):
+    """Giữ chỗ hạn mức NGUYÊN TỬ trước khi gọi Replicate: 1 document/tiệm/tháng, $inc có điều kiện "còn đủ chỗ".
+    Trước đây đọc used+pending rồi mới insert job -> 20 request song song cùng đọc 1 con số, cùng lọt, cùng tốn tiền.
+    Trả _id của ô giữ chỗ (lưu vào job để trả lại đúng tháng khi job lỗi)."""
+    field = QUOTA_FIELDS[kind]
+    q = quota_status(business_id)
+    limit = q[field]['limit']
+    key = _quota_key(business_id, q['month'])
+    now = _now()
+    if units > limit:
+        raise MediaError('quota_exceeded', 'Monthly AI media quota reached for your plan.', detail=q, status=402)
+    try:
+        # Lần đầu trong tháng: khởi tạo bằng số thật (đã dùng + đang chạy) — job từ trước bản vá cũng được tính
+        db.ai_media_quota.update_one({'_id': key}, {'$setOnInsert': {
+            'business_id': business_id, 'month': q['month'], 'created_at': now,
+            **{f: q[f]['used'] + q[f]['pending'] for f in QUOTA_FIELDS.values()}}}, upsert=True)
+    except DuplicateKeyError:
+        pass   # request song song vừa tạo trước -> dùng document đó
+    held = db.ai_media_quota.find_one_and_update(
+        {'_id': key, field: {'$lte': limit - units}},
+        {'$inc': {field: units}, '$set': {'updated_at': now}}, return_document=ReturnDocument.AFTER)
+    if not held:
+        raise MediaError('quota_exceeded', 'Monthly AI media quota reached for your plan.',
+                         detail=quota_status(business_id), status=402)
+    return key
+
+
+def _job_quota_key(job):
+    if job.get('quota_key'):
+        return job['quota_key']
+    # Job tạo trước bản vá: đã được tính vào ô giữ chỗ lúc khởi tạo (nếu còn đang chạy) -> trả về tháng tạo job
+    created = _aware(job.get('created_at'))
+    if not created or not job.get('business_id'):
+        return None
+    return _quota_key(job['business_id'], created.strftime('%Y-%m'))
+
+
+def _quota_adjust(key, kind, delta):
+    """Trả lại (delta < 0, không bao giờ xuống âm) hoặc tính thêm (delta > 0) vào ô giữ chỗ — không tạo ô mới."""
+    field = QUOTA_FIELDS.get(kind)
+    if not key or not field or not delta:
+        return
+    flt = {'_id': key}
+    if delta < 0:
+        flt[field] = {'$gte': -delta}
+    try:
+        db.ai_media_quota.update_one(flt, {'$inc': {field: delta}, '$set': {'updated_at': _now()}})
+    except Exception as e:
+        print(f'[ai_media] quota adjust {key}: {e}')
 
 
 # ---------------------------------------------------------------- tạo job
 def _public_job(job):
     if not job:
         return None
-    out = {k: v for k, v in job.items() if k not in ('_id', 'storing_until', 'store_attempts', 'public_base')}
+    out = {k: v for k, v in job.items() if k not in _INTERNAL}
     for k in ('created_at', 'updated_at', 'completed_at'):
         if k in out:
             out[k] = iso(out[k])
     if out.get('file_id'):
-        out['url'] = f"/api/storage/file/{out['file_id']}"
+        # play_url/download_url = link /m/ có Range; 'url' giữ cho giao diện cũ (video cũng trỏ về /m/)
+        out.update(media_store.file_links(out['file_id'], out.get('content_type')))
     return out
 
 
@@ -190,7 +280,8 @@ def public_job(job):
     return _public_job(job)
 
 
-def _source_image(business_id, image_file_id, base_url):
+def _load_source_image(business_id, image_file_id):
+    """Ảnh nguồn "làm ảnh động": phải của đúng tiệm, kind công khai được, đúng ảnh JPEG/PNG/WebP thật."""
     grid = media_store.get(image_file_id, business_id)
     if grid is None:
         raise MediaError('image_not_found', 'Photo not found in your shop.', status=404)
@@ -203,15 +294,63 @@ def _source_image(business_id, image_file_id, base_url):
     ctype = media_store.sniff(data)   # đọc lại byte thật, không tin contentType đã lưu (ảnh cũ lưu theo đuôi file)
     if ctype not in media_store.IMAGE_TYPES:
         raise MediaError('unsupported_type', 'Only JPEG, PNG or WebP photos can be animated.')
-    if len(data) <= DATA_URI_MAX:
-        return f"data:{ctype};base64,{base64.b64encode(data).decode()}"
-    base = (base_url or '').rstrip('/')
-    if not (base.startswith('https://') or (base.startswith('http://') and test_mode())):
-        raise MediaError('image_too_large', 'Photos over 1 MB need the live (HTTPS) site — use a smaller photo.')
-    fid = str(grid._id)
-    if grid.kind in media_store.KINDS:
-        return media_store.absolute_public_url(fid, media_store.ext_for(ctype), base)
-    return f'{base}/api/public/storage/file/{fid}'   # route công khai sẵn có của app.py cho ảnh sản phẩm/logo
+    return {'file_id': str(grid._id), 'data': data, 'content_type': ctype}
+
+
+def _upload_source(src):
+    """Ảnh > 1 MB -> POST {REPLICATE_API}/v1/files (multipart 'content'), dùng urls.get làm input. Replicate tự đọc
+    file của chính nó — không phụ thuộc link /m/ (bị cắt lát ở Vercel) hay site HTTPS (chạy được cả local)."""
+    name = f"bitpaw-{src['file_id']}.{media_store.ext_for(src['content_type'])}"
+    try:
+        resp = requests.post(f'{REPLICATE_API}/v1/files', headers={'Authorization': f'Bearer {_token()}'},
+                             files={'content': (name, src['data'], src['content_type'])}, timeout=(10, 60))
+    except requests.exceptions.RequestException as e:
+        raise MediaError('provider_unreachable', 'Could not send the photo to the AI provider — try again.', status=502) from e
+    if not 200 <= resp.status_code < 300:
+        raise _provider_error(resp)
+    try:
+        body = resp.json() or {}
+    except ValueError:
+        body = {}
+    urls = body.get('urls') if isinstance(body.get('urls'), dict) else {}
+    url = urls.get('get')
+    try:
+        if not isinstance(url, str) or not url:
+            raise MediaError('bad_url', 'missing urls.get')
+        media_store._check_url(url, output_hosts())   # chỉ nhận link về chính Replicate (https)
+    except MediaError as e:
+        raise MediaError('provider_error', 'The AI provider did not accept the photo — try again.', detail=e.code,
+                         status=502) from e
+    fid = body.get('id')
+    return url, {'id': fid if isinstance(fid, str) and _PID_RE.fullmatch(fid) else None}
+
+
+def _source_input(src):
+    """(input cho model, thông tin file trên Replicate hoặc None)."""
+    if len(src['data']) <= DATA_URI_MAX:
+        return f"data:{src['content_type']};base64,{base64.b64encode(src['data']).decode()}", None
+    return _upload_source(src)
+
+
+def _drop_source_file(job):
+    """Xoá ảnh nguồn đã gửi lên Replicate Files khi job xong/lỗi (ảnh của tiệm không nằm lại bên thứ 3). Best-effort."""
+    fid = ((job or {}).get('source_file') or {}).get('id')
+    if not isinstance(fid, str) or not _PID_RE.fullmatch(fid):
+        return
+    try:
+        requests.delete(f'{REPLICATE_API}/v1/files/{fid}', headers=_headers(), timeout=(5, 10))
+    except Exception as e:
+        print(f'[ai_media] drop source file: {e.__class__.__name__}')
+
+
+def _cancel_remote(pid):
+    """Job bị coi là quá hạn -> huỷ luôn bên Replicate để không bị tính tiền cho kết quả sẽ bỏ đi. Best-effort."""
+    if not isinstance(pid, str) or not _PID_RE.fullmatch(pid):
+        return
+    try:
+        requests.post(f'{REPLICATE_API}/v1/predictions/{pid}/cancel', headers=_headers(), timeout=(5, 10))
+    except Exception as e:
+        print(f'[ai_media] cancel: {e.__class__.__name__}')
 
 
 def _provider_error(resp):
@@ -230,6 +369,7 @@ def precheck(business_id, kind, units=1):
     _token()
     if test_mode() and business_id not in media_store.test_business_ids():
         raise MediaError('test_mode_business', 'Test mode: this shop is not in SOCIAL_TEST_BUSINESS_IDS.', status=403)
+    sweep_stale(business_id, limit=1)   # job mồ côi thôi giữ chỗ trước khi tính hạn mức (≤ 1 lần hỏi Replicate)
     return _check_quota(business_id, kind, units)
 
 
@@ -259,21 +399,39 @@ def create_job(business_id, user_id, kind, preset, prompt, aspect='9:16', durati
         raise MediaError('prompt_required', 'Describe what to generate.')
     if len(prompt) > 2000:
         raise MediaError('prompt_too_long', 'Prompt is too long (max 2000 characters).')
+    units = _units({'kind': kind, 'duration': duration})
     # Local + production chung 1 DB: chạy thử với Replicate giả không được ghi job/file vào tiệm thật (precheck)
-    precheck(business_id, kind, _units({'kind': kind, 'duration': duration}))
-    image_input = _source_image(business_id, image_file_id, base_url) if image_file_id else None
-    model = cfg.get('model_i2v') if (image_input and cfg.get('model_i2v')) else cfg['model']
+    precheck(business_id, kind, units)
+    src = _load_source_image(business_id, image_file_id) if image_file_id else None
+    model = cfg.get('model_i2v') if (src and cfg.get('model_i2v')) else cfg['model']
+    job_id = next_mongo_id('ai_media_jobs')
+    quota_key = _reserve(business_id, kind, units)   # nguyên tử; hết chỗ -> quota_exceeded, chưa tốn gì
     now = _now()
     job = {
-        'id': next_mongo_id('ai_media_jobs'), 'business_id': business_id, 'kind': kind, 'preset': preset, 'model': model,
+        'id': job_id, 'business_id': business_id, 'kind': kind, 'preset': preset, 'model': model,
         'prompt': prompt, 'source_text': (source_text or None) and str(source_text)[:3000], 'aspect': aspect,
         'duration': duration, 'image_file_id': str(image_file_id) if image_file_id else None, 'status': 'queued',
-        'prediction_id': None, 'cost_estimate_usd': estimate(kind, preset, duration), 'file_id': None,
+        'prediction_id': None, 'cost_estimate_usd': estimate(kind, preset, duration, model=model), 'file_id': None,
         'content_type': None, 'public_url': None, 'error': None, 'is_ai_generated': True, 'created_by': user_id,
         'created_at': now, 'updated_at': now, 'completed_at': None, 'qa_test': bool(test_mode()),
-        'public_base': (base_url or '').rstrip('/') or None,
+        'public_base': (base_url or '').rstrip('/') or None, 'quota_key': quota_key,
     }
-    db.ai_media_jobs.insert_one(dict(job))
+    try:
+        db.ai_media_jobs.insert_one(dict(job))
+    except Exception:
+        _quota_adjust(quota_key, kind, -units)
+        raise
+
+    image_input = None
+    if src:
+        try:
+            image_input, source_file = _source_input(src)
+        except MediaError as e:
+            _fail(job_id, e.code, e.message)   # trả lại chỗ hạn mức
+            raise
+        if source_file:
+            job['source_file'] = source_file
+            db.ai_media_jobs.update_one({'id': job_id}, {'$set': {'source_file': source_file}})
 
     body = {'input': cfg['input'](prompt, aspect, duration, image_input)}
     base = (base_url or '').rstrip('/')
@@ -288,7 +446,9 @@ def create_job(business_id, user_id, kind, preset, prompt, aspect='9:16', durati
     except requests.exceptions.RequestException as e:
         _fail(job['id'], 'provider_unreachable', f'Could not reach Replicate: {e.__class__.__name__}')
         raise MediaError('provider_unreachable', 'Could not reach the AI provider — try again.', status=502) from e
-    if resp.status_code not in (200, 201):
+    # Mọi 2xx là đã tạo: 201, hoặc 202 "đã tạo nhưng chưa có output" (Prefer: wait=5 hết 5 giây — hay gặp với hd/poster).
+    # Trước đây 202 bị coi là lỗi -> job failed, prediction vẫn chạy và tính tiền, webhook bị bỏ qua, kết quả mất.
+    if not 200 <= resp.status_code < 300:
         err = _provider_error(resp)
         _fail(job['id'], err.code, err.message)
         raise err
@@ -296,8 +456,8 @@ def create_job(business_id, user_id, kind, preset, prompt, aspect='9:16', durati
         pred = resp.json() if resp.content else {}
     except ValueError:
         pred = {}
-    pid = pred.get('id')
-    if not isinstance(pid, str) or not re.fullmatch(r'[A-Za-z0-9_-]{4,64}', pid):
+    pid = pred.get('id') if isinstance(pred, dict) else None
+    if not isinstance(pid, str) or not _PID_RE.fullmatch(pid):
         _fail(job['id'], 'provider_error', 'Replicate returned no prediction id.')
         raise MediaError('provider_error', 'The AI provider returned an unexpected answer.', status=502)
     db.ai_media_jobs.update_one({'id': job['id'], 'status': {'$in': list(ACTIVE)}},
@@ -307,11 +467,20 @@ def create_job(business_id, user_id, kind, preset, prompt, aspect='9:16', durati
 
 
 def _fail(job_id, code, message, status='failed'):
+    """Đưa job đang chạy sang failed/canceled ĐÚNG 1 LẦN (lọc theo status) và chỉ lần đó trả lại chỗ hạn mức."""
     now = _now()
-    db.ai_media_jobs.update_one({'id': job_id, 'status': {'$in': list(ACTIVE)}},
-                                {'$set': {'status': status, 'error': {'code': code, 'message': str(message)[:300]},
-                                          'updated_at': now, 'completed_at': now},
-                                 '$unset': {'storing_until': ''}})
+    before = db.ai_media_jobs.find_one_and_update(
+        {'id': job_id, 'status': {'$in': list(ACTIVE)}},
+        {'$set': {'status': status, 'error': {'code': code, 'message': str(message)[:300]},
+                  'updated_at': now, 'completed_at': now},
+         '$unset': {'storing_until': ''}},
+        projection={'_id': 0, 'id': 1, 'business_id': 1, 'kind': 1, 'duration': 1, 'created_at': 1, 'quota_key': 1,
+                    'source_file': 1},
+        return_document=ReturnDocument.BEFORE)
+    if before:
+        _quota_adjust(_job_quota_key(before), before.get('kind'), -_units(before))
+        _drop_source_file(before)
+    return bool(before)
 
 
 def _get_job(job_id):
@@ -332,6 +501,7 @@ def _apply_prediction(job, pred):
         return _get_job(job['id'])
     new = 'running' if status == 'processing' else 'queued'
     if _aware(job.get('created_at')) and _now() - _aware(job['created_at']) > STALE_AFTER:
+        _cancel_remote(job.get('prediction_id'))   # bỏ kết quả thì đừng để Replicate chạy tiếp và tính tiền
         _fail(job['id'], 'timeout', 'Generation took too long.')
         return _get_job(job['id'])
     db.ai_media_jobs.update_one({'id': job['id'], 'status': {'$in': list(ACTIVE)}},
@@ -373,8 +543,7 @@ def _store_output(job, pred):
         if prev:
             fid = str(prev['_id'])
             ctype = prev.get('contentType')
-            saved = {'file_id': fid, 'content_type': ctype, 'size': prev.get('length'),
-                     'url': f'/api/storage/file/{fid}', 'public_url': media_store.public_url(fid, media_store.ext_for(ctype))}
+            saved = {'file_id': fid, 'content_type': ctype, 'size': prev.get('length'), **media_store.file_links(fid, ctype)}
         else:
             url = _first_output(pred.get('output'))
             if not url:
@@ -393,24 +562,34 @@ def _store_output(job, pred):
                                          '$unset': {'storing_until': ''}})
         return _get_job(claimed['id'])
     done = _now()
-    db.ai_media_jobs.update_one(
+    before = db.ai_media_jobs.find_one_and_update(
         {'id': claimed['id']},
         {'$set': {'status': 'succeeded', 'file_id': saved['file_id'], 'content_type': saved['content_type'],
-                  'public_url': saved['public_url'], 'error': None, 'updated_at': done, 'completed_at': done},
-         '$unset': {'storing_until': ''}})
+                  'public_url': saved['public_url'], 'size': saved.get('size'), 'error': None, 'updated_at': done,
+                  'completed_at': done},
+         '$unset': {'storing_until': ''}},
+        projection={'_id': 0, 'status': 1}, return_document=ReturnDocument.BEFORE)
     final = _get_job(claimed['id'])
+    if before and before.get('status') not in ACTIVE:
+        # Bên khác vừa đánh lỗi job (và trả chỗ hạn mức) trong lúc mình đang lưu — Replicate đã tính tiền -> tính lại
+        _quota_adjust(_job_quota_key(final), final.get('kind'), _units(final))
     _record_usage(final)
     _legacy_row(final)
+    _drop_source_file(final)
     return final
 
 
 def _record_usage(job):
-    # Sổ chi phí: đúng 1 dòng / job thành công (kiểm tra trước khi ghi — refresh trùng không ghi 2 lần)
+    # Sổ chi phí: đúng 1 dòng / job thành công (kiểm tra trước khi ghi — refresh trùng không ghi 2 lần).
+    # created_at = lúc TẠO job: hạn mức giữ chỗ theo tháng tạo job, job tạo 31/10 xong 1/11 vẫn tính vào tháng 10
+    # (khớp ô giữ chỗ db.ai_media_quota); recorded_at = lúc ghi sổ thật.
     if db.ai_usage.find_one({'job_id': job['id']}, {'_id': 1}):
         return
+    now = _now()
     db.ai_usage.insert_one({'business_id': job['business_id'], 'kind': job['kind'], 'units': _units(job),
                             'cost_usd': float(job.get('cost_estimate_usd') or 0), 'model': job.get('model'),
-                            'job_id': job['id'], 'created_at': _now(), 'qa_test': bool(job.get('qa_test'))})
+                            'job_id': job['id'], 'created_at': _aware(job.get('created_at')) or now, 'recorded_at': now,
+                            'qa_test': bool(job.get('qa_test'))})
 
 
 def _legacy_row(job):
@@ -438,7 +617,7 @@ def refresh_job(job_id):
     pid = job.get('prediction_id')
     if not pid:
         # Tạo prediction bị đứt giữa chừng -> sau 10 phút coi là lỗi để không giữ chỗ hạn mức mãi
-        if _now() - _aware(job['created_at']) > timedelta(minutes=10):
+        if _now() - _aware(job['created_at']) > CREATE_LOST_AFTER:
             _fail(job_id, 'create_lost', 'The AI request was not created.')
         return _get_job(job_id)
     try:
@@ -450,7 +629,62 @@ def refresh_job(job_id):
         return _get_job(job_id)
     if resp.status_code != 200:
         return job
-    return _apply_prediction(job, resp.json())
+    try:
+        pred = resp.json()
+    except ValueError:
+        return job
+    return _apply_prediction(job, pred if isinstance(pred, dict) else {})
+
+
+def sweep_stale(business_id, limit=2, now=None):
+    """Job mồ côi giữ chỗ hạn mức tới cuối tháng: lệnh tạo chết sau insert (không có prediction_id, trình duyệt không
+    nhận được id nên không bao giờ hỏi lại), hoặc chết giữa lúc lưu kết quả khi webhook đã bị bỏ qua. Không ai gọi
+    refresh_job nữa -> tự quét khi tiệm mở AI Studio / tạo job:
+      - queued/running KHÔNG có prediction_id quá ORPHAN_AFTER (20 phút) -> failed 'create_lost'
+      - có prediction_id quá STALE_AFTER (30 phút) -> hỏi Replicate: xong thì lưu kết quả, Replicate báo lỗi/mất thì
+        failed, vẫn chưa xong thì quá hạn (huỷ bên Replicate) — đều trả lại chỗ hạn mức.
+    Mỗi job tối đa 1 lần / SWEEP_EVERY (Replicate chậm không làm mọi lần tải trang chờ). Trả số job đã xử lý."""
+    if not business_id:
+        return 0
+    now = now or _now()
+    done = 0
+    try:
+        cur = db.ai_media_jobs.find({'business_id': business_id, 'status': {'$in': list(ACTIVE)},
+                                     'created_at': {'$lt': now - ORPHAN_AFTER}},
+                                    {'_id': 0, 'id': 1, 'prediction_id': 1, 'created_at': 1}).sort('created_at', 1).limit(20)
+        for j in list(cur):
+            if done >= limit:
+                break
+            created = _aware(j.get('created_at'))
+            if j.get('prediction_id') and created and now - created <= STALE_AFTER:
+                continue   # còn trong hạn, giao diện/webhook vẫn lo
+            claimed = db.ai_media_jobs.find_one_and_update(
+                {'id': j['id'], 'status': {'$in': list(ACTIVE)},
+                 '$or': [{'swept_at': None}, {'swept_at': {'$lt': now - SWEEP_EVERY}}]},
+                {'$set': {'swept_at': now}}, projection={'_id': 0, 'id': 1}, return_document=ReturnDocument.AFTER)
+            if not claimed:
+                continue
+            done += 1
+            if not j.get('prediction_id'):
+                _fail(j['id'], 'create_lost', 'The AI request was not created.')
+            else:
+                refresh_job(j['id'])
+    except Exception as e:   # quét là việc phụ — không bao giờ làm hỏng request chính
+        print(f'[ai_media] sweep: {e.__class__.__name__}: {e}')
+    return done
+
+
+def adopt_prediction(job_id, prediction_id, model=None):
+    """Webhook ĐÃ KIỂM CHỮ KÝ báo xong 1 prediction cho job ?job=<id> mà create_job chết trước khi lưu prediction_id
+    (URL webhook chứa id job do chính create_job đặt) -> nhận prediction đó để kết quả đã trả tiền không bị mất.
+    Chỉ job còn chạy, chưa có prediction_id, cùng model (khi Replicate gửi model)."""
+    if not isinstance(prediction_id, str) or not _PID_RE.fullmatch(prediction_id):
+        return None
+    flt = {'id': job_id, 'status': {'$in': list(ACTIVE)}, 'prediction_id': None}
+    if isinstance(model, str) and model:
+        flt['model'] = model
+    return db.ai_media_jobs.find_one_and_update(flt, {'$set': {'prediction_id': prediction_id, 'updated_at': _now()}},
+                                                projection={'_id': 0}, return_document=ReturnDocument.AFTER)
 
 
 # ---------------------------------------------------------------- webhook
