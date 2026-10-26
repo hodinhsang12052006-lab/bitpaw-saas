@@ -208,11 +208,11 @@ def next_slot(business_id, platform, after_utc, _cache=None):
     return best
 
 
-# ---------------------------------------------------------------- AI (DeepSeek qua ai_studio_bp)
-def _ai(system, user, business_id, temperature=0.7, max_tokens=1800):
-    from ai_studio_bp import _call_deepseek_text   # import muộn: ai_studio_bp import app (vòng import)
+# ---------------------------------------------------------------- AI (DeepSeek qua ai_gateway: ghi sổ token/chi phí thật)
+def _ai(system, user, business_id, temperature=0.7, max_tokens=1800, feature='social_caption'):
     try:
-        return _call_deepseek_text(system, user, temperature, max_tokens, business_id)
+        import ai_gateway
+        return ai_gateway.text(feature, business_id, system, user, temperature, max_tokens)
     except Exception as e:
         raise SocialError('ai_unavailable', 'The AI writer is not available right now — try again in a minute.', str(e)[:200])
 
@@ -252,15 +252,13 @@ def _parse_json(text):
 
 def _ai_json(system, user, business_id, max_tokens, temperature=0.7):
     """DeepSeek ở chế độ JSON (response_format json_object). Trả (text, cut): cut=True khi DeepSeek dừng vì hết max_tokens
-    (JSON có thể dở dang). Gọi thẳng ai_deepseek_client (điểm gọi DeepSeek duy nhất) để đọc được finish_reason."""
+    (JSON có thể dở dang). Gọi ai_gateway.chat (trả nguyên kết quả DeepSeek) để đọc được finish_reason + ghi sổ chi phí."""
     try:
-        from ai_deepseek_client import deepseek_chat_completion
-        desktop = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
-        res = deepseek_chat_completion(
+        import ai_gateway
+        res = ai_gateway.chat(
+            'social_plan', business_id,
             {'model': 'deepseek-chat', 'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}],
-             'temperature': temperature, 'max_tokens': max_tokens, 'response_format': {'type': 'json_object'}},
-            business_id=business_id, proxy_api_key=os.environ.get('BITPAW_AI_PROXY_KEY') if desktop else None,
-            direct_api_key=None if desktop else os.environ.get('DEEPSEEK_API_KEY'))
+             'temperature': temperature, 'max_tokens': max_tokens, 'response_format': {'type': 'json_object'}})
         ch = (res.get('choices') or [{}])[0] or {}
         return (ch.get('message') or {}).get('content') or '', ch.get('finish_reason') == 'length'
     except Exception as e:
@@ -649,5 +647,5 @@ def performance_review(business_id, lang='en', days=90):
               "Use ONLY the numbers given; never invent numbers, benchmarks or percentages that are not in the data. "
               "If some platforms have few posts, say the signal is weak. weekday 0 = Monday; hours are shop local time.")
     user = json.dumps({'posts': entries[:60]}, ensure_ascii=False)
-    text = _ai(system, user, business_id, 0.4, 700).strip()
+    text = _ai(system, user, business_id, 0.4, 700, feature='social_review').strip()
     return {'enough_data': True, 'text': text, 'top_posts': top, 'metrics_window': window}

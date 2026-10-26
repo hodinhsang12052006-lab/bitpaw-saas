@@ -328,10 +328,21 @@
                 </a>
                 {% endif %}
 
+                {# /ai_bot là HỘP THƯ AI (gói Pro, ai_inbox). Trước đây mục này tên "AI Copilot" nhưng mở hộp thư Pro, còn Copilot
+                   thật (hỏi số liệu, gợi ý trả lời) là gói Empire — 2 mục riêng: Hộp thư AI cho mọi tài khoản chủ/quản lý,
+                   AI Copilot CHỈ admin (đọc doanh thu + hoa hồng; API /api/ai/copilot cũng chặn nhân viên — owner_only),
+                   mở /ai_bot#copilot (ai_bot.html tự mở khung Copilot). Gói chưa có Copilot -> thẳng trang nâng cấp. #}
                 <a href="{{ url_for('ai_bot') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-robot', ' group-hover:text-cyan-400 transition-colors') }}</span>
-                    <span data-i18n="menu_ai_copilot">{{ menu_i18n.ai_copilot }}</span>{{ plan_lock('ai_inbox') if plan_lock is defined else '' }}
+                    <span data-i18n="menu_ai_inbox">{{ menu_i18n.ai_inbox or ('Hộp thư AI' if default_lang == 'vi' else 'AI Inbox') }}</span>{{ plan_lock('ai_inbox') if plan_lock is defined else '' }}
                 </a>
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                {% set _copilot_lock = plan_lock('ai_copilot') if plan_lock is defined else '' %}
+                <a href="{{ '/plan?feature=ai_copilot' if _copilot_lock else url_for('ai_bot', _anchor='copilot') }}" data-nav="ai-copilot" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
+                    <span class="nav-icon-chip">{% if active_industry_code == 'nail' %}{{ nicon('spark', 'sm') }}{% else %}{{ navico('fa-brain', ' group-hover:text-purple-400 transition-colors') }}{% endif %}</span>
+                    <span data-i18n="menu_ai_copilot">{{ menu_i18n.ai_copilot or 'AI Copilot' }}</span>{{ _copilot_lock }}
+                </a>
+                {% endif %}
                 <a href="{{ url_for('ai_studio') }}" class="flex items-center space-x-4 hover:bg-white/5 px-4 py-2.5 rounded-xl transition-all text-gray-400 hover:text-white font-medium group">
                     <span class="nav-icon-chip">{{ navico('fa-magic', ' group-hover:text-cyan-400 transition-colors') }}</span>
                     <span data-i18n="menu_ai_studio">{{ menu_i18n.ai_studio }}</span>{{ plan_lock('ai_studio') if plan_lock is defined else '' }}

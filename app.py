@@ -5040,31 +5040,38 @@ def _resolve_staff_commission_rate(business_id, staff_doc, override_rate=None):
     return _get_business_commission_rate(business_id)
 
 
-def _queue_loyalty_notification(business_id, customer, event_type, message):
-    """Ghi lại thông báo loyalty (tích điểm/lên hạng/sinh nhật) vào bảng loyalty_events.
-    Nếu khách đã có zalo_user_id/fb_psid (từng tương tác qua OA/Messenger) VÀ server đã cấu hình
-    access token thật (ZALO_OA_ACCESS_TOKEN / FB_PAGE_ACCESS_TOKEN) thì gửi luôn; ngược lại chỉ
-    lưu trạng thái 'queued' để nhân viên tự liên hệ hoặc chờ khi nào cấu hình kênh gửi."""
+def _queue_loyalty_notification(business_id, customer, event_type, message, send_after=None, dedupe_key=None, settings=None):
+    """Thông báo cho KHÁCH (tích điểm / lên hạng / sinh nhật / nhắc lịch kiểu cũ của tiệm VN) qua kênh của CHÍNH tiệm:
+    Zalo OA / Messenger đã nối ở Hộp thư chung (chỉ trong khung trả lời của nền tảng: 24 giờ / 48 giờ kể từ tin gần nhất
+    của khách), hoặc SMS (Twilio của tiệm) / email — qua hàng đợi messaging (khung giờ gửi của tiệm, khách đã từ chối thì
+    không gửi, chống trùng), bộ gửi messaging.pump gửi thật. Trước đây: 1 token Zalo/Facebook CHUNG của cả máy chủ
+    (ZALO_OA_ACCESS_TOKEN / FB_PAGE_ACCESS_TOKEN) — tin có thể đi ra từ OA/Page của tiệm KHÁC, luôn tiếng Việt.
+    message: chuỗi, hoặc (tiếng Anh, tiếng Việt) để chọn theo ngôn ngữ của tiệm; '{shop}' = tên tiệm.
+    Tích điểm/lên hạng: SMS (tốn phí mỗi bill) chỉ khi chủ tiệm bật loyalty_sms_enabled. Ghi nhật ký loyalty_events.
+    Trả trạng thái: queued | duplicate | skipped_no_channel | no_channel | opted_out | skipped | disabled | failed."""
     channel = None
     status = 'skipped_no_channel'
     try:
-        if customer.get('zalo_user_id') and os.environ.get('ZALO_OA_ACCESS_TOKEN'):
-            channel = 'zalo'
-            resp = requests.post(
-                'https://openapi.zalo.me/v3.0/oa/message/cs',
-                headers={'access_token': os.environ.get('ZALO_OA_ACCESS_TOKEN'), 'Content-Type': 'application/json'},
-                json={'recipient': {'user_id': customer['zalo_user_id']}, 'message': {'text': message}},
-                timeout=10
-            )
-            status = 'sent' if resp.ok else 'failed'
-        elif customer.get('fb_psid') and os.environ.get('FB_PAGE_ACCESS_TOKEN'):
-            channel = 'facebook'
-            resp = requests.post(
-                f"https://graph.facebook.com/v18.0/me/messages?access_token={os.environ.get('FB_PAGE_ACCESS_TOKEN')}",
-                json={'recipient': {'id': customer['fb_psid']}, 'message': {'text': message}},
-                timeout=10
-            )
-            status = 'sent' if resp.ok else 'failed'
+        import messaging
+        st = settings or messaging.get_settings(business_id)
+        if isinstance(message, (tuple, list)):
+            message = message[0] if st['language'] == 'en' else message[1]
+        message = str(message).replace('{shop}', st['business_name'])
+        kind = {'birthday': 'birthday', 'points_awarded': 'loyalty', 'tier_upgrade': 'loyalty'}.get(event_type, event_type)
+        allow = None
+        if event_type == 'appointment_reminder':
+            allow = messaging.SOCIAL_CHANNELS   # SMS/email của nhắc lịch: messaging.produce_appointment_reminders
+        elif kind == 'loyalty':
+            allow = ('zalo', 'messenger', 'email') + (('sms',) if st.get('loyalty_sms_enabled') else ())
+        enabled = st.get('birthday_enabled', True) if kind == 'birthday' else (
+            st.get('loyalty_messages_enabled', True) if kind == 'loyalty' else True)
+        if not enabled:
+            status = 'disabled'
+        else:
+            channel, status, _qid = messaging.queue_customer_message(business_id, customer or {}, message, kind, settings=st,
+                                                                     send_after=send_after, dedupe_key=dedupe_key, allow=allow)
+            if status == 'no_contact':
+                status = 'skipped_no_channel'
     except Exception as e:
         status = 'failed'
         print(f"Loi gui loyalty notification: {e}")
@@ -5074,15 +5081,16 @@ def _queue_loyalty_notification(business_id, customer, event_type, message):
             db.loyalty_events.insert_one({
                 'id': next_mongo_id('loyalty_events'),
                 'business_id': business_id,
-                'customer_id': customer.get('id'),
+                'customer_id': (customer or {}).get('id'),
                 'event_type': event_type,
                 'channel': channel or 'none',
-                'message': message,
+                'message': message if isinstance(message, str) else ' / '.join(map(str, message)),
                 'status': status,
                 'created_at': datetime.now().isoformat(),
             })
     except Exception as e:
         print(f"Loi ghi loyalty_events: {e}")
+    return status
 
 
 def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='VND', name=None):
@@ -5137,18 +5145,19 @@ def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='V
                                         {'$set': {'tier': new_tier}})
                 customer['tier'] = new_tier
 
-        # Tin gửi KHÁCH của tiệm: tiệm Mỹ/Úc (tiền đô) viết tiếng Anh — trước đây khách ở Úc nhận tin tiếng Việt
+        # Tin gửi KHÁCH theo NGÔN NGỮ của tiệm (cài đặt Nhắn tin), qua kênh của chính tiệm. Không hứa "ưu đãi đặc biệt"
+        # mà chủ tiệm chưa từng đặt ra.
         total_pts = customer.get('loyalty_points', 0)
         _queue_loyalty_notification(
             business_id, customer, 'points_awarded',
-            f"Thanks for visiting! You earned {points_earned} reward points — you now have {total_pts}." if is_usd else
-            f"Cảm ơn bạn đã mua hàng! Bạn vừa được cộng {points_earned} điểm thưởng, tổng hiện có {total_pts} điểm."
+            (f"Thanks for visiting {{shop}}! You earned {points_earned} reward points — you now have {total_pts}.",
+             f"Cảm ơn bạn đã ghé {{shop}}! Bạn vừa được cộng {points_earned} điểm thưởng, tổng hiện có {total_pts} điểm.")
         )
         if old_tier is not None and new_tier != old_tier:
             _queue_loyalty_notification(
                 business_id, customer, 'tier_upgrade',
-                f"Congratulations — you're now a {new_tier} member. A special offer is waiting for you on your next visit!" if is_usd else
-                f"Chúc mừng! Bạn vừa được nâng hạng thành viên lên {new_tier}. Một ưu đãi đặc biệt đang chờ bạn ở lần ghé thăm tiếp theo!"
+                (f"Congratulations — you're now a {new_tier} member at {{shop}}. Thank you for coming back!",
+                 f"Chúc mừng! Bạn vừa được nâng hạng thành viên {new_tier} tại {{shop}}. Cảm ơn bạn đã luôn ủng hộ!")
             )
     except Exception as e:
         print(f"Loi award loyalty points: {e}")
@@ -9779,60 +9788,168 @@ def api_payment_local_checkout():
 # Vercel Cron Job (xem vercel.json) gọi HTTP vào route này theo lịch hàng ngày.
 # Bảo vệ bằng CRON_SECRET (header Authorization: Bearer <secret>) thay vì
 # @login_required vì Vercel Cron không mang session cookie.
-def _generate_restock_reason_with_ai(product_name, stock, avg_daily, days_left):
-    """Dùng DeepSeek CHỈ để diễn giải cảnh báo bằng lời tự nhiên — số liệu (tồn kho,
-    tốc độ bán, số ngày còn lại) luôn được tính bằng Python trước, AI không tự bịa số."""
-    fallback = (
-        f"Sản phẩm '{product_name}' còn {stock} đơn vị, bán trung bình {avg_daily:.1f}/ngày "
-        f"-> dự kiến hết trong khoảng {days_left:.1f} ngày nữa. Đề xuất nhập thêm hàng sớm."
-    )
-    api_key = os.environ.get('DEEPSEEK_API_KEY')
-    if not api_key:
-        return fallback
+def _shop_lang_currency(business_id):
+    """(ngôn ngữ 'vi'|'en', tiền tệ) của tiệm cho câu chữ gửi CHỦ TIỆM (đề xuất nhập hàng, cảnh báo đối soát).
+    Tiền tệ: businesses.currency, chưa có thì theo quốc gia (VN -> VND, AU -> AUD, nước khác -> USD) — không còn mặc
+    định VND cho tiệm Mỹ/Úc. Tiệm cũ không có dòng businesses (đăng ký đời đầu) giữ VN/VND như _tenant_currency.
+    Ngôn ngữ: ngôn ngữ tiệm chọn ở trang Nhắn tin (db.messaging_settings.language — trường messaging.get_settings đọc),
+    chưa chọn thì theo quốc gia."""
+    row = {}
     try:
-        resp = requests.post(
-            "https://api.deepseek.com/chat/completions",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-            json={
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": "Bạn là trợ lý quản lý kho, viết đúng 1 câu cảnh báo ngắn gọn, "
-                     "thân thiện bằng Tiếng Việt cho chủ tiệm dựa ĐÚNG số liệu được cung cấp, không bịa thêm số liệu khác."},
-                    {"role": "user", "content": f"Sản phẩm: {product_name}. Tồn kho hiện tại: {stock}. "
-                     f"Tốc độ bán trung bình: {avg_daily:.1f}/ngày. Số ngày còn lại trước khi hết hàng: {days_left:.1f}."}
-                ],
-                "temperature": 0.5,
-                "max_tokens": 120
-            },
-            timeout=10
-        )
-        resp.raise_for_status()
-        content = resp.json()['choices'][0]['message']['content'].strip()
-        return content or fallback
+        row = db.businesses.find_one({'id': business_id}, {'_id': 0, 'country': 1, 'currency': 1}) or {}
     except Exception:
-        return fallback
+        pass
+    country = str(row.get('country') or '').upper()
+    currency = str(row.get('currency') or {'VN': 'VND', 'AU': 'AUD', '': 'VND'}.get(country, 'USD')).upper()
+    if not country:
+        country = {'VND': 'VN', 'AUD': 'AU'}.get(currency, 'US')
+    lang = 'vi' if country == 'VN' else 'en'
+    try:
+        chosen = (db.messaging_settings.find_one({'business_id': business_id}, {'_id': 0, 'language': 1}) or {}).get('language')
+        if chosen in ('vi', 'en'):
+            lang = chosen
+    except Exception:
+        pass
+    return lang, currency
+
+
+def _fmt_num(value, lang, decimals=1):
+    """Số theo cách viết của tiệm: 1234.5 -> '1,234.5' (en) / '1.234,5' (vi); bỏ đuôi ',0' / '.0'."""
+    try:
+        v = float(value or 0)
+    except (TypeError, ValueError):
+        v = 0.0
+    s = f"{v:,.{decimals}f}"
+    if decimals and s.endswith('.' + '0' * decimals):
+        s = s[:-(decimals + 1)]
+    return s.replace(',', '\x00').replace('.', ',').replace('\x00', '.') if lang == 'vi' else s
+
+
+def _restock_reason_template(product_name, stock, avg_daily, days_left, suggested_qty, lang, currency, unit_cost=0,
+                             lookback_days=14):
+    """Lý do đề xuất nhập hàng KHÔNG cần AI — đúng ngôn ngữ tiệm, số thật, tiền theo tiền tệ tiệm (giá vốn x số nhập)."""
+    n = lambda v, d=1: _fmt_num(v, lang, d)  # noqa: E731
+    cost = format_money(suggested_qty * unit_cost, currency) if unit_cost and unit_cost > 0 else None
+    if lang == 'vi':
+        when = 'đã hết hàng' if stock <= 0 else f"dự kiến hết sau khoảng {n(days_left)} ngày"
+        return (f"'{product_name}' còn {n(stock)}, bán trung bình {n(avg_daily)}/ngày trong {lookback_days} ngày qua — {when}. "
+                f"Đề xuất nhập {n(suggested_qty, 0)}" + (f" (khoảng {cost} theo giá vốn)." if cost else "."))
+    when = 'already out of stock' if stock <= 0 else f"runs out in about {n(days_left)} days"
+    return (f"'{product_name}': {n(stock)} left, selling about {n(avg_daily)}/day over the last {lookback_days} days — {when}. "
+            f"Suggest ordering {n(suggested_qty, 0)}" + (f" (about {cost} at cost)." if cost else "."))
+
+
+_VI_DIACRITIC_RE = re.compile(r'[ăâđêôơưàáạảãằắặẳẵầấậẩẫèéẹẻẽềếệểễìíịỉĩòóọỏõồốộổỗờớợởỡùúụủũừứựửữỳýỵỷỹ]', re.I)
+
+
+def _restock_ai_text_ok(text, product_name, facts, lang):
+    """Câu AI chỉ được dùng khi: 1 câu ngắn, mọi con số trong câu đều có trong số liệu đã cho (AI không bịa số),
+    và tiệm tiếng Anh không nhận câu tiếng Việt."""
+    if not text or len(text) < 10 or len(text) > 400:
+        return False
+    rest = text.replace(product_name or '', ' ')
+    allowed = set(re.findall(r'\d+', ' '.join(facts)))
+    if not set(re.findall(r'\d+', rest)) <= allowed:
+        return False
+    return not (lang == 'en' and _VI_DIACRITIC_RE.search(rest))
+
+
+def _log_restock_ai_usage(business_id, result):
+    """Sổ dùng AI (db.ai_usage, cùng dạng dòng 'text' của ai_media) với số token THẬT DeepSeek trả về."""
+    usage = (result or {}).get('usage') or {}
+    try:
+        db.ai_usage.insert_one({'business_id': business_id, 'kind': 'text', 'feature': 'restock_reason', 'model': 'deepseek-chat',
+                                'units': int(usage.get('total_tokens') or 0), 'prompt_tokens': int(usage.get('prompt_tokens') or 0),
+                                'completion_tokens': int(usage.get('completion_tokens') or 0), 'job_id': None,
+                                'created_at': datetime.now(timezone.utc)})
+    except Exception as e:
+        print(f"[restock] usage log: {e}")
+
+
+def _generate_restock_reason_with_ai(product_name, stock, avg_daily, days_left, business_id=None, suggested_qty=None,
+                                     lang=None, currency=None, unit_cost=0, lookback_days=14, use_ai=True):
+    """Trả (lý do, nguồn 'ai'|'template'). Số liệu (tồn kho, tốc độ bán, số ngày còn lại, số nhập, tiền) luôn do Python
+    tính và định dạng trước; DeepSeek (qua ai_deepseek_client — đi qua AI Proxy ở Desktop, ghi sổ token) CHỈ diễn đạt
+    lại bằng ngôn ngữ của tiệm. AI lỗi / bịa số / sai ngôn ngữ / gói không có tính năng -> câu mẫu (vẫn số thật)."""
+    if lang is None or currency is None:
+        _lang, _cur = _shop_lang_currency(business_id)
+        lang, currency = lang or _lang, currency or _cur
+    if suggested_qty is None:
+        suggested_qty = max(int(avg_daily * 7 - stock), int(avg_daily * 3) + 1)
+    fallback = _restock_reason_template(product_name, stock, avg_daily, days_left, suggested_qty, lang, currency,
+                                        unit_cost, lookback_days)
+    is_desktop = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+    key = os.environ.get('BITPAW_AI_PROXY_KEY') if is_desktop else os.environ.get('DEEPSEEK_API_KEY')
+    if not use_ai or not key or not business_id:
+        return fallback, 'template'
+    n = lambda v, d=1: _fmt_num(v, lang, d)  # noqa: E731
+    vi = lang == 'vi'
+    facts = [f"{'Sản phẩm' if vi else 'Product'}: {product_name}",
+             f"{'Tồn kho hiện tại' if vi else 'In stock now'}: {n(stock)}",
+             f"{'Bán trung bình mỗi ngày' if vi else 'Average sold per day'} ({lookback_days} {'ngày qua' if vi else 'days'}): {n(avg_daily)}",
+             (f"{'Số ngày còn lại trước khi hết' if vi else 'Days until it runs out'}: {n(days_left)}" if stock > 0
+              else ('Đã hết hàng' if vi else 'Already out of stock')),
+             f"{'Đề xuất nhập' if vi else 'Suggested order quantity'}: {n(suggested_qty, 0)}"]
+    if unit_cost and unit_cost > 0:
+        facts.append(f"{'Chi phí nhập ước tính (giá vốn)' if vi else 'Estimated cost at cost price'}: {format_money(suggested_qty * unit_cost, currency)}")
+    system = ("Bạn là trợ lý kho hàng. Viết ĐÚNG 1 câu ngắn, thân thiện bằng tiếng Việt cho chủ cửa hàng. Chỉ dùng các con số "
+              "được cho, chép y nguyên cách viết (kể cả ký hiệu tiền), không thêm con số nào khác, không dùng markdown." if vi else
+              "You are an inventory assistant. Write exactly ONE short, friendly sentence in English for the shop owner. Use only "
+              "the numbers given, copied exactly as written (including the currency sign), add no other numbers, no markdown.")
+    t0 = time.time()
+    try:
+        result = deepseek_chat_completion(
+            {"model": "deepseek-chat", "messages": [{"role": "system", "content": system},
+                                                    {"role": "user", "content": "\n".join(facts)}],
+             "temperature": 0.4, "max_tokens": 120},
+            business_id=business_id,
+            proxy_api_key=key if is_desktop else None,
+            direct_api_key=key if not is_desktop else None,
+            timeout=10,
+        )
+        _log_restock_ai_usage(business_id, result)
+        text = ' '.join(str(((result.get('choices') or [{}])[0].get('message') or {}).get('content') or '').split()).strip('"“” ')
+        ok = _restock_ai_text_ok(text, product_name, facts, lang)
+        _log_ai_run('restock_reason', business_id, time.time() - t0, fallback=not ok,
+                    error=None if ok else 'AI text rejected (numbers or language)')
+        return (text, 'ai') if ok else (fallback, 'template')
+    except Exception as e:
+        _log_ai_run('restock_reason', business_id, time.time() - t0, fallback=True, error=e)
+        return fallback, 'template'
 
 
 def _run_inventory_forecast_for_business(business_id, lookback_days, since_iso):
     """Tính tốc độ bán mỗi sản phẩm trong lookback_days ngày gần nhất, cảnh báo sản phẩm
-    sắp hết hàng (còn <= 3 ngày bán theo tốc độ trung bình) và tạo phiếu đề xuất nhập hàng."""
-    products = list(db.products.find(
-        {'business_id': business_id, 'is_active': 1}, {'id': 1, 'name': 1, 'stock': 1, '_id': 0}
-    ))
+    sắp hết hàng (còn <= 3 ngày bán theo tốc độ trung bình) và tạo phiếu đề xuất nhập hàng.
+    Chỉ sản phẩm CÓ theo dõi tồn kho (dịch vụ không có trường stock). Số bán lấy từ đơn bán thật trong kỳ
+    (order_items của POS không có created_at — trước đây lọc theo created_at nên đơn thật không bao giờ được đếm)."""
+    products = [p for p in db.products.find(
+        {'business_id': business_id, 'is_active': {'$in': [1, True]}}, {'id': 1, 'name': 1, 'stock': 1, 'cost_price': 1, '_id': 0}
+    ) if isinstance(p.get('stock'), (int, float)) and not isinstance(p.get('stock'), bool)]
     if not products:
         return 0
     product_ids = [p['id'] for p in products]
 
+    order_ids = [o['id'] for o in db.orders.find(
+        {'business_id': business_id, 'created_at': {'$gte': since_iso}, **_REVENUE_ORDER_FILTER}, {'id': 1, '_id': 0}
+    ) if o.get('id') is not None]
+    if not order_ids:
+        return 0
     items = list(db.order_items.find(
-        {'product_id': {'$in': product_ids}, 'created_at': {'$gte': since_iso}},
+        {'order_id': {'$in': order_ids}, 'product_id': {'$in': product_ids}},
         {'product_id': 1, 'quantity': 1, '_id': 0}
     ))
     sold_qty = {}
     for it in items:
         pid = it.get('product_id')
-        sold_qty[pid] = sold_qty.get(pid, 0) + (it.get('quantity') or 0)
+        try:
+            qty = float(it.get('quantity') or 0)
+        except (TypeError, ValueError):
+            qty = 0.0
+        sold_qty[pid] = sold_qty.get(pid, 0) + qty
 
     created = 0
+    lang = currency = use_ai = None
     for p in products:
         total_sold = sold_qty.get(p['id'], 0)
         if total_sold <= 0:
@@ -9849,8 +9966,20 @@ def _run_inventory_forecast_for_business(business_id, lookback_days, since_iso):
         if existing:
             continue  # đã có đề xuất đang chờ xử lý cho sản phẩm này, không tạo trùng
 
+        if lang is None:
+            lang, currency = _shop_lang_currency(business_id)
+            try:  # AI diễn đạt chỉ cho gói có Cảnh báo tồn kho (Pro+); gói thấp hơn vẫn có đề xuất bằng câu mẫu
+                use_ai = plans.allows(plans.business_plan(db, business_id), 'inventory')
+            except Exception:
+                use_ai = False
         suggested_qty = max(int(avg_daily * 7 - stock), int(avg_daily * 3) + 1)
-        reason = _generate_restock_reason_with_ai(p['name'], stock, avg_daily, days_left)
+        try:
+            unit_cost = float(p.get('cost_price') or 0)
+        except (TypeError, ValueError):
+            unit_cost = 0.0
+        reason, reason_source = _generate_restock_reason_with_ai(
+            p['name'], stock, avg_daily, days_left, business_id=business_id, suggested_qty=suggested_qty, lang=lang,
+            currency=currency, unit_cost=unit_cost, lookback_days=lookback_days, use_ai=use_ai)
         db.restock_proposals.insert_one({
             'id': next_mongo_id('restock_proposals'),
             'business_id': business_id,
@@ -9859,7 +9988,11 @@ def _run_inventory_forecast_for_business(business_id, lookback_days, since_iso):
             'current_stock': stock,
             'avg_daily_sales': round(avg_daily, 2),
             'suggested_qty': suggested_qty,
+            'est_cost': round(suggested_qty * unit_cost, 2) if unit_cost > 0 else None,
+            'currency': currency,
+            'lang': lang,
             'reason': reason,
+            'reason_source': reason_source,
             'status': 'pending',
             'created_at': datetime.now().isoformat(),
         })
@@ -9867,24 +10000,36 @@ def _run_inventory_forecast_for_business(business_id, lookback_days, since_iso):
     return created
 
 
-def _run_birthday_check_for_business(business_id):
-    """Quét khách hàng có sinh nhật hôm nay, xếp hàng gửi lời chúc + ưu đãi qua loyalty_events."""
-    today_md = datetime.now().strftime('%m-%d')
-    customers_data = list(db.customers.find({'business_id': business_id}, {'_id': 0})) if db is not None else []
-    sent = 0
-    for c in customers_data:
-        dob = c.get('dob')
-        if not dob or len(str(dob)) < 10:
+def _run_birthday_check_for_business(business_id, now_utc=None):
+    """Lời chúc sinh nhật theo GIỜ + NGÔN NGỮ của tiệm, qua kênh của chính tiệm (Zalo/Messenger trong khung, SMS, email).
+    Ngày chúc = ngày gửi kế tiếp theo giờ tiệm (messaging.birthday_plan: cron 02:00 UTC là 22:00 hôm trước ở Mỹ -> xếp cho
+    9:00 sáng hôm sinh nhật, không trễ 1 ngày), sớm N ngày nếu chủ tiệm cài birthday_days_before. Mỗi khách 1 lần/năm.
+    Không kèm "ưu đãi" tự bịa (trước đây hứa quà theo hạng mà tiệm chưa từng đặt ra). Trả số tin đã xếp hàng."""
+    if db is None:
+        return 0
+    import messaging
+    st = messaging.get_settings(business_id)
+    if not st.get('birthday_enabled', True):
+        return 0
+    plan = messaging.birthday_plan(st, now_utc)
+    early = plan['days_before'] > 0
+    when_en = plan['birthday'].strftime('%A %b %d').replace(' 0', ' ')
+    when_vi = plan['birthday'].strftime('%d/%m')
+    queued = 0
+    for c in db.customers.find({'business_id': business_id, 'dob': {'$nin': [None, '']}},
+                               {'_id': 0, 'id': 1, 'name': 1, 'phone': 1, 'email': 1, 'dob': 1, 'zalo_user_id': 1, 'fb_psid': 1}):
+        dob = str(c.get('dob') or '')
+        if len(dob) < 10 or dob[5:10] not in plan['match_md']:
             continue
-        if str(dob)[5:10] != today_md:
-            continue
-        message = (
-            f"🎉 Chúc mừng sinh nhật {c.get('name') or 'bạn'}! Nhân dịp đặc biệt này, tiệm xin tặng bạn "
-            f"1 ưu đãi dành riêng cho hạng {c.get('tier') or 'Normal'} — ghé tiệm trong tuần này để nhận quà nhé!"
-        )
-        _queue_loyalty_notification(business_id, c, 'birthday', message)
-        sent += 1
-    return sent
+        first = messaging.first_name(c.get('name'), st)
+        message = ((f"Hi {first}, your birthday is coming up on {when_en} — everyone at {{shop}} wishes you a wonderful day!",
+                    f"Chào {first}, sắp tới sinh nhật bạn ({when_vi}) rồi — {{shop}} chúc bạn một ngày thật vui!") if early else
+                   (f"Happy birthday, {first}! Everyone at {{shop}} wishes you a wonderful day.",
+                    f"Chúc mừng sinh nhật {first}! {{shop}} chúc bạn một ngày thật vui và nhiều niềm vui."))
+        status = _queue_loyalty_notification(business_id, c, 'birthday', message, send_after=plan['send_after'],
+                                             dedupe_key=f"bday:{business_id}:{c.get('id')}:{plan['birthday'].year}", settings=st)
+        queued += 1 if status == 'queued' else 0
+    return queued
 
 
 def _run_appointment_reminder_check_for_business(business_id, now):
@@ -9961,11 +10106,40 @@ def _get_all_active_business_ids():
     return list(ids)
 
 
+# Sai lệch tối thiểu để báo động, THEO TIỀN TỆ của tiệm: trước đây cứng 1.000 đơn vị cho mọi tiệm -> tiệm USD/AUD
+# chỉ được báo khi lệch từ $1.000 (gần như tắt). VND: 1.000đ; tiền có xu (USD, AUD...): 1,00.
+_RECON_MIN_MISMATCH = {'VND': 1000.0}
+
+
+def _reconciliation_threshold(currency):
+    return _RECON_MIN_MISMATCH.get(str(currency or '').upper(), 1.0)
+
+
+def _reconciliation_details(issue_type, lang, currency, txn_id, amount=0.0, order_amount=0.0, age_hours=0.0):
+    """Câu báo động đối soát bằng ngôn ngữ của tiệm, tiền theo tiền tệ của tiệm."""
+    money = lambda v: format_money(v, currency)  # noqa: E731
+    vi = lang == 'vi'
+    if issue_type == 'missing_order':
+        return (f"Giao dịch {txn_id} báo hoàn tất nhưng không tìm thấy đơn hàng tương ứng." if vi else
+                f"Payment {txn_id} is marked completed, but no matching order was found.")
+    if issue_type == 'amount_mismatch':
+        diff = order_amount - amount
+        if vi:
+            return (f"Giao dịch {txn_id}: số tiền ghi nhận {money(amount)} nhưng đơn hàng thực tế {money(order_amount)} "
+                    f"({'thu thiếu' if diff > 0 else 'thu thừa'} {money(abs(diff))}).")
+        return (f"Payment {txn_id}: {money(amount)} was recorded, but the order total is {money(order_amount)} "
+                f"({money(abs(diff))} {'short' if diff > 0 else 'over'}).")
+    hours = _fmt_num(age_hours, lang)
+    return (f"Giao dịch {txn_id} vẫn ở trạng thái chờ sau {hours} giờ — nghi ngờ tiền chưa vào tài khoản." if vi else
+            f"Payment {txn_id} is still pending after {hours} hours — the money may not have arrived.")
+
+
 def _run_payment_reconciliation_for_business(business_id, lookback_days):
     """Đối soát chéo payment_transactions <-> orders, phát hiện: (a) giao dịch báo đã
     hoàn tất ('completed') nhưng không có order tương ứng, (b) số tiền giao dịch lệch với
     tổng đơn hàng (thu thiếu/thừa), (c) giao dịch treo 'pending' quá lâu (nghi ngờ tiền
-    chưa vào). Ghi báo động vào reconciliation_alerts, không tạo trùng cảnh báo đang chờ xử lý."""
+    chưa vào). Ghi báo động vào reconciliation_alerts, không tạo trùng cảnh báo đang chờ xử lý.
+    Ngưỡng lệch + câu báo theo tiền tệ / ngôn ngữ của tiệm (_shop_lang_currency)."""
     since_iso = (datetime.now() - timedelta(days=lookback_days)).isoformat()
     alerts_created = 0
     try:
@@ -9975,9 +10149,14 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
     except Exception as e:
         print(f"Loi lay payment_transactions cho {business_id}: {e}")
         return 0
+    if not txns:
+        return 0
+    lang, currency = _shop_lang_currency(business_id)
+    min_mismatch = _reconciliation_threshold(currency)
 
+    # đơn lấy rộng hơn 1 ngày: giao dịch đầu kỳ có đơn tạo ngay trước mốc không bị báo nhầm "không có đơn"
     orders_data = list(db.orders.find(
-        {'business_id': business_id, 'created_at': {'$gte': since_iso}},
+        {'business_id': business_id, 'created_at': {'$gte': (datetime.now() - timedelta(days=lookback_days + 1)).isoformat()}},
         {'metadata.order_code': 1, 'total_amount': 1, '_id': 0}
     ))
     orders_by_code = {
@@ -9989,7 +10168,10 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
     for txn in txns:
         txn_id = txn.get('transaction_id')
         status = txn.get('status')
-        amount = txn.get('amount') or 0
+        try:
+            amount = float(txn.get('amount') or 0)
+        except (TypeError, ValueError):
+            amount = 0.0
         issue_type = None
         details = None
         expected_amount = None
@@ -9998,16 +10180,16 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
             order = orders_by_code.get(txn_id)
             if not order:
                 issue_type = 'missing_order'
-                details = f"Giao dịch {txn_id} báo hoàn tất nhưng không tìm thấy đơn hàng tương ứng."
+                details = _reconciliation_details(issue_type, lang, currency, txn_id)
             else:
-                order_amount = order.get('total_amount') or 0
-                if abs(order_amount - amount) >= 1000:  # sai lệch từ 1.000đ trở lên mới báo động
+                try:
+                    order_amount = float(order.get('total_amount') or 0)
+                except (TypeError, ValueError):
+                    order_amount = 0.0
+                if round(abs(order_amount - amount), 2) >= min_mismatch:
                     issue_type = 'amount_mismatch'
                     expected_amount = order_amount
-                    details = (
-                        f"Giao dịch {txn_id}: số tiền ghi nhận {amount:,.0f}đ nhưng đơn hàng thực tế "
-                        f"{order_amount:,.0f}đ (chênh lệch {order_amount - amount:,.0f}đ)."
-                    ).replace(',', '.')
+                    details = _reconciliation_details(issue_type, lang, currency, txn_id, amount, order_amount)
         elif status == 'pending':
             created_at_str = txn.get('created_at')
             if created_at_str:
@@ -10016,7 +10198,7 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
                     age_hours = (datetime.now(created_at.tzinfo) - created_at).total_seconds() / 3600
                     if age_hours >= stale_pending_hours:
                         issue_type = 'stale_pending'
-                        details = f"Giao dịch {txn_id} vẫn ở trạng thái chờ sau {age_hours:.1f} giờ — nghi ngờ tiền chưa vào tài khoản."
+                        details = _reconciliation_details(issue_type, lang, currency, txn_id, age_hours=age_hours)
                 except Exception:
                     pass
 
@@ -10037,6 +10219,7 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
             'issue_type': issue_type,
             'expected_amount': expected_amount,
             'actual_amount': amount,
+            'currency': currency,
             'details': details,
             'status': 'pending',
             'created_at': datetime.now().isoformat(),
@@ -10118,12 +10301,19 @@ def cron_daily_tasks():
             results["errors"].append(f"reconciliation[{business_id}]: {str(e)}")
         try:
             import messaging
-            msg_stats = messaging.pump(business_id, base_url=os.environ.get('PUBLIC_BASE_URL', request.host_url))
+            base_url = os.environ.get('PUBLIC_BASE_URL', request.host_url)
+            msg_stats = messaging.pump(business_id, base_url=base_url)
             results["appointment_reminders_queued"] += msg_stats.get('produced', 0)
             results.setdefault("messages_sent", 0)
             results["messages_sent"] += msg_stats.get('sent', 0)
-            if messaging.get_settings(business_id)['country'] == 'VN':
-                results["appointment_reminders_queued"] += _run_appointment_reminder_check_for_business(business_id, now)
+            msg_settings = messaging.get_settings(business_id)
+            if msg_settings['country'] == 'VN':
+                # Lịch hẹn khách KHÔNG có SMS/email (pump đã nhắc phần còn lại): Zalo/Messenger của chính tiệm trong khung trả
+                # lời. Giờ ĐỊA PHƯƠNG của tiệm (book_time lưu giờ tiệm) — trước đây so với giờ máy chủ UTC.
+                legacy = _run_appointment_reminder_check_for_business(business_id, messaging.local_now(msg_settings).replace(tzinfo=None))
+                results["appointment_reminders_queued"] += legacy
+                if legacy:
+                    results["messages_sent"] += messaging.pump(business_id, base_url=base_url, produce=False).get('sent', 0)
         except Exception as e:
             results["errors"].append(f"messaging[{business_id}]: {str(e)}")
 
@@ -12113,6 +12303,12 @@ def _inbox_walkin(business_id):
 def _inbox_ai_reply(business_id, customer_id, latest_text):
     """Trả (câu trả lời, lỗi?) cho 1 tin khách nhắn qua Messenger/Zalo/WhatsApp/Viber/SMS. ('', False) = cố ý im lặng
     (nhân viên đang nhận khách này); ('', True) = AI lỗi -> báo chủ tiệm trả lời."""
+    import ai_gateway
+    # Cổng gói lúc chạy (Pro trở lên; tiệm cũ chưa có gói = Empire; cache 60 giây): hạ gói -> AI trả phí dừng trong <= 60 giây.
+    # Tin của khách đã được lưu; đánh dấu "cần người trả lời" kèm lý do để chủ tiệm biết vì sao AI im.
+    if not ai_gateway.allowed(business_id, 'ai_inbox'):
+        db.bot_customers.update_one({'id': customer_id}, {'$set': {'needs_human': True, 'handoff_reason': ai_gateway.PLAN_PAUSED_REASON}})
+        return '', False
     bc = db.bot_customers.find_one({'id': customer_id}, {'_id': 0, 'ai_paused': 1, 'hold_notice_at': 1, 'handoff_by_ai': 1,
                                                        'handoff_at': 1, 'handoff_reason': 1, 'phone': 1, 'channel': 1}) or {}
     waiting = None
@@ -12127,6 +12323,8 @@ def _inbox_ai_reply(business_id, customer_id, latest_text):
     if not api_key and os.environ.get('BITPAW_DESKTOP_MODE') != '1':
         return '', True
     _t0 = time.time()
+    # Sổ chi phí AI: mọi lệnh DeepSeek của lượt trả lời này (kể cả các vòng gọi công cụ) ghi db.ai_usage theo tiệm + kênh
+    _usage = ai_gateway.begin('sms_reply' if bc.get('channel') == 'sms' else 'inbox_reply', business_id)
     try:
         import ai_function_tools
         # Chỉ Nails/Spa có lịch hẹn thật; ngành khác: hỏi đáp từ dữ liệu công khai + chuyển yêu cầu cho nhân viên
@@ -12169,6 +12367,8 @@ def _inbox_ai_reply(business_id, customer_id, latest_text):
         _log_ai_run('booking', business_id, time.time() - _t0, None, fallback=True, error=e)
         print(f"[inbox ai] {e}")
         return '', True
+    finally:
+        ai_gateway.end(_usage)
 
 
 def _inbox_ai_throttled(customer_id):
@@ -12259,6 +12459,10 @@ def _inbox_sms_inbound(business_id, from_number, body):
                                 default_name=_inbox_walkin(business_id))
     if not inbox_channels.ai_auto_reply_on(business_id, 'sms'):
         db.bot_customers.update_one({'id': cid}, {'$set': {'needs_human': True}})
+        return ''
+    import ai_gateway
+    if not ai_gateway.allowed(business_id, 'ai_inbox'):  # gói không có AI trả lời (Essential / vừa hạ gói): lưu tin, chờ người
+        db.bot_customers.update_one({'id': cid}, {'$set': {'needs_human': True, 'handoff_reason': ai_gateway.PLAN_PAUSED_REASON}})
         return ''
     if _inbox_ai_throttled(cid):
         return ''
@@ -12593,13 +12797,40 @@ def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, cu
 
 
 def _log_ai_run(persona, business_id, seconds, tools=None, fallback=False, error=None):
-    """Nhật ký chất lượng AI (độ trễ, công cụ đã gọi, có rơi vào câu dự phòng không) — best-effort, không làm chậm chat."""
+    """Nhật ký chất lượng AI (độ trễ, công cụ đã gọi, có rơi vào câu dự phòng không) — best-effort, không làm chậm chat.
+    Kèm số lệnh / token / chi phí THẬT của lượt này (ai_gateway.run_totals — phạm vi ghi sổ đang mở), nếu có."""
+    try:
+        import ai_gateway
+        usage = ai_gateway.run_totals()
+    except Exception:
+        usage = {}
     try:
         db.ai_runs.insert_one({'persona': persona, 'business_id': business_id, 'ms': int(seconds * 1000), 'tools': tools or [],
                                'fallback': bool(fallback), 'error': (str(error)[:200] if error else None),
-                               'created_at': datetime.now().isoformat()})
+                               'created_at': datetime.now().isoformat(), **usage})
     except Exception:
         pass
+
+
+@app.route('/api/ai/usage', methods=['GET'])
+@login_required
+def api_ai_usage():
+    """Chi phí AI THẬT của tiệm trong 1 tháng (?month=YYYY-MM, giờ của tiệm; mặc định tháng này): số lệnh, token, chi phí
+    theo từng tính năng — đọc db.ai_usage do ai_gateway ghi từ trường usage DeepSeek trả về. Chỉ chủ tiệm / admin."""
+    _l = request.args.get('lang')
+    if session.get('role', 'staff') not in ('admin', 'super_admin'):
+        _vi_msg, _en_msg = "Chỉ tài khoản chủ tiệm / quản trị xem được chi phí AI.", "Only the owner / admin account can see AI usage."
+        return jsonify({"success": False, "code": "owner_only",
+                        "message": _en_msg if _l == 'en' else (_vi_msg if _l == 'vi' else _vi_en(_vi_msg, _en_msg))}), 403
+    import ai_gateway
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        summary = ai_gateway.usage_summary(business_id, request.args.get('month'))
+    except ValueError:
+        _vi_msg, _en_msg = "Tháng không hợp lệ — dùng dạng 2026-10.", "Invalid month — use the form 2026-10."
+        return jsonify({"success": False, "code": "bad_month",
+                        "message": _en_msg if _l == 'en' else (_vi_msg if _l == 'vi' else _vi_en(_vi_msg, _en_msg))}), 400
+    return jsonify({"success": True, **summary})
 
 
 @app.route('/api/ai/studio/generate', methods=['POST'])
@@ -12630,6 +12861,15 @@ def secure_ai_generate():
         if business_id is not None and not isinstance(business_id, str):
             return jsonify({"error": "Invalid business_id."}), 400
     private_ok = is_authenticated and not public_customer_chat
+    # Cổng gói lúc chạy (ai_gateway.allowed, cache 60 giây; tiệm cũ chưa có gói = Empire): trợ lý chat của trang đặt lịch là
+    # tính năng Pro ('ai_inbox'). Tiệm Essential / vừa hạ gói: trang đặt lịch vẫn chạy (form), chat trả 1 câu "đặt bằng form
+    # hoặc gọi / nhắn cho tiệm" KHÔNG dùng AI, cờ ai_unavailable + contact để widget đổi sang nút gọi/nhắn.
+    import ai_gateway
+    if public_customer_chat and not ai_gateway.allowed(business_id, 'ai_inbox'):
+        return jsonify(ai_gateway.unavailable_reply(business_id, data.get('customer_message') or data.get('userPrompt')))
+    # Sổ chi phí AI (db.ai_usage): mọi lệnh DeepSeek của request này ghi đúng tính năng + tiệm. Bot bán phần mềm BitPaw là
+    # chi phí của BitPaw (business_id có thể do trình duyệt tự khai) -> không ghi vào sổ của tiệm nào.
+    ai_gateway.tag_request('booking_chat' if public_customer_chat else 'sales_bot', business_id if public_customer_chat else None)
     industry = data.get('industry') or session.get('business_mode', 'general')
     # Mã chat riêng từng trình duyệt (widget lưu localStorage 'bp_chat_token') — chỉ lưu mã băm
     import ai_function_tools
@@ -13364,133 +13604,33 @@ def nurture_connect_status():
 @app.route('/api/ai/nurture/toggle-connection', methods=['POST'])
 @login_required
 def nurture_toggle_connection():
-    data = request.json or {}
-    platform = data.get('platform')
-    action = data.get('action') # 'CONNECT', 'DISCONNECT', 'SAVE'
-    
-    if not platform:
-        return jsonify({"success": False, "message": "Missing platform parameter"}), 400
-        
-    business_id, _biz_err = _get_tenant_business_id_or_401()
-    if _biz_err:
-        return _biz_err
-    
-    try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        
-        if action == 'DISCONNECT':
-            c.execute("UPDATE platform_connections SET connection_status = 'DISCONNECTED', config_data = NULL, updated_at = CURRENT_TIMESTAMP WHERE business_id = ? AND platform = ?",
-                      (business_id, platform))
-            conn.commit()
-            conn.close()
-            return jsonify({"success": True, "status": "DISCONNECTED"})
-            
-        elif action == 'SAVE':
-            account_name = data.get('account_name', '').strip()
-            channel_id = data.get('channel_id', '').strip()
-            access_token = data.get('access_token', '').strip()
-            
-            if not account_name or not channel_id or not access_token:
-                conn.close()
-                return jsonify({"success": False, "message": "Vui lòng nhập đầy đủ thông tin kết nối và API Access Token!"}), 400
-                
-            config_payload = {
-                "account_name": account_name,
-                "channel_id": channel_id,
-                "access_token": access_token
-            }
-            config_str = json.dumps(config_payload)
-            
-            c.execute("INSERT OR REPLACE INTO platform_connections (id, business_id, platform, connection_status, config_data, updated_at) VALUES (?, ?, ?, 'CONNECTED', ?, CURRENT_TIMESTAMP)",
-                      (f"{business_id}-{platform}", business_id, platform, config_str))
-            conn.commit()
-            conn.close()
-            return jsonify({"success": True, "status": "CONNECTED"})
-            
-        else: # Standard fallback toggle
-            c.execute("SELECT connection_status, config_data FROM platform_connections WHERE business_id = ? AND platform = ?", (business_id, platform))
-            row = c.fetchone()
-            current_status = row[0] if row else 'DISCONNECTED'
-            config_str = row[1] if row else None
-            
-            new_status = 'DISCONNECTED' if current_status == 'CONNECTED' else 'CONNECTED'
-            
-            if new_status == 'CONNECTED':
-                config = {}
-                if config_str:
-                    try:
-                        config = json.loads(config_str)
-                    except Exception:
-                        pass
-                if not config.get('access_token'):
-                    conn.close()
-                    return jsonify({"success": False, "message": "Chưa cấu hình API key. Vui lòng cấu hình tài khoản trước!"}), 400
-            
-            c.execute("INSERT OR REPLACE INTO platform_connections (id, business_id, platform, connection_status, config_data, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
-                      (f"{business_id}-{platform}", business_id, platform, new_status, config_str))
-            conn.commit()
-            conn.close()
-            return jsonify({"success": True, "status": new_status})
-            
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    """ĐÃ NGỪNG: trước đây lưu token Zalo/Facebook vào SQLite database.db (không tồn tại/không bền trên Vercel) — báo
+    'CONNECTED' mà không tin chăm sóc nào dùng tới. Kết nối kênh nay chỉ có 1 nơi: Hộp thư chung (/inbox/channels,
+    inbox_channels.py) — vừa nhận tin, vừa gửi tin chăm sóc/sinh nhật/tích điểm qua đúng kênh đó (messaging.pump)."""
+    return _nurture_connect_moved()
+
+
+def _nurture_connect_moved():
+    return jsonify({
+        "success": False, "code": "moved_to_inbox_channels", "redirect": "/inbox/channels",
+        "message": _vi_en('Kết nối Zalo OA / Messenger nay ở Kênh nhắn tin (/inbox/channels): kết nối 1 lần là vừa nhận tin '
+                          'của khách, vừa gửi được tin chăm sóc, sinh nhật, tích điểm qua đúng OA/Page của tiệm. '
+                          'Zalo/Messenger chỉ gửi được trong khung trả lời của nền tảng (Messenger 24 giờ, Zalo 48 giờ kể từ '
+                          'tin gần nhất của khách); ngoài khung tin sẽ đi SMS/email nếu khách có.',
+                          'Zalo OA / Messenger are now connected in Messaging channels (/inbox/channels): connect once to '
+                          'receive customer messages and send follow-ups, birthday and rewards messages from your own '
+                          'OA/Page. Zalo/Messenger can only send inside the platform reply window (Messenger 24 h, Zalo 48 h '
+                          "after the customer's last message); outside it the message goes by SMS/email when available."),
+    }), 410
+
 
 @app.route('/api/ai/nurture/test-connection', methods=['POST'])
 @login_required
 def nurture_test_connection():
-    """Mã Nurture Part 3 audit — TRƯỚC ĐÂY: trả 'Kết nối thử nghiệm thành công' hardcode ngay
-    khi thấy access_token/channel_id không rỗng, KHÔNG hề gọi provider nào để xác minh. GIỜ: gọi
-    thật API của Zalo OA / Facebook để xác thực token, chỉ báo thành công khi provider THẬT SỰ
-    xác nhận, và lưu token đã xác thực (mã hoá) theo business_id để message_delivery_worker.py
-    dùng lại khi gửi tin nhắn nurture thật."""
-    data = request.json or {}
-    platform = (data.get('platform') or '').strip().lower()
-    access_token = (data.get('access_token') or '').strip()
-
-    if platform not in ('zalo', 'zalo_oa', 'facebook', 'messenger'):
-        return jsonify({"success": False, "message": f"Platform '{platform}' chưa được hỗ trợ thật."}), 400
-    if not access_token:
-        return jsonify({"success": False, "message": "Thiếu access_token."}), 400
-
-    business_id = session.get('business_id') or session['user_id']
-    norm_platform = 'zalo_oa' if platform in ('zalo', 'zalo_oa') else 'facebook'
-
-    try:
-        if norm_platform == 'zalo_oa':
-            resp = requests.get(
-                'https://openapi.zalo.me/v2.0/oa/getoa',
-                headers={'access_token': access_token}, timeout=10,
-            )
-            payload = resp.json()
-            if payload.get('error') not in (0, None):
-                return jsonify({"success": False, "message": f"Zalo từ chối token: {payload.get('message')}"}), 400
-            oa_data = payload.get('data') or {}
-            extra = {'oa_id': oa_data.get('oa_id'), 'oa_name': oa_data.get('name')}
-        else:
-            resp = requests.get(
-                'https://graph.facebook.com/v21.0/me',
-                params={'access_token': access_token, 'fields': 'id,name'}, timeout=10,
-            )
-            payload = resp.json()
-            if 'error' in payload:
-                return jsonify({"success": False, "message": f"Facebook từ chối token: {payload['error'].get('message')}"}), 400
-            extra = {'page_id': payload.get('id'), 'page_name': payload.get('name')}
-    except requests.exceptions.Timeout:
-        return jsonify({"success": False, "message": "Provider API timeout, vui lòng thử lại."}), 504
-    except requests.exceptions.RequestException as e:
-        return jsonify({"success": False, "message": f"Lỗi kết nối tới provider: {e}"}), 502
-
-    try:
-        nurture_channel_tokens.save_channel_token(business_id, norm_platform, access_token, extra)
-    except RuntimeError as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-    return jsonify({
-        "success": True,
-        "message": f"Đã xác thực & lưu token {norm_platform} thật (phản hồi provider: {extra}).",
-        "info": extra,
-    })
+    """ĐÃ NGỪNG (gộp vào Hộp thư chung): trước đây xác thực token rồi lưu riêng vào nurture_channel_tokens ('zalo_oa' /
+    'facebook') cho message_delivery_worker.py — worker không chạy, và token đó không nhận được tin của khách nên không bao
+    giờ biết zalo_user_id/fb_psid hay khung 24 giờ. Giờ inbox_channels.connect() xác thực THẬT với nền tảng + nhận webhook."""
+    return _nurture_connect_moved()
 
 
 
@@ -13723,7 +13863,9 @@ def nurture_import_data():
 
     try:
         recomputed = recompute_customer_segments(business_id)
-        return jsonify({"success": True, "message": f"Đã tính lại phân khúc chăm sóc cho {recomputed} khách hàng thành công!"})
+        return jsonify({"success": True, "recomputed": recomputed,
+                        "message": _vi_en(f"Đã tính lại phân khúc chăm sóc cho {recomputed} khách hàng.",
+                                          f"Recalculated care segments for {recomputed} customers.")})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -13751,10 +13893,9 @@ def nurture_generate_campaign():
     from ai_nurturing_engine import customer_fill_values
     msg_settings = messaging.get_settings(business_id)
     lang = msg_settings['language']
-    # Mỹ/Úc: SMS (Twilio) hoặc Email; Việt Nam: Zalo/Messenger như trước
-    channel = (data.get('channel') or ('SMS' if lang == 'en' else 'ZALO')).upper()
-    if channel not in ('SMS', 'EMAIL', 'ZALO', 'FACEBOOK'):
-        channel = 'SMS'
+    # 1 bộ kênh chữ thường (messaging.CHANNELS): sms | email | zalo | messenger — form cũ gửi 'SMS'/'ZALO'/'FACEBOOK'
+    # (trước đây lưu nguyên chữ HOA, bộ gửi Zalo/Messenger so chữ thường nên không tin nào đi). Mỹ/Úc mặc định SMS, VN Zalo.
+    channel = messaging.normalize_channel(data.get('channel')) or ('sms' if lang == 'en' else 'zalo')
 
     # Chế độ XEM TRƯỚC cho 1 khách (customer_nurturing.html): AI viết 1 tin cho đúng khách đó rồi trả về — KHÔNG tạo
     # chiến dịch, KHÔNG tạo tin chờ duyệt nào. Trước đây nút "gợi ý" gọi route này với segment ALL nên mỗi lần bấm
@@ -13779,7 +13920,8 @@ def nurture_generate_campaign():
 
     campaign_id = f"camp-{next_mongo_id('nurturing_campaigns')}"
     goal_name = {'RECALL': 'Win-back', 'UPSELL': 'Upsell'}.get(str(goal).upper(), str(goal)) if lang == 'en' else goal
-    campaign_name = f"{goal_name} via {channel} ({tone})" if lang == 'en' else f"Chiến dịch {goal} qua kênh {channel} ({tone.upper()})"
+    ch_label = messaging.CHANNEL_LABELS.get(channel, channel)
+    campaign_name = f"{goal_name} via {ch_label} ({tone})" if lang == 'en' else f"Chiến dịch {goal} qua kênh {ch_label} ({tone.upper()})"
 
     try:
         biz = db.businesses.find_one({'id': business_id}, {'name': 1, 'currency': 1, '_id': 0}) or {}
@@ -13787,8 +13929,10 @@ def nurture_generate_campaign():
 
         query = {'business_id': business_id}
         if segment == 'VIP':
-            # ngưỡng VIP theo đúng tiền tệ của tiệm (trước: 5.000.000 cố định -> tiệm USD/AUD không có ai là VIP)
-            query['total_spent'] = {'$gte': 5000000 if (biz.get('currency') or 'VND').upper() == 'VND' else 400}
+            # VIP = top 25% chi tiêu của CHÍNH tiệm (không phụ thuộc tiền tệ; trước: 5.000.000đ / 400 cố định tự đặt)
+            from ai_nurturing_engine import top_spend_threshold
+            vip_min = top_spend_threshold(business_id)
+            query['total_spent'] = {'$gte': vip_min} if vip_min is not None else {'$gt': float('inf')}
         elif segment == 'CHURN':
             query['nurturing_status'] = 'CHURN_RISK'
 
@@ -13891,20 +14035,31 @@ def nurture_approve_message():
         st = messaging.get_settings(business_id)
         en = st['language'] == 'en'
         if action != 'APPROVED':
+            # đã duyệt + xếp hàng rồi mới từ chối -> huỷ tin chưa gửi (trước đây tin vẫn đi đúng ngày)
+            db.outbound_messages.update_many({'business_id': business_id, 'meta.campaign_message_id': message_id, 'status': 'queued'},
+                                             {'$set': {'status': 'cancelled', 'error': 'rejected by owner'}})
             return jsonify({"success": True, "message": "Message rejected." if en else "Đã từ chối tin nhắn."})
         due = now + timedelta(days=int(msg.get('step_delay') or 0))
         due_local = due.astimezone(messaging.ZoneInfo(st['timezone']))
-        ch = (msg.get('channel') or 'SMS').upper()
+        ch = messaging.normalize_channel(msg.get('channel'), 'sms')
         sms_ok = st['twilio_ready']
-        if ch == 'SMS' and not sms_ok:
+        if ch == 'sms' and not sms_ok:
             note = (" SMS is not connected yet — it will go by email if the customer has one. Connect SMS in Settings → Messaging." if en else
                     " Chưa kết nối SMS — tin sẽ gửi qua email nếu khách có email. Kết nối SMS ở Cài đặt → Nhắn tin.")
+        elif ch in messaging.SOCIAL_CHANNELS:
+            hrs = messaging.MESSAGING_WINDOW_HOURS[ch]
+            label = messaging.CHANNEL_LABELS[ch]
+            note = (f" {label} only delivers if the customer messaged your {label} within the last {hrs} hours at send time "
+                    f"(platform rule); otherwise it goes by SMS or email if they have one, or is skipped." if en else
+                    f" {label} chỉ gửi được nếu khách đã nhắn {label} của tiệm trong {hrs} giờ trước lúc gửi (luật của nền tảng); "
+                    f"không thì tin đi SMS/email nếu khách có, hoặc bị bỏ qua.")
         else:
             note = ""
         when = due_local.strftime('%a %b %d') if en else due_local.strftime('%d/%m')
         window = f"{st['send_window_start']}:00–{st['send_window_end']}:00"
-        return jsonify({"success": True, "message": (f"Approved. It will be sent on {when} between {window} (shop time) by {ch.lower()}.{note}" if en else
-                                                     f"Đã duyệt. Tin sẽ gửi ngày {when} trong khung {window} (giờ tiệm) qua {ch}.{note}")})
+        ch_label = messaging.CHANNEL_LABELS.get(ch, ch)
+        return jsonify({"success": True, "message": (f"Approved. It will be sent on {when} between {window} (shop time) by {ch}.{note}" if en else
+                                                     f"Đã duyệt. Tin sẽ gửi ngày {when} trong khung {window} (giờ tiệm) qua {ch_label}.{note}")})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -13914,43 +14069,64 @@ def nurture_approve_message():
 @app.route('/api/ai/nurture/rules', methods=['GET'])
 @login_required
 def nurture_rules_list():
+    import messaging
     business_id = session.get('business_id') or session['user_id']
     rules = list(db.nurture_schedule_rules.find({'business_id': business_id}, {'_id': 0}).sort('created_at', -1))
-    return jsonify({"success": True, "data": rules})
+    for r in rules:   # rule cũ lưu 'zalo_oa'/'facebook' -> trả đúng bộ kênh chữ thường
+        r['channel'] = messaging.normalize_channel(r.get('channel'), r.get('channel'))
+    return jsonify({"success": True, "data": rules, "channels": list(messaging.CHANNELS)})
 
 
 @app.route('/api/ai/nurture/rules', methods=['POST'])
 @login_required
 def nurture_rules_create():
+    """Luật tự động (vd "N ngày chưa quay lại") cho nurture_scheduler.py (cron ngày). Kênh: sms | email | zalo | messenger
+    (nhận cả giá trị cũ 'zalo_oa'/'facebook'/'SMS'...). Trước đây chỉ nhận zalo_oa/facebook, và 'zalo_oa' bị đổi thành
+    'ZALO_OA' không khớp nhánh gửi nào -> luật chết; tiệm Mỹ/Úc (SMS/email) không tạo được luật nào."""
+    import messaging
     data = request.json or {}
-    name = (data.get('name') or '').strip()
-    condition_days = data.get('condition_days')
-    channel = (data.get('channel') or 'zalo_oa').strip().lower()
-
-    if not name or not condition_days:
-        return jsonify({"success": False, "message": "Thiếu name hoặc condition_days."}), 400
-    try:
-        condition_days = int(condition_days)
-    except (TypeError, ValueError):
-        return jsonify({"success": False, "message": "condition_days phải là số nguyên."}), 400
-    if channel not in ('zalo_oa', 'facebook'):
-        return jsonify({"success": False, "message": "channel phải là 'zalo_oa' hoặc 'facebook'."}), 400
-
     business_id = session.get('business_id') or session['user_id']
+    en = messaging.get_settings(business_id)['language'] == 'en'
+    t = (lambda e, v: e if en else v)  # noqa: E731
+    name = str(data.get('name') or '').strip()[:120]
+    raw_channel = data.get('channel')
+    channel = messaging.normalize_channel(raw_channel) if raw_channel else ('sms' if en else 'zalo')
+
+    def _int(key, default, lo, hi):
+        v = data.get(key, default)
+        if isinstance(v, bool):
+            raise ValueError
+        v = int(v if v not in (None, '') else default)
+        if not lo <= v <= hi:
+            raise ValueError
+        return v
+
+    if not name or data.get('condition_days') in (None, ''):
+        return jsonify({"success": False, "message": t("Name and condition_days are required.", "Thiếu name hoặc condition_days.")}), 400
+    try:
+        condition_days = _int('condition_days', 30, 1, 730)
+        cooldown_days = _int('cooldown_days', 14, 1, 365)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": t("condition_days must be 1–730 and cooldown_days 1–365 (whole days).",
+                                                       "condition_days phải từ 1–730, cooldown_days từ 1–365 (số ngày nguyên).")}), 400
+    if channel not in messaging.CHANNELS:
+        return jsonify({"success": False, "message": t("channel must be one of: sms, email, zalo, messenger.",
+                                                       "channel phải là 1 trong: sms, email, zalo, messenger.")}), 400
+    goal = str(data.get('goal') or 'RECALL').upper()
     rule_id = next_mongo_id('nurture_schedule_rules')
     db.nurture_schedule_rules.insert_one({
         'id': rule_id, 'business_id': business_id, 'name': name,
         'condition_days': condition_days,
-        'goal': (data.get('goal') or 'RECALL').upper(),
-        'tone': data.get('tone') or 'friendly',
+        'goal': goal if goal in ('RECALL', 'UPSELL') else 'RECALL',
+        'tone': str(data.get('tone') or 'friendly')[:30],
         'channel': channel,
         'auto_send': bool(data.get('auto_send', False)),  # False -> vào hàng chờ duyệt tay; True -> gửi thẳng
-        'cooldown_days': int(data.get('cooldown_days') or 14),  # tránh nhắn lại cùng 1 khách mỗi ngày 1 lần
+        'cooldown_days': cooldown_days,  # tránh nhắn lại cùng 1 khách mỗi ngày 1 lần
         'is_active': True,
         'industry': session.get('business_mode', 'retail'),
         'created_at': datetime.now().isoformat(),
     })
-    return jsonify({"success": True, "id": rule_id})
+    return jsonify({"success": True, "id": rule_id, "channel": channel})
 
 
 @app.route('/api/ai/nurture/rules/<int:rule_id>', methods=['DELETE'])

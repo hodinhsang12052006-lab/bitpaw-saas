@@ -35,6 +35,7 @@ from flask import Blueprint, request, jsonify, session
 import requests
 
 from mongo_client import db
+import ai_gateway
 import ai_media
 import media_store
 from media_store import MediaError
@@ -48,11 +49,10 @@ MAX_TEMPERATURE = 1.2
 MAX_TOKENS = 2000
 
 
-def _call_deepseek_text(system_prompt, user_prompt, temperature, max_tokens, business_id):
-    """Gọi DeepSeek qua ai_deepseek_client (tự chuyển sang AI Proxy nếu đang chạy Desktop mode,
-    y hệt cách secure_ai_generate() làm) — trả về text thuần. Thân hàm nằm ở ai_media.deepseek_text
-    để ai_media dùng được mà không phải import blueprint này (blueprint import app)."""
-    return ai_media.deepseek_text(system_prompt, user_prompt, temperature, max_tokens, business_id)
+def _call_deepseek_text(system_prompt, user_prompt, temperature, max_tokens, business_id, feature='studio_text'):
+    """Gọi DeepSeek qua ai_gateway (tự chuyển sang AI Proxy nếu đang chạy Desktop mode, timeout + thử lại lỗi tạm thời)
+    — trả về text thuần. Gateway ghi db.ai_usage theo token THẬT DeepSeek trả về (trước đây ghi max_tokens xin, chi phí 0)."""
+    return ai_gateway.text(feature, business_id, system_prompt, user_prompt, temperature, max_tokens)
 
 
 def _bid():
@@ -102,7 +102,6 @@ def generate_text():
         return jsonify({"success": False, "error": "AI Studio timeout, vui lòng thử lại."}), 504
     except RuntimeError as e:
         return jsonify({"success": False, "error": str(e)}), 502
-    ai_media.log_text_usage(business_id, max_tokens)
     return jsonify({"success": True, "choices": [{"message": {"content": content}}]})
 
 
@@ -149,7 +148,7 @@ def _derive_image_prompt(nurture_script, brand_name, industry, business_id):
         f"Business: {brand_name or 'a local business'} ({industry or 'general'} industry).\n"
         f"Marketing message: \"{nurture_script}\""
     )
-    return _call_deepseek_text(system_prompt, user_prompt, 0.8, 300, business_id)
+    return _call_deepseek_text(system_prompt, user_prompt, 0.8, 300, business_id, feature='studio_image_prompt')
 
 
 # ---------------------------------------------------------------- ảnh/video AI (job)
@@ -401,7 +400,6 @@ def scene_plan():
         return jsonify({"success": False, "code": "ai_unavailable", "message": "The AI writer is busy — try again."}), 502
     except ValueError:
         return jsonify({"success": False, "code": "ai_bad_output", "message": "The AI answer was not usable — try again."}), 502
-    ai_media.log_text_usage(business_id, 1200)
     scenes = _normalize_plan(raw, seconds)
     if not scenes:
         return jsonify({"success": False, "code": "ai_bad_output", "message": "The AI answer was not usable — try again."}), 502
@@ -410,7 +408,7 @@ def scene_plan():
 
 
 def _call_deepseek_text_json(system_prompt, user_prompt, business_id):
-    return ai_media.deepseek_text(system_prompt, user_prompt, 0.7, 1200, business_id, json_mode=True)
+    return ai_gateway.text('studio_scene_plan', business_id, system_prompt, user_prompt, 0.7, 1200, json_mode=True)
 
 
 # ---------------------------------------------------------------- route cũ (giữ tương thích)

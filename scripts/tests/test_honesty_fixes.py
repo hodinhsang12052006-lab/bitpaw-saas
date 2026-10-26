@@ -338,6 +338,7 @@ class AppRouteTests(unittest.TestCase):
     def test_nurture_preview_creates_no_campaign(self):
         msgs = types.ModuleType('messaging')
         msgs.get_settings = lambda bid: {'language': 'en'}
+        msgs.normalize_channel = lambda v, default=None: (str(v).strip().lower() or default) if v else default
         ane = types.ModuleType('ai_nurturing_engine')
         ane.customer_fill_values = lambda *a: ('Lan', '', None)
         ace = types.ModuleType('ai_context_engine')

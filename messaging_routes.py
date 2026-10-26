@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, Response, jsonify, render_template, request, session
 from markupsafe import escape
 
+import ai_function_tools
 import messaging
 from app import _get_all_active_business_ids, login_required, role_required
 from mongo_client import db
@@ -26,15 +27,97 @@ def _bid():
     return session.get('business_id') or session.get('user_id')
 
 
-def _booking_url(business_id):
-    biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'industry_code': 1}) or {}
-    base = (os.environ.get('PUBLIC_BASE_URL') or request.host_url).rstrip('/')
-    code = (biz.get('industry_code') or '').lower()
-    if code == 'nail':
-        return f"{base}/booking/nail/qr/{business_id}"
-    if code == 'spa':
-        return f"{base}/booking/qr/{business_id}"
-    return ''
+def _booking_url(business_id, industry=None):
+    """Trang đặt chỗ công khai THẬT theo ngành (ai_function_tools.reservation_link — cùng các route của app.py):
+    nail /booking/nail/qr, spa /booking/qr, fnb /reserve, karaoke /karaoke/reserve, hotel /hotel/reserve. Ngành khác: ''."""
+    return ai_function_tools.reservation_link(business_id, industry or ai_function_tools.business_industry(business_id)) or ''
+
+
+# ---------------------------------------------------------------- nhắn lại cuộc gọi nhỡ: đúng ngành + đúng ngôn ngữ tiệm
+# Trước đây: câu <Say> chỉ tiếng Anh, SMS tiếng Việt gọi mọi doanh nghiệp là "tiệm", link chỉ có cho nail/spa, và câu
+# "We just sent you a text" đọc cả khi KHÔNG có tin nào được gửi (tắt tính năng / chưa nối Twilio / khách đã STOP).
+_BOOK_PHRASE = {  # ngành -> (EN, VI) trước link
+    'nail': ('Book online anytime', 'Đặt lịch online'), 'spa': ('Book online anytime', 'Đặt lịch online'),
+    'fnb': ('Reserve a table online', 'Đặt bàn online'), 'karaoke': ('Book a room online', 'Đặt phòng online'),
+    'hotel': ('Book your stay online', 'Đặt phòng online'),
+}
+_WHO = {  # ngành -> (EN "our ...", VI chủ ngữ) — không gọi mọi doanh nghiệp là "tiệm"
+    'nail': ('salon team', 'tiệm'), 'spa': ('spa team', 'spa'), 'fnb': ('restaurant team', 'quán'),
+    'karaoke': ('karaoke team', 'quán'), 'hotel': ('front desk', 'khách sạn'), 'retail': ('store team', 'cửa hàng'),
+}
+_WHO_DEFAULT = ('team', 'chúng tôi')
+# Twilio <Say>: giọng Google tiếng Việt (vi-VN). Chủ có thể đổi qua biến môi trường TWILIO_VOICE_VI.
+_VI_VOICE = os.environ.get('TWILIO_VOICE_VI') or 'Google.vi-VN-Standard-A'
+
+
+def _missed_call_ctx(business_id, s):
+    industry = ai_function_tools.business_industry(business_id) or ''
+    vi = s.get('language') == 'vi'
+    name = str(s.get('business_name') or '').strip()
+    if name == 'our shop' or '@' in name:   # get_settings trả 'our shop' khi tiệm chưa có tên; tên = email thì không đọc
+        name = ''
+    return {'industry': industry, 'vi': vi, 'name': name, 'who': (_WHO.get(industry) or _WHO_DEFAULT)[1 if vi else 0],
+            'link': _booking_url(business_id, industry)}
+
+
+def _missed_call_sms(c):
+    en_book, vi_book = _BOOK_PHRASE.get(c['industry'], ('', ''))
+    link = c['link'] if en_book else ''
+    if c['vi']:
+        head = f"{c['name']} xin lỗi vì chưa nghe máy được!" if c['name'] else f"Xin lỗi quý khách, {c['who']} chưa nghe máy được!"
+        if link:
+            return f"{head} {vi_book}: {link} hoặc trả lời tin này, {c['who']} sẽ liên hệ lại ngay."
+        return f"{head} Quý khách trả lời tin này hoặc gọi lại sau, {c['who']} sẽ liên hệ lại ngay."
+    head = f"Hi, this is {c['name']} — sorry we missed your call!" if c['name'] else "Hi — sorry we missed your call!"
+    if link:
+        return f"{head} {en_book}: {link} or reply here and our {c['who']} will get back to you shortly."
+    return f"{head} Reply here or call us back, and our {c['who']} will get back to you shortly."
+
+
+def _missed_call_say(c, texted, answered_first):
+    """Câu đọc cho người gọi. texted=False -> KHÔNG hứa 'đã nhắn tin'. answered_first: cuộc gọi đi thẳng (tiệm chưa
+    cài số máy để chuyển) thay vì đã đổ chuông máy tiệm mà không ai nghe."""
+    n, who = c['name'], c['who']
+    if c['vi']:
+        cap = who[:1].upper() + who[1:]
+        if answered_first:
+            head = f"Cảm ơn quý khách đã gọi {n}." if n else "Cảm ơn quý khách đã gọi."
+            tail = f" {cap} sẽ nhắn tin cho quý khách ngay." if texted else " Hiện chưa có ai nghe máy, quý khách vui lòng gọi lại sau."
+        else:
+            head = f"Xin lỗi, {n or who} chưa nghe máy được."
+            tail = f" {cap} vừa nhắn tin cho quý khách." if texted else " Quý khách vui lòng gọi lại sau ít phút."
+        return f'<Say voice="{escape(_VI_VOICE)}" language="vi-VN">{escape(head + tail)}</Say>'
+    if answered_first:
+        head = f"Thanks for calling {n}." if n else "Thanks for calling."
+        tail = " We will text you right away." if texted else " Sorry, no one can take your call right now. Please call again later."
+    else:
+        head = f"Sorry we missed you at {n}." if n else "Sorry we missed your call."
+        tail = " We just sent you a text." if texted else " Please call again a little later."
+    return f'<Say>{escape(head + tail)}</Say>'
+
+
+def _missed_call_text_back(business_id, caller, s, c):
+    """Xếp SMS xin lỗi (đúng ngành/ngôn ngữ, link đặt chỗ thật nếu ngành có). True = khách THẬT SỰ được nhắn: vừa xếp
+    tin, hoặc đã nhắn số này trong 30 phút qua (chống nhắn liên tục khi gọi lại nhiều lần). False khi tính năng tắt,
+    Twilio chưa sẵn sàng, số không hợp lệ hoặc khách đã STOP."""
+    if not (s.get('missed_call_enabled') and s.get('twilio_ready') and caller):
+        return False
+    now = datetime.now(timezone.utc)
+    key = f"mc:{business_id}:{caller}:{now.strftime('%Y%m%d%H')}{now.minute // 30}"
+    if messaging.queue(business_id, 'sms', caller, _missed_call_sms(c), 'missed_call', dedupe_key=key) is not None:
+        return True
+    return db.outbound_messages.find_one({'dedupe_key': key}, {'_id': 1}) is not None
+
+
+def _missed_call_flow(business_id, s, answered_first):
+    c = _missed_call_ctx(business_id, s)
+    texted = _missed_call_text_back(business_id, request.form.get('From', ''), s, c)
+    if texted:
+        try:
+            messaging.pump(business_id, produce=False)
+        except Exception as e:   # tin đã nằm trong hàng đợi, cron sẽ gửi — không làm hỏng câu trả lời cho Twilio
+            print(f"[missed call] pump: {e}")
+    return _twiml(_missed_call_say(c, texted, answered_first) + '<Hangup/>')
 
 
 def _public_settings(s):
@@ -175,9 +258,7 @@ def twilio_voice(business_id):
     after = f"{request.url.rstrip('/')}/after"
     if s['shop_phone']:
         return _twiml(f'<Dial timeout="20" action="{escape(after)}" method="POST">{escape(s["shop_phone"])}</Dial>')
-    messaging.missed_call_reply(business_id, request.form.get('From', ''), _booking_url(business_id))
-    messaging.pump(business_id, produce=False)
-    return _twiml(f'<Say>Thanks for calling {escape(s["business_name"])}. We will text you right away.</Say><Hangup/>')
+    return _missed_call_flow(business_id, s, answered_first=True)
 
 
 @messaging_bp.route('/api/twilio/voice/<business_id>/after', methods=['POST'])
@@ -186,10 +267,7 @@ def twilio_voice_after(business_id):
         return Response('Forbidden', status=403)
     status = request.form.get('DialCallStatus', '')
     if status in ('no-answer', 'busy', 'failed', 'canceled'):
-        messaging.missed_call_reply(business_id, request.form.get('From', ''), _booking_url(business_id))
-        messaging.pump(business_id, produce=False)
-        s = messaging.get_settings(business_id)
-        return _twiml(f'<Say>Sorry we missed you at {escape(s["business_name"])}. We just sent you a text.</Say><Hangup/>')
+        return _missed_call_flow(business_id, messaging.get_settings(business_id), answered_first=False)
     return _twiml('<Hangup/>')
 
 

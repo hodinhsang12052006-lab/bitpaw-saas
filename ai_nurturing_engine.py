@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """AI Nurturing Engine — Module 3 overhaul (Task 2 + Task 3 of the Marketing/Growth audit).
 
-predict_churn_risk() is kept as-is — it was already a reasonable rule-based RFM-style
-classifier, it just had never been WIRED to any route (see app.py's
-nurture_import_data / _recompute_customer_nurturing_segment, which now call it for
-real against MongoDB order history instead of never calling it at all).
+predict_churn_risk() is a rule-based RFM-style classifier (recency + the customer's spend rank
+inside the shop's OWN spend distribution — currency agnostic; notes in the shop's language),
+run for real against MongoDB order history by recompute_customer_segments().
 
 generate_nurturing_copy() is a full rewrite: the old version was static, hardcoded
 per-industry/goal/tone string templates — not actually AI at all despite the module's
@@ -19,6 +18,7 @@ app.py), a leftover demo-data generator from before real MongoDB data was wired 
 """
 
 import os
+import bisect
 import json
 import re
 import datetime
@@ -28,19 +28,22 @@ from ai_deepseek_client import deepseek_chat_completion
 
 class AINurturingEngine:
     @staticmethod
-    def predict_churn_risk(last_purchase_days, total_spending, source_platform=None):
+    def predict_churn_risk(last_purchase_days, total_spending, source_platform=None, spend_rank=None, lang='en'):
         """
-        Rule-based RFM-style risk assessment for churn prediction.
+        Rule-based RFM-style risk assessment (not a trained model).
+        Spend tier = the customer's rank inside THIS shop's own spend distribution (spend_rank = share of the shop's paying
+        customers who spent less, 0..1 — see spend_rank()), so it works the same in USD, AUD or VND. The old fixed VND tiers
+        (1M/5M/10M) put every USD/AUD customer at 50. Without a rank (caller has no distribution) the base is a neutral 50.
+        Notes are in the shop's language and never suggest a gift/voucher the owner has not offered.
         Returns: (nurturing_status, potential_score, ai_notes)
         """
-        potential_score = 100
-
-        # Adjust base score based on spending
-        if total_spending > 10000000:
+        en = lang == 'en'
+        r = spend_rank if isinstance(spend_rank, (int, float)) else None
+        if r is not None and r >= 0.90:
             potential_score = 95
-        elif total_spending > 5000000:
+        elif r is not None and r >= 0.75:
             potential_score = 80
-        elif total_spending > 1000000:
+        elif r is not None and r >= 0.50:
             potential_score = 65
         else:
             potential_score = 50
@@ -49,24 +52,30 @@ class AINurturingEngine:
         if last_purchase_days > 90:
             nurturing_status = "CHURN_RISK"
             potential_score = max(5, potential_score - 45)
-            ai_notes = "Khách hàng có nguy cơ rời bỏ cực cao. Đã hơn 3 tháng không phát sinh giao dịch. Cần tung kịch bản kéo khách khẩn cấp kèm quà tặng lớn."
+            ai_notes = ("No purchase in over 3 months — high risk of not coming back. Worth a personal win-back message." if en else
+                        "Hơn 3 tháng chưa phát sinh giao dịch — nguy cơ không quay lại cao. Nên gửi tin hỏi thăm riêng.")
         elif last_purchase_days > 45:
             nurturing_status = "HIBERNATING"
             potential_score = max(20, potential_score - 25)
-            ai_notes = "Khách hàng đang ngủ đông. Đã lâu chưa thấy quay lại. Đề xuất gửi kịch bản upsell hoặc voucher chăm sóc định kỳ."
+            ai_notes = ("Has not been back for over 45 days. A friendly check-in or rebooking reminder fits." if en else
+                        "Hơn 45 ngày chưa quay lại. Phù hợp gửi tin hỏi thăm hoặc nhắc đặt lịch.")
         elif last_purchase_days > 21:
             nurturing_status = "NEEDS_CARE"
             potential_score = max(40, potential_score - 10)
-            ai_notes = "Khách hàng sắp chạm chu kỳ mua lại trung bình. Thích hợp gửi tin nhắn thăm hỏi, tặng ưu đãi nhẹ nhàng."
+            ai_notes = ("Over 3 weeks since the last visit — close to the usual time to come back. A short check-in fits." if en else
+                        "Hơn 3 tuần từ lần ghé gần nhất — sắp tới lúc thường quay lại. Phù hợp gửi tin thăm hỏi ngắn.")
         else:
             nurturing_status = "REGULAR"
-            ai_notes = "Khách hàng thân thiết, hoạt động tích cực. Giữ tần suất tương tác ổn định, gợi ý combo quà tặng sinh nhật hoặc tích điểm thành viên."
+            ai_notes = ("Active regular customer. Keep in touch without over-messaging." if en else
+                        "Khách đang ghé đều. Giữ liên lạc vừa phải, không nhắn quá nhiều.")
+        if r is not None and r >= 0.90:
+            ai_notes += (" Among this shop's top 10% spenders." if en else " Thuộc nhóm 10% khách chi tiêu nhiều nhất của tiệm.")
 
         # Source platform modifiers (cosmetic — only appends a note, never changes the score/status)
-        if source_platform in ('facebook', 'zalo_oa'):
-            ai_notes += " Thường tương tác online qua tin nhắn mạng xã hội."
+        if source_platform in ('facebook', 'messenger', 'zalo', 'zalo_oa'):
+            ai_notes += (" Usually reaches the shop through social messaging." if en else " Thường tương tác online qua tin nhắn mạng xã hội.")
         elif source_platform == 'pos':
-            ai_notes += " Thói quen mua trực tiếp tại quầy thanh toán."
+            ai_notes += (" Usually buys in person at the counter." if en else " Thói quen mua trực tiếp tại quầy thanh toán.")
 
         return nurturing_status, potential_score, ai_notes
 
@@ -101,7 +110,7 @@ class AINurturingEngine:
         return {
             "3days": f"Chào {name}! Cảm ơn {name} đã ghé ủng hộ gần đây. Có gì cần hỗ trợ thêm, nhắn em ngay nhé!",
             "7days": f"{name} ơi, lâu rồi chưa thấy ghé lại. Bên em vẫn luôn sẵn sàng phục vụ {name} bất cứ khi nào ạ.",
-            "14days": f"Gửi {name} một ưu đãi nhỏ để {name} ghé lại trải nghiệm — nhắn em để nhận ưu đãi nhé!",
+            "14days": f"{name} ơi, đã một thời gian rồi chưa gặp lại! Trả lời tin này, bên em xếp giờ phù hợp cho {name} nhé.",
         }
 
     @staticmethod
@@ -287,10 +296,12 @@ class AINurturingEngine:
         en = lang == 'en'
         now = datetime.datetime.now()
         recs = []
-        vip_threshold = 5000000 if (currency or '').upper() == 'VND' else 400
+        # "chi tiêu cao" = top 25% chi tiêu của CHÍNH tiệm (trước: 5.000.000đ / 400 cố định theo tiền tệ — số tự đặt)
+        vip_threshold = top_spend_threshold(business_id)
         churn = db.customers.count_documents({'business_id': business_id, 'nurturing_status': 'CHURN_RISK'})
         cold_vip = db.customers.count_documents({'business_id': business_id, 'total_spent': {'$gte': vip_threshold},
-                                                 'last_purchase_at': {'$lt': (now - datetime.timedelta(days=30)).isoformat()}})
+                                                 'last_purchase_at': {'$lt': (now - datetime.timedelta(days=30)).isoformat()}}) \
+            if vip_threshold is not None else 0
         if cold_vip:
             recs.append({"type": "CHURN_ALERT", "text": (f"{cold_vip} high-spending customers have not been back in over 30 days. Send them a personal 'we miss you' message." if en else
                                                          f"{cold_vip} khách chi tiêu cao đã hơn 30 ngày chưa quay lại. Nên gửi tin hỏi thăm riêng cho nhóm này.")})
@@ -345,6 +356,13 @@ def recompute_customer_segments(business_id):
     ))
     now = datetime.datetime.now()
     recomputed = 0
+    # hạng chi tiêu theo phân bố chi tiêu của CHÍNH tiệm (không phụ thuộc tiền tệ); ghi chú theo ngôn ngữ của tiệm
+    spends = _sorted_spends(customers)
+    try:
+        import messaging
+        lang = messaging.get_settings(business_id)['language']
+    except Exception:
+        lang = 'en'
 
     for cust in customers:
         phone = cust.get('phone')
@@ -367,7 +385,8 @@ def recompute_customer_segments(business_id):
                 last_purchase_days = None
             if last_purchase_days is not None:
                 status, score, notes = AINurturingEngine.predict_churn_risk(
-                    last_purchase_days, total_spent, source_platform='pos'
+                    last_purchase_days, total_spent, source_platform='pos',
+                    spend_rank=spend_rank(spends, total_spent), lang=lang
                 )
                 update_fields.update({
                     'nurturing_status': status, 'potential_score': score, 'ai_notes': notes,
@@ -380,6 +399,41 @@ def recompute_customer_segments(business_id):
         recomputed += 1
 
     return recomputed
+
+
+def _sorted_spends(customers):
+    """Chi tiêu (> 0) của các khách, tăng dần — phân bố chi tiêu của chính tiệm."""
+    out = []
+    for c in customers:
+        try:
+            v = float(c.get('total_spent') or 0)
+        except (TypeError, ValueError):
+            continue
+        if v > 0:
+            out.append(v)
+    return sorted(out)
+
+
+def spend_rank(sorted_spends, value):
+    """Tỷ lệ khách (có chi tiêu) của tiệm chi ÍT HƠN khách này, 0..1. Không chi tiêu / chưa có dữ liệu -> 0."""
+    try:
+        v = float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if v <= 0 or not sorted_spends:
+        return 0.0
+    return bisect.bisect_left(sorted_spends, v) / len(sorted_spends)
+
+
+def top_spend_threshold(business_id, top_fraction=0.25):
+    """Mức chi tiêu tối thiểu để vào nhóm top `top_fraction` khách chi nhiều nhất của tiệm (tiền tệ nào cũng đúng).
+    None nếu tiệm chưa có khách nào có chi tiêu."""
+    from mongo_client import db
+    spends = _sorted_spends(db.customers.find({'business_id': business_id, 'total_spent': {'$gt': 0}}, {'total_spent': 1, '_id': 0}))
+    if not spends:
+        return None
+    idx = min(len(spends) - 1, max(0, int(len(spends) * (1 - top_fraction))))
+    return spends[idx]
 
 
 def customer_fill_values(business_id, customer):
