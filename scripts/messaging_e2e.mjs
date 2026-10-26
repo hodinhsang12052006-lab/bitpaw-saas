@@ -136,7 +136,7 @@ print(messaging.queue(${B}, 'sms', '+61400765432', 'promo test', 'promo'))`);
 {
   const camp = await p.evaluate(async () => (await fetch('/api/ai/nurture/generate-campaign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ segment: 'CHURN', goal: 'RECALL', channel: 'SMS', tone: 'friendly' }) })).json());
   const tpl = camp.template || {};
-  rec('Tạo chiến dịch — 1 lần AI, mẫu tiếng Anh, điền dữ liệu từng khách', camp.success && camp.channel === 'SMS' && /\{first_name\}/.test(tpl['3days'] || '') && !/[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(JSON.stringify(tpl)), `${camp.target_count} khách · ${camp.messages_count} tin · "${(tpl['3days'] || '').slice(0, 70)}"`);
+  rec('Tạo chiến dịch — 1 lần AI, mẫu tiếng Anh, điền dữ liệu từng khách', camp.success && camp.channel === 'sms' && /\{first_name\}/.test(tpl['3days'] || '') && !/[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i.test(JSON.stringify(tpl)), `${camp.target_count} khách · ${camp.messages_count} tin · "${(tpl['3days'] || '').slice(0, 70)}"`);
   if (camp.success && camp.messages_count) {
     const first = JSON.parse(py(`
 import json

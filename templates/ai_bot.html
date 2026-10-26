@@ -5,7 +5,8 @@
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="ai_bot_title">BitPaw AI Copilot | Command Center</title>
+    {# Trang này là HỘP THƯ AI (gói Pro, ai_inbox) — Copilot của chủ tiệm chỉ là khung phụ bên trong (sidebar: "AI Copilot" mở /ai_bot#copilot) #}
+    <title>{{ 'Hộp thư AI' if default_lang == 'vi' else 'AI Inbox' }} | BitPaw</title>
 
     <script>
         // Suppress Tailwind CSS CDN warning in the developer console
@@ -351,13 +352,12 @@
             class="flex justify-between items-center mb-4 shrink-0 glass-panel p-4 px-8 rounded-3xl border-t-2 border-t-cyan-500/50 shadow-2xl relative z-10">
             <div>
                 <h2 class="text-2xl lg:text-3xl font-black flex items-center gap-3 text-white tracking-wide">
-                    <i class="fas fa-fingerprint text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i> BitPaw
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">AI
-                        Copilot</span>
+                    <i class="fas fa-inbox text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]"></i>
+                    <span id="inboxTitle" class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500" data-cp="inboxTitle">{{ 'Hộp thư AI' if default_lang == 'vi' else 'AI Inbox' }}</span>
                 </h2>
                 <p class="text-gray-400 text-[10px] mt-1 font-bold uppercase tracking-widest flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
-                    Automated Analytics &amp; Dispatch Assistant
+                    <span data-cp="inboxSubtitle">{{ 'Tin nhắn của khách từ trang đặt lịch và các kênh đã nối' if default_lang == 'vi' else 'Customer messages from your booking page and connected channels' }}</span>
                 </p>
             </div>
             <div class="hidden md:flex gap-3">
@@ -367,7 +367,7 @@
                 </a>
                 <a href="/ai/customer-nurturing"
                     class="bg-black/50 border border-white/10 hover:bg-white/10 px-5 py-2.5 rounded-xl transition-all font-bold text-gray-300 hover:text-white flex items-center gap-2 text-xs uppercase tracking-widest backdrop-blur-md">
-                    <i class="fas fa-users-cog"></i> Customers &amp; Campaigns
+                    <i class="fas fa-users-cog"></i> <span data-cp="customersCampaigns">{{ 'Khách hàng & chiến dịch' if default_lang == 'vi' else 'Customers & Campaigns' }}</span>
                 </a>
             </div>
         </div>
@@ -734,7 +734,10 @@
                   connectChannels: 'Nối kênh nhắn tin', connectNow: 'Nối kênh', all: 'Tất cả', via: 'qua',
                   replyOn: 'Trả lời qua {ch}...', replyWeb: 'Nhắn cho khách...', sent: 'Đã gửi', sending: 'Đang gửi',
                   notSent: 'Chưa gửi được', notConnected: '{ch} chưa được nối — tin trả lời chỉ lưu ở đây, khách chưa nhận được.',
-                  failedSend: 'Chưa gửi được tới khách: ', noMatch: 'Không có hội thoại nào khớp' },
+                  failedSend: 'Chưa gửi được tới khách: ', noMatch: 'Không có hội thoại nào khớp',
+                  pageTitle: 'Hộp thư AI | BitPaw', inboxTitle: 'Hộp thư AI', inboxSubtitle: 'Tin nhắn của khách từ trang đặt lịch và các kênh đã nối',
+                  customersCampaigns: 'Khách hàng & chiến dịch', planPaused: 'AI tạm dừng — gói',
+                  planPausedHint: 'Gói hiện tại chưa gồm AI trả lời — bạn trả lời khách này nhé.', seePlans: 'Xem gói' },
             en: { draftLabel: 'Copilot suggested reply:', useDraft: 'Use & edit', privateHint: 'Ask Copilot (private):',
                   panelTitle: 'BitPaw Copilot · only you can see this', askPlaceholder: 'Ask about your business...',
                   thinking: 'Copilot is reading your shop data...', drafting: 'Copilot is drafting a reply...',
@@ -744,10 +747,14 @@
                   connectChannels: 'Connect channels', connectNow: 'Connect', all: 'All', via: 'via',
                   replyOn: 'Reply on {ch}...', replyWeb: 'Message the customer...', sent: 'Sent', sending: 'Sending',
                   notSent: 'Not delivered', notConnected: '{ch} is not connected — replies are saved here but the customer will not get them.',
-                  failedSend: 'Not delivered to the customer: ', noMatch: 'No conversations match' },
+                  failedSend: 'Not delivered to the customer: ', noMatch: 'No conversations match',
+                  pageTitle: 'AI Inbox | BitPaw', inboxTitle: 'AI Inbox', inboxSubtitle: 'Customer messages from your booking page and connected channels',
+                  customersCampaigns: 'Customers & Campaigns', planPaused: 'AI paused — plan',
+                  planPausedHint: 'Your plan does not include AI replies — please reply to this customer.', seePlans: 'See plans' },
         };
         const cpt = (k) => (CP_TEXT[cpLang()] || CP_TEXT.en)[k];
         function applyCopilotLabels() {
+            if (document.title !== cpt('pageTitle')) document.title = cpt('pageTitle');
             document.querySelectorAll('[data-cp]').forEach(el => { el.textContent = cpt(el.dataset.cp); });
             document.querySelectorAll('[data-cp-placeholder]').forEach(el => { el.placeholder = cpt(el.dataset.cpPlaceholder); });
         }
@@ -1166,6 +1173,9 @@
             runCopilot({ question: text });
         }
 
+        // = ai_gateway.PLAN_PAUSED_REASON: server ghi vào bot_customers.handoff_reason khi gói của tiệm không có AI trả lời
+        // (scripts/tests/test_phase1_frontend_followups.py giữ 2 chuỗi khớp nhau)
+        const PLAN_PAUSED_REASON = 'AI paused: plan — AI replies are included in Pro. Please reply to this customer.';
         function renderCustomerList(customers) {
             // Nút "Sales Demo Tools" (mô phỏng hội thoại bán phần mềm BitPaw) chỉ hữu ích khi hộp thư trống
             // hoặc đang bật Demo Mode — tiệm đã có khách thật thì nó chỉ chen lên đầu danh sách khách.
@@ -1180,6 +1190,14 @@
                 item.className = `customer-item flex items-center gap-3 p-3 rounded-2xl border border-transparent transition-all cursor-pointer ${currentCustomerId === cus.id ? 'active-customer' : 'hover:bg-white/5'}`;
                 const chk = chOf(cus);
                 item.title = CH[chk].label;
+                // AI im vì GÓI của tiệm chưa có AI trả lời (không phải AI lỗi / khách đòi gặp người) -> nói rõ + link xem gói
+                const planPaused = !!cus.needs_human && cus.handoff_reason === PLAN_PAUSED_REASON;
+                const badge = !cus.needs_human ? '' : planPaused
+                    ? `<span class="shrink-0 ml-2 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30" data-plan-paused="1" data-cp="planPaused">${escapeHtml(cpt('planPaused'))}</span>`
+                    : `<span class="shrink-0 ml-2 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full ${cus.handoff_urgent ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'}" title="${escapeHtml(cus.handoff_reason || '')}">${cus.handoff_urgent ? 'Urgent' : 'Needs reply'}</span>`;
+                const reasonLine = !(cus.needs_human && cus.handoff_reason) ? '' : planPaused
+                    ? `<p class="text-[11px] text-amber-200/80 font-semibold"><span data-cp="planPausedHint">${escapeHtml(cpt('planPausedHint'))}</span> <a href="/plan?feature=ai_inbox" class="underline text-cyan-300 whitespace-nowrap" data-plan-link="1" data-cp="seePlans" onclick="event.stopPropagation()">${escapeHtml(cpt('seePlans'))}</a></p>`
+                    : `<p class="text-[11px] text-amber-200/80 truncate font-semibold">${escapeHtml(cus.handoff_reason)}</p>`;
                 item.innerHTML = `
                     <div class="relative w-10 h-10 rounded-full bg-gradient-to-tr ${currentCustomerId === cus.id ? 'from-cyan-500 to-purple-600' : 'from-gray-700 to-gray-600'} flex items-center justify-center text-white font-bold shadow-md shrink-0">
                         ${escapeHtml(cus.full_name?.charAt(0) || '?')}
@@ -1188,9 +1206,9 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline mb-0.5">
                             <p class="text-[13px] font-bold ${currentCustomerId === cus.id ? 'text-cyan-400' : 'text-gray-200'} truncate">${escapeHtml(cus.full_name || 'Customer')}</p>
-                            ${cus.needs_human ? `<span class="shrink-0 ml-2 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full ${cus.handoff_urgent ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'}" title="${escapeHtml(cus.handoff_reason || '')}">${cus.handoff_urgent ? 'Urgent' : 'Needs reply'}</span>` : ''}
+                            ${badge}
                         </div>
-                        ${cus.needs_human && cus.handoff_reason ? `<p class="text-[11px] text-amber-200/80 truncate font-semibold">${escapeHtml(cus.handoff_reason)}</p>` : ''}
+                        ${reasonLine}
                         <p class="text-[11px] text-gray-500 truncate font-medium">${escapeHtml(cus.last_message || 'No messages yet')}</p>
                     </div>
                 `;

@@ -526,6 +526,13 @@ document.addEventListener("DOMContentLoaded", () => {
         handoff: "Nhân viên tiệm đã nhận tin của bạn và sẽ trả lời ngay trong khung chat này",
         slow: "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em dịch vụ và giờ bạn muốn đặt nhé!",
         slow2: "Dạ tiệm đang xử lý hơi chậm, bạn nhắn lại giúp em nhé!",
+        // Tiệm chưa có trợ lý chat (server trả ai_unavailable) — câu KHÔNG dùng AI, xem aiUnavailableReply()
+        offSubtitle: "Tin nhắn chuyển tới nhân viên tiệm",
+        offSaved: (name, phone) => `Cảm ơn bạn! Tin nhắn đã được chuyển tới nhân viên ${name || "tiệm"}. Bạn cứ để lại thêm thông tin ở đây, nhân viên sẽ trả lời ngay trong khung chat này` + (phone ? `, hoặc bạn gọi / nhắn tin cho tiệm: ${phone}.` : "."),
+        offNoThread: (name, phone) => `Hiện ${name || "tiệm"} chưa nhận tin nhắn qua khung chat này nên tin của bạn chưa tới được tiệm. ` + (phone ? `Bạn vui lòng gọi / nhắn tin cho tiệm: ${phone}, hoặc đặt lịch bằng form trên trang này.` : "Bạn vui lòng đặt lịch bằng form trên trang này hoặc liên hệ trực tiếp với tiệm."),
+        offSent: "Đã gửi tới tiệm ✓",
+        offNotSent: (phone) => phone ? `Chưa gửi được — bạn gọi / nhắn cho tiệm: ${phone}` : "Chưa gửi được — bạn đặt lịch bằng form trên trang này nhé",
+        call: "Gọi", text: "Nhắn tin",
     } : {
         title: "Booking Assistant",
         greeting: "Hi! I'm the salon's booking assistant. Which service would you like, and when? I'll book it for you right away.",
@@ -535,6 +542,12 @@ document.addEventListener("DOMContentLoaded", () => {
         handoff: "A staff member has your message and will reply right here in this chat",
         slow: "Sorry, we're a little slow right now — please send the service and time you'd like again!",
         slow2: "Sorry, we're a little slow right now — please send that again!",
+        offSubtitle: "Messages go to the team",
+        offSaved: (name, phone) => `Thanks! Your message has been passed to the team${name ? ` at ${name}` : ""}. Leave any other details here and they'll reply in this chat` + (phone ? ` — or call / text ${phone}.` : "."),
+        offNoThread: (name, phone) => `Chat messages can't reach ${name || "this business"} from here yet, so this one wasn't delivered. ` + (phone ? `Please call or text ${phone}, or book with the form on this page.` : "Please book with the form on this page or contact the business directly."),
+        offSent: "Sent to the team ✓",
+        offNotSent: (phone) => phone ? `Not delivered — please call or text ${phone}` : "Not delivered — please book with the form on this page",
+        call: "Call", text: "Text",
     };
     const dna = CHAT_CONTEXT === 'customer_booking'
         ? { title: BT.title, greeting: BT.greeting, prompt: "" }
@@ -753,6 +766,95 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!(await fetchShopReplies(customerId))) { shopReplyStream = null; return; } // hội thoại chưa lưu
         shopReplyStream = new EventSource("/api/portal/stream?customer_id=" + encodeURIComponent(customerId));
         shopReplyStream.onmessage = () => fetchShopReplies(customerId);
+    }
+
+    // 6e. Tiệm chưa có trợ lý chat (gói chưa gồm / vừa hạ gói): server KHÔNG gọi AI, trả
+    // { ai_unavailable: true, reason: 'plan', lang, contact: {name, phone}, choices: [...] } (ai_gateway.unavailable_reply).
+    // Không bao giờ hiện lỗi chung: tin của khách vẫn tới tiệm qua đúng đường của /portal (POST /api/portal/messages vào hội
+    // thoại "business_id:SĐT" đã có), nhân viên trả lời trong Hộp thư AI và câu trả lời hiện ngay tại đây (startShopReplyStream).
+    // Hội thoại chưa từng được lưu (route POST trả 404) -> nói thật là tin CHƯA tới tiệm + nút Gọi / Nhắn tin số của tiệm.
+    // Câu chữ theo ngôn ngữ của trang (= ngôn ngữ mặc định của tiệm), không nhắc "AI".
+    let aiOff = null;               // {name, phone} sau lần đầu server báo ai_unavailable
+    let aiOffSavedShown = false;    // câu đầy đủ "tin đã tới tiệm" chỉ hiện 1 lần, các lượt sau chỉ 1 dòng nhỏ
+    let aiOffNoThreadShown = false;
+    let aiOffContactShown = false;
+    let pendingExtras = null;       // finishSubmit vẽ thêm sau câu trả lời: nút Gọi / Nhắn tin, dòng ghi chú
+    const dialable = (phone) => { const d = String(phone || "").replace(/[^0-9+]/g, ""); return d.replace(/\D/g, "").length >= 6 ? d : ""; };
+
+    async function keepThreadForTeam(customerId, msg) {
+        try {
+            const res = await fetch("/api/portal/messages?customer_id=" + encodeURIComponent(customerId));
+            if (!res.ok) return false;                       // hội thoại chưa có -> không ghi được
+            const json = await res.json();
+            if (!json.success) return false;
+            const rows = json.data || [];
+            const last = rows[rows.length - 1];
+            if (last && last.sender_type === "customer" && String(last.content || "").trim() === msg.trim().slice(0, 2000)) return true; // server đã tự lưu lượt này
+            const post = await fetch("/api/portal/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ customer_id: customerId, content: msg, sender_type: "customer" }),
+            });
+            const pj = await post.json().catch(() => ({}));
+            return post.ok && pj.success !== false;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    async function aiUnavailableReply(resData, msgVal) {
+        const c = (resData && resData.contact) || {};
+        if (!aiOff) {
+            aiOff = { name: String(c.name || _shopName || "").trim(), phone: String(c.phone || "").trim() };
+            const titleEl = chatWidget.querySelector(".font-bold.text-sm");
+            const subEl = titleEl && titleEl.nextElementSibling;
+            if (titleEl && aiOff.name) titleEl.textContent = aiOff.name;   // không còn "Trợ lý đặt lịch" — người trả lời là tiệm
+            if (subEl) subEl.textContent = BT.offSubtitle;   // không còn "Online 24/7 · trả lời ngay"
+        }
+        const saved = !!(BUSINESS_ID && userPhone) && await keepThreadForTeam(BUSINESS_ID + ":" + userPhone, msgVal);
+        const phone = dialable(aiOff.phone) ? aiOff.phone : "";
+        pendingExtras = { phone: phone && !aiOffContactShown ? phone : "", note: null };
+        if (pendingExtras.phone) aiOffContactShown = true;
+        if (saved) {
+            if (!aiOffSavedShown) { aiOffSavedShown = true; return BT.offSaved(aiOff.name, phone); }
+            pendingExtras.note = { text: BT.offSent, ok: true };
+            return "";
+        }
+        if (!aiOffNoThreadShown) { aiOffNoThreadShown = true; return BT.offNoThread(aiOff.name, phone); }
+        pendingExtras.note = { text: BT.offNotSent(phone), ok: false };
+        return "";
+    }
+
+    // Nút Gọi / Nhắn tin số của tiệm (tel: / sms:) — tạo bằng DOM, chữ qua textContent (không chèn HTML)
+    function appendContactActions(phone) {
+        const num = dialable(phone);
+        if (!num || !msgContainer) return;
+        const row = document.createElement("div");
+        row.setAttribute("data-bp-contact", "1");
+        row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 0 34px";
+        [["tel:", BT.call, "fa-phone"], ["sms:", BT.text, "fa-comment-sms"]].forEach(([scheme, label, icon]) => {
+            const a = document.createElement("a");
+            a.href = scheme + num;
+            a.style.cssText = "display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:800;text-decoration:none;color:#04131a;background:#22d3ee";
+            const i = document.createElement("i");
+            i.className = "fas " + icon;
+            i.setAttribute("aria-hidden", "true");
+            a.appendChild(i);
+            a.appendChild(document.createTextNode(label));
+            row.appendChild(a);
+        });
+        msgContainer.appendChild(row);
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+    }
+
+    function appendNote(text, ok) {
+        if (!msgContainer || !text) return;
+        const el = document.createElement("div");
+        el.setAttribute("data-bp-note", ok ? "ok" : "fail");
+        el.style.cssText = "align-self:flex-end;margin:-4px 34px 0 0;font-size:11px;font-weight:700;color:" + (ok ? "#67e8f9" : "#fcd34d");
+        el.textContent = text;
+        msgContainer.appendChild(el);
+        msgContainer.scrollTop = msgContainer.scrollHeight;
     }
 
     async function handleHumanAgentSubmit(msgVal, phoneVal) {
@@ -974,6 +1076,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     appendMessage("ai", finalReply);
                     chatHistory.push({ role: "assistant", content: finalReply });
                 }
+                if (pendingExtras) { // tiệm chưa có trợ lý chat: nút Gọi / Nhắn tin + "Đã gửi tới tiệm ✓"
+                    const x = pendingExtras;
+                    pendingExtras = null;
+                    if (x.phone) appendContactActions(x.phone);
+                    if (x.note) appendNote(x.note.text, x.note.ok);
+                }
                 if (userPhone) startShopReplyStream(userPhone);
 
                 // Re-enable inputs
@@ -1039,7 +1147,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         });
 
                         const resData = await response.json();
-                        if (resData.paused) {
+                        if (resData.ai_unavailable && CHAT_CONTEXT === 'customer_booking') {
+                            // Tiệm chưa có trợ lý chat: câu không dùng AI + giữ hội thoại cho nhân viên (xem 6e)
+                            aiReply = await aiUnavailableReply(resData, msgVal);
+                        } else if (resData.paused) {
                             // Tiệm đã nhận chat (AI tắt cho khách này): server trả câu hẹn giờ trả lời thật (tối đa 1 lần/10 phút);
                             // không có thì báo 1 lần là nhân viên sẽ trả lời ngay tại đây
                             const hold = resData.choices && resData.choices[0] && resData.choices[0].message && resData.choices[0].message.content;
@@ -1111,7 +1222,10 @@ document.addEventListener("DOMContentLoaded", () => {
                         });
 
                         const resData = await response.json();
-                        if (resData.paused) {
+                        if (resData.ai_unavailable && CHAT_CONTEXT === 'customer_booking') {
+                            // Tiệm chưa có trợ lý chat: câu không dùng AI + giữ hội thoại cho nhân viên (xem 6e)
+                            aiReply = await aiUnavailableReply(resData, msgVal);
+                        } else if (resData.paused) {
                             // Tiệm đã nhận chat (AI tắt cho khách này): server trả câu hẹn giờ trả lời thật (tối đa 1 lần/10 phút);
                             // không có thì báo 1 lần là nhân viên sẽ trả lời ngay tại đây
                             const hold = resData.choices && resData.choices[0] && resData.choices[0].message && resData.choices[0].message.content;

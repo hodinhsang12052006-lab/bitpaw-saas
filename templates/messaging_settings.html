@@ -58,11 +58,17 @@
 </head>
 <body class="flex min-h-screen relative antialiased overflow-x-hidden">
 {% set vi = default_lang == 'vi' %}
+{# Nhắn lại cuộc gọi nhỡ: chỉ 5 ngành có trang đặt chỗ công khai mới có link trong SMS (messaging_routes._missed_call_sms +
+   ai_function_tools.reservation_link); ngành khác SMS chỉ mời khách trả lời tin hoặc gọi lại. #}
+{% set _ind = (active_industry_code or '') | lower %}
+{% set _mc_link = {'nail': ('booking link', 'link đặt lịch'), 'nails': ('booking link', 'link đặt lịch'), 'spa': ('booking link', 'link đặt lịch'),
+                   'fnb': ('table reservation link', 'link đặt bàn'), 'karaoke': ('room booking link', 'link đặt phòng'),
+                   'hotel': ('room booking link', 'link đặt phòng')}.get(_ind) %}
 {% include 'components/app_sidebar.html' %}
 <main class="msg-main">
     <div class="msg-head">
         <h1><i class="fas fa-comment-sms" style="color: var(--accent)"></i> {{ 'Nhắn tin & SMS' if vi else 'Messaging & SMS' }}</h1>
-        <p>{{ 'Tự động nhắc lịch, xin đánh giá 5 sao, nhắn lại cuộc gọi nhỡ và gửi báo cáo ngày. SMS dùng số Twilio của chính tiệm; email gửi từ BitPaw. Mọi tin đều có cách từ chối (trả lời STOP) và chỉ gửi trong khung giờ cho phép.' if vi else 'Automatic appointment reminders, 5-star review requests, missed-call text back and a daily report. SMS uses your own Twilio number; email is sent by BitPaw. Every message includes an opt-out (reply STOP) and only goes out during allowed hours.' }}</p>
+        <p>{{ 'Tự động nhắc lịch, xin đánh giá 5 sao, chúc mừng sinh nhật, báo điểm thưởng, nhắn lại cuộc gọi nhỡ và gửi báo cáo ngày. SMS dùng số Twilio của chính tiệm; email gửi từ BitPaw. Mọi tin đều có cách từ chối (trả lời STOP) và chỉ gửi trong khung giờ cho phép.' if vi else 'Automatic appointment reminders, 5-star review requests, birthday wishes, rewards messages, missed-call text back and a daily report. SMS uses your own Twilio number; email is sent by BitPaw. Every message includes an opt-out (reply STOP) and only goes out during allowed hours.' }}</p>
     </div>
 
     <div class="cards">
@@ -102,13 +108,28 @@
         </div>
         <div class="auto">
             <label class="sw"><input type="checkbox" id="revOn"><span></span></label>
-            <div><h3>{{ 'Xin đánh giá 5 sao' if vi else '5-star review requests' }}</h3><p>{{ 'Sau khi khách thanh toán, gửi link đánh giá Google của tiệm (mỗi khách tối đa 1 lần / 60 ngày).' if vi else 'After a customer pays, send your Google review link (at most once per customer every 60 days).' }}</p>
-                <div class="grid2"><div><label class="f" for="revUrl">{{ 'Link đánh giá Google' if vi else 'Google review link' }}</label><input class="in" id="revUrl" placeholder="https://g.page/r/…/review"></div>
-                <div><label class="f" for="revDelay">{{ 'Gửi sau khi thanh toán' if vi else 'Send after checkout' }}</label><select class="in" id="revDelay"><option value="60">1 {{ 'giờ' if vi else 'hour' }}</option><option value="90">90 {{ 'phút' if vi else 'minutes' }}</option><option value="180">3 {{ 'giờ' if vi else 'hours' }}</option><option value="1440">{{ 'Hôm sau' if vi else 'Next day' }}</option></select></div></div></div>
+            <div><h3>{{ 'Xin đánh giá 5 sao' if vi else '5-star review requests' }}</h3><p>{{ 'Sau khi khách thanh toán, gửi link đánh giá Google của tiệm (mỗi khách tối đa 1 lần /' if vi else 'After a customer pays, send your Google review link (at most once per customer every' }} <span id="revCoolTxt">60</span> {{ 'ngày).' if vi else 'days).' }}</p>
+                <div class="grid3"><div><label class="f" for="revUrl">{{ 'Link đánh giá Google' if vi else 'Google review link' }}</label><input class="in" id="revUrl" placeholder="https://g.page/r/…/review"></div>
+                <div><label class="f" for="revDelay">{{ 'Gửi sau khi thanh toán' if vi else 'Send after checkout' }}</label><select class="in" id="revDelay"><option value="60">1 {{ 'giờ' if vi else 'hour' }}</option><option value="90">90 {{ 'phút' if vi else 'minutes' }}</option><option value="180">3 {{ 'giờ' if vi else 'hours' }}</option><option value="1440">{{ 'Hôm sau' if vi else 'Next day' }}</option></select></div>
+                <div><label class="f" for="revCool">{{ 'Hỏi lại cùng 1 khách sau (ngày)' if vi else 'Ask the same customer again after (days)' }}</label><input class="in" id="revCool" type="number" min="7" max="365" step="1" inputmode="numeric" value="60"></div></div></div>
+        </div>
+        <div class="auto">
+            <label class="sw"><input type="checkbox" id="bdOn"><span></span></label>
+            <div><h3>{{ 'Chúc mừng sinh nhật' if vi else 'Birthday wishes' }}</h3><p>{{ 'Gửi 1 lời chúc ngắn từ tiệm cho khách đã lưu ngày sinh (mỗi khách 1 lần / năm, không kèm ưu đãi nào). Đi qua Zalo / Messenger nếu khách vừa nhắn tiệm (trong khung trả lời của nền tảng), không thì SMS hoặc email. Mỗi tin SMS Twilio tính phí.' if vi else 'Send a short greeting from your shop to customers with a saved date of birth (once a year, no offer attached). Goes by Zalo / Messenger if the customer messaged you recently (inside the platform reply window), otherwise by SMS or email. Twilio charges for each SMS.' }}</p>
+                <div style="max-width:220px"><label class="f" for="bdDays">{{ 'Gửi' if vi else 'Send' }}</label>
+                <select class="in" id="bdDays"><option value="0">{{ 'Đúng ngày sinh nhật' if vi else 'On the birthday' }}</option>{% for d in range(1, 8) %}<option value="{{ d }}">{{ ('Trước ' ~ d ~ ' ngày') if vi else (d ~ (' day before' if d == 1 else ' days before')) }}</option>{% endfor %}</select></div></div>
+        </div>
+        <div class="auto">
+            <label class="sw"><input type="checkbox" id="loyOn"><span></span></label>
+            <div><h3>{{ 'Báo điểm thưởng & lên hạng' if vi else 'Points & tier messages' }}</h3><p>{{ 'Sau mỗi bill đã thanh toán, báo khách số điểm vừa tích hoặc hạng mới. Gửi qua Zalo / Messenger (trong khung trả lời của nền tảng) hoặc email — không tốn phí tin nhắn.' if vi else 'After each paid bill, tell the customer the points they earned or their new tier. Sent by Zalo / Messenger (inside the platform reply window) or email — no per-message cost.' }}</p>
+                <div class="auto" style="border-top:0;padding:4px 0 0">
+                    <label class="sw"><input type="checkbox" id="loySms"><span></span></label>
+                    <div><h3 style="font-size:13.5px">{{ 'Gửi cả bằng SMS' if vi else 'Also send by SMS' }}</h3><p style="margin:0">{{ 'Mỗi tin SMS đều tốn tiền (Twilio tính phí từng tin) và tin này gửi sau MỖI bill đã thanh toán — chỉ bật nếu bạn chấp nhận chi phí đó.' if vi else 'Each SMS costs money (Twilio charges per message) and this one goes out after EVERY paid bill — only turn it on if you accept that cost.' }}</p></div>
+                </div></div>
         </div>
         <div class="auto">
             <label class="sw"><input type="checkbox" id="mcOn"><span></span></label>
-            <div><h3>{{ 'Nhắn lại cuộc gọi nhỡ' if vi else 'Missed-call text back' }}</h3><p>{{ 'Cuộc gọi tới số Twilio được chuyển tới máy tiệm 20 giây; không ai nghe thì khách nhận ngay tin nhắn kèm link đặt lịch.' if vi else 'Calls to your Twilio number ring your shop phone for 20 seconds; if nobody answers, the caller gets a text with your booking link right away.' }}</p>
+            <div><h3>{{ 'Nhắn lại cuộc gọi nhỡ' if vi else 'Missed-call text back' }}</h3><p id="mcDesc" data-industry="{{ _ind }}" data-link="{{ '1' if _mc_link else '0' }}">{% if vi %}Cuộc gọi tới số Twilio được chuyển tới máy tiệm 20 giây; không ai nghe thì khách nhận ngay tin nhắn xin lỗi {{ ('kèm ' ~ _mc_link[1] ~ ' online') if _mc_link else 'mời khách trả lời tin hoặc gọi lại' }}. Chưa nhập số máy tiệm thì khách nghe 1 câu báo ngắn rồi nhận tin đó. Chỉ gửi khi SMS đã kết nối.{% else %}Calls to your Twilio number ring your shop phone for 20 seconds; if nobody answers, the caller gets a text right away {{ ('with your online ' ~ _mc_link[0]) if _mc_link else 'asking them to reply or call back' }}. With no shop phone set, the caller hears a short message and gets the same text. Only sent while SMS is connected.{% endif %}</p>
                 <div style="max-width:320px"><label class="f" for="shopPhone">{{ 'Số máy tiệm (để chuyển cuộc gọi)' if vi else 'Shop phone (calls forward here)' }}</label><input class="in" id="shopPhone" placeholder="+1 555 987 6543"></div></div>
         </div>
         <div class="auto">
@@ -167,13 +188,22 @@
     var esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
     for (var h = 8; h <= 21; h++) { var lbl = (h % 12 || 12) + (h < 12 ? ' am' : ' pm'); if (h <= 20) $('ws').add(new Option(lbl, h)); if (h >= 9) $('we').add(new Option(lbl, h)); }
     var KIND = { appointment_reminder: T('Reminder', 'Nhắc lịch'), review_request: T('Review request', 'Xin đánh giá'), nurture: T('Follow-up', 'Chăm sóc'),
-                 owner_report: T('Daily report', 'Báo cáo ngày'), missed_call: T('Missed call', 'Cuộc gọi nhỡ'), test: T('Test', 'Thử') };
+                 owner_report: T('Daily report', 'Báo cáo ngày'), missed_call: T('Missed call', 'Cuộc gọi nhỡ'), test: T('Test', 'Thử'),
+                 birthday: T('Birthday', 'Sinh nhật'), loyalty: T('Rewards', 'Điểm thưởng'),
+                 on_my_way: T('On my way', 'Thợ đang tới'), staff_alert: T('Team alert', 'Báo nhân viên') };
     var STATUS = { sent: T('Sent', 'Đã gửi'), failed: T('Failed', 'Lỗi'), queued: T('Waiting', 'Chờ gửi'), cancelled: T('Cancelled', 'Đã huỷ'), sending: T('Sending', 'Đang gửi') };
+    // SMS báo điểm chỉ có nghĩa khi đang bật báo điểm (tắt báo điểm thì không tin nào đi, kể cả SMS)
+    function syncLoySms() { $('loySms').disabled = !$('loyOn').checked; $('loySms').parentNode.style.opacity = $('loyOn').checked ? '' : '.45'; }
+    $('loyOn').addEventListener('change', syncLoySms);
+    $('revCool').addEventListener('input', function () { var n = parseInt(this.value, 10); if (n >= 7 && n <= 365) $('revCoolTxt').textContent = n; });
     function mask(to) { return /@/.test(to) ? to.replace(/^(.{2}).*(@.*)$/, '$1•••$2') : to.replace(/\d(?=\d{3})/g, '•'); }
     function fill(s) {
         $('sid').value = s.twilio_account_sid || ''; $('from').value = s.twilio_from || ''; $('smsOn').checked = !!s.sms_enabled;
         $('remOn').checked = !!s.reminders_enabled; $('remHours').value = String(s.reminder_hours || 24);
         $('revOn').checked = !!s.reviews_enabled; $('revUrl').value = s.google_review_url || ''; $('revDelay').value = String(s.review_delay_minutes || 90);
+        $('revCool').value = String(s.review_cooldown_days || 60); $('revCoolTxt').textContent = $('revCool').value;
+        $('bdOn').checked = s.birthday_enabled !== false; $('bdDays').value = String(Math.max(0, Math.min(7, +s.birthday_days_before || 0)));
+        $('loyOn').checked = s.loyalty_messages_enabled !== false; $('loySms').checked = !!s.loyalty_sms_enabled; syncLoySms();
         $('mcOn').checked = !!s.missed_call_enabled; $('shopPhone').value = s.shop_phone || '';
         $('repOn').checked = !!s.owner_report_enabled; $('repEmail').value = s.owner_report_email || '';
         $('tz').value = s.timezone; $('ws').value = String(s.send_window_start); $('we').value = String(s.send_window_end); $('lang').value = s.language || 'en';
@@ -205,11 +235,15 @@
         var note = $('saveNote'), btn = $('saveBtn'); btn.disabled = true; note.className = 'note'; note.textContent = T('Saving…', 'Đang lưu…');
         var body = { twilio_account_sid: $('sid').value.trim(), twilio_from: $('from').value.trim(), sms_enabled: $('smsOn').checked,
             reminders_enabled: $('remOn').checked, reminder_hours: +$('remHours').value, reviews_enabled: $('revOn').checked, google_review_url: $('revUrl').value.trim(),
-            review_delay_minutes: +$('revDelay').value, missed_call_enabled: $('mcOn').checked, shop_phone: $('shopPhone').value.trim(),
+            review_delay_minutes: +$('revDelay').value, review_cooldown_days: parseInt($('revCool').value, 10),
+            birthday_enabled: $('bdOn').checked, birthday_days_before: +$('bdDays').value,
+            loyalty_messages_enabled: $('loyOn').checked, loyalty_sms_enabled: $('loyOn').checked && $('loySms').checked,
+            missed_call_enabled: $('mcOn').checked, shop_phone: $('shopPhone').value.trim(),
             owner_report_enabled: $('repOn').checked, owner_report_email: $('repEmail').value.trim(), timezone: $('tz').value,
             send_window_start: +$('ws').value, send_window_end: +$('we').value, language: $('lang').value };
         if ($('tok').value.trim()) body.twilio_auth_token = $('tok').value.trim();
         if (body.reviews_enabled && !/^https:\/\//.test(body.google_review_url)) { note.className = 'note err'; note.textContent = T('Add your Google review link (starts with https://).', 'Nhập link đánh giá Google (bắt đầu bằng https://).'); btn.disabled = false; return; }
+        if (!(body.review_cooldown_days >= 7 && body.review_cooldown_days <= 365)) { note.className = 'note err'; note.textContent = T('Ask again after 7 to 365 days.', 'Số ngày hỏi lại phải từ 7 đến 365.'); btn.disabled = false; return; }
         if (body.send_window_end <= body.send_window_start) { note.className = 'note err'; note.textContent = T('"Until" must be later than "From".', 'Giờ "Đến" phải sau giờ "Từ".'); btn.disabled = false; return; }
         try {
             var d = await api('/api/messaging/settings', { method: 'POST', body: JSON.stringify(body) });
