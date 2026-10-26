@@ -15,6 +15,7 @@ from mongo_client import db
 
 INDUSTRIES = ('fnb',)
 RESOURCE = 'table'
+FACTS_INCLUDE_CATALOG = True   # facts() đã liệt kê thực đơn + giá (kèm dị ứng nếu quán ghi) -> lõi không lặp bảng giá chung
 
 
 def _fn(name, desc, props, required=()):
@@ -92,7 +93,7 @@ PROMPT_RULES = {
 
 
 # ---------------------------------------------------------------- facts cho prompt
-def _menu(business_id, cur, limit=40):
+def _menu(business_id, cur, limit=60):
     rows = list(db.products.find({'business_id': business_id, 'is_active': {'$in': [1, True]}},
                                  {'_id': 0, 'name': 1, 'price': 1, 'category': 1, 'allergens': 1}).limit(200))
     rows.sort(key=lambda p: (str(p.get('category') or ''), str(p.get('name') or '')))
@@ -179,7 +180,7 @@ def _not_yours(ctx):
 
 def _staff_note(ctx, vi_text, en_text):
     vi_shop = rc.currency(ctx['business_id']) == 'VND'
-    rc.note_for_staff(ctx['business_id'], ctx.get('customer_id'), vi_text if vi_shop else en_text)
+    rc.note_for_staff(ctx['business_id'], rc.staff_thread(ctx), vi_text if vi_shop else en_text)
 
 
 def _say(status, ctx):
@@ -291,8 +292,7 @@ def _reserve(args, ctx):
     bid = ctx['business_id']
     rules = rc.load_rules(bid, 'table')
     now = rc.naive_now(bid, ctx.get('now_local'))
-    name = rc.clean_name(args.get('customer_name'))
-    phone = rc.clean_phone(args.get('phone') or ctx.get('phone'))
+    name, phone = rc.booking_contact(args, ctx)
     day = rc.parse_day(args.get('date'))
     if not str(args.get('time') or '').strip():
         raise rc.ReservationError('bad_time')
@@ -307,7 +307,7 @@ def _reserve(args, ctx):
     except rc.ReservationError as e:
         return {'success': False, 'reason': e.reason, 'message': rc.explain(e),
                 **_alternatives(bid, rules, tables, day, party, now, want)}
-    dup = rc.find_duplicate(db.table_reservations, bid, phone, when, rc.TABLE_ACTIVE)
+    dup = rc.find_duplicate(db.table_reservations, bid, phone, when, rc.TABLE_ACTIVE, rc.ctx_country(ctx))
     if dup:
         return _dup_result(dup, ctx, name, note)
     with rc.reservation_lock(bid, 'table'):

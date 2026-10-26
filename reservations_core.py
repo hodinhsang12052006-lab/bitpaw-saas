@@ -22,7 +22,7 @@ import contextlib
 import re
 import time
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from mongo_client import db, next_mongo_id
 
@@ -420,12 +420,66 @@ def clean_phone(value):
     return phone
 
 
-def same_phone(a, b):
-    """Cùng 1 số điện thoại dù khác cách ghi ('0412 345 678' = '+61412345678'): so trùng toàn bộ chữ số, hoặc 9 số cuối."""
+_CC = {'US': '1', 'CA': '1', 'AU': '61', 'NZ': '64', 'GB': '44', 'VN': '84'}
+
+
+def e164(phone, country=None):
+    """'+61412345678' hoặc '' — cùng luật messaging.normalize_phone / ai_packs.normalize_phone (số nội địa theo nước quán)."""
+    raw = str(phone or '').strip()
+    digits = re.sub(r'\D', '', raw)
+    if not digits:
+        return ''
+    if raw.startswith('+') or raw.startswith('00'):
+        d = digits if raw.startswith('+') else digits[2:]
+        return '+' + d if 8 <= len(d) <= 15 else ''
+    c = (country or 'US').upper()
+    if c in ('US', 'CA'):
+        if len(digits) == 10:
+            return '+1' + digits
+        if len(digits) == 11 and digits.startswith('1'):
+            return '+' + digits
+    elif c == 'AU':
+        if len(digits) == 10 and digits.startswith('0'):
+            return '+61' + digits[1:]
+        if len(digits) == 9 and digits[0] in '23478':
+            return '+61' + digits
+        if len(digits) == 11 and digits.startswith('61'):
+            return '+' + digits
+    elif c == 'VN':
+        if len(digits) == 10 and digits.startswith('0'):
+            return '+84' + digits[1:]
+        if len(digits) == 9 and digits[0] in '35789':
+            return '+84' + digits
+        if len(digits) == 11 and digits.startswith('84'):
+            return '+' + digits
+    elif c in ('NZ', 'GB'):
+        if digits.startswith('0') and 9 <= len(digits) <= 11:
+            return '+' + _CC[c] + digits[1:]
+        if digits.startswith(_CC[c]) and 10 <= len(digits) <= 13:
+            return '+' + digits
+    if 11 <= len(digits) <= 15:
+        return '+' + digits
+    return ''
+
+
+def same_phone(a, b, country=None):
+    """Cùng 1 số điện thoại dù khác cách ghi ('0412 345 678' = '+61 412 345 678' ở quán Úc): trùng toàn bộ chữ số, hoặc
+    trùng số quốc tế sau khi chuẩn hoá theo nước của quán. Không so 'mấy số cuối' (2 số Mỹ khác mã vùng từng bị coi là 1)."""
     da, dbb = re.sub(r'\D', '', str(a or '')), re.sub(r'\D', '', str(b or ''))
     if len(da) < 8 or len(dbb) < 8:
         return False
-    return da == dbb or (len(da) >= 9 and len(dbb) >= 9 and da[-9:] == dbb[-9:])
+    if da == dbb:
+        return True
+    ea, eb = e164(a, country), e164(b, country)
+    return bool(ea and eb and ea == eb)
+
+
+def country_of(business_id):
+    try:
+        from tenant_engine import TenantEngine
+        return str((TenantEngine.get_region_config(business_id) or {}).get('country') or '').upper() or None
+    except Exception:
+        return None
 
 
 def parse_dt(value):
@@ -481,26 +535,64 @@ def business_info_line(business_id, rules):
 
 
 # ---------------------------------------------------------------- ai sở hữu đặt chỗ nào (xem / huỷ / đổi)
-PLATFORM_CHANNELS = ('messenger', 'instagram', 'whatsapp', 'zalo', 'viber', 'sms')
+def _token_proof(ctx):
+    """chat_token_hash chứng minh được chủ: có, và không phải mã tạm 'anon:...' (chat web không có mã trình duyệt)."""
+    th = (ctx or {}).get('chat_token_hash')
+    return th if th and not str(th).startswith('anon:') else None
+
+
+def _conversation_proof(ctx):
+    """ai_conversation_id chứng minh được chủ: kênh nền tảng (id người gửi do nền tảng ký), hoặc chat web dạng
+    '<thread>~<băm mã chat>' (không phải '~anon'). customer_id web kiểu cũ '<quán>:<SĐT>' ai gõ SĐT cũng có -> không tính."""
+    cid = (ctx or {}).get('customer_id')
+    if not cid:
+        return None
+    channel = str(ctx.get('channel') or 'web').lower()
+    if channel != 'web' or ('~' in str(cid) and '~anon' not in str(cid)):
+        return cid
+    return None
+
+
+def ctx_country(ctx):
+    if 'country' not in ctx or not ctx.get('country'):
+        ctx['country'] = country_of(ctx.get('business_id'))
+    return ctx['country']
 
 
 def is_owned(doc, ctx):
     """Đặt chỗ này CHỨNG MINH được là của cuộc chat đang nói chuyện: SĐT đã xác minh trùng, hoặc cùng mã chat web
-    (chat_token_hash), hoặc cùng hội thoại của 1 nền tảng nhắn tin đã ký id người gửi. Chat web không có mã: không gì cả."""
+    (chat_token_hash), hoặc cùng hội thoại (xem _conversation_proof). Chat web không có mã: không gì cả.
+    Cùng luật ai_packs.manage_filter của phần lõi."""
     if not doc or not ctx:
         return False
-    if ctx.get('phone') and same_phone(doc.get('customer_phone'), ctx['phone']):
+    if ctx.get('phone') and same_phone(doc.get('customer_phone'), ctx['phone'], ctx_country(ctx)):
         return True
-    th = ctx.get('chat_token_hash')
+    th = _token_proof(ctx)
     if th and doc.get('chat_token_hash') == th:
         return True
-    cid = ctx.get('customer_id')
-    return bool(cid and str(ctx.get('channel') or '').lower() in PLATFORM_CHANNELS and doc.get('ai_conversation_id') == cid)
+    cid = _conversation_proof(ctx)
+    return bool(cid and doc.get('ai_conversation_id') == cid)
 
 
 def can_prove_owner(ctx):
-    return bool(ctx and (ctx.get('phone') or ctx.get('chat_token_hash') or
-                         (ctx.get('customer_id') and str(ctx.get('channel') or '').lower() in PLATFORM_CHANNELS)))
+    return bool(ctx and (ctx.get('phone') or _token_proof(ctx) or _conversation_proof(ctx)))
+
+
+def staff_thread(ctx):
+    """Hội thoại /ai_bot để ghi dòng báo chủ quán: ctx.thread_id, không có thì phần trước '~' của customer_id web."""
+    tid = (ctx or {}).get('thread_id')
+    if tid:
+        return tid
+    cid = (ctx or {}).get('customer_id')
+    return str(cid).split('~', 1)[0] if cid else cid
+
+
+def booking_contact(args, ctx):
+    """(tên, SĐT) cho đặt chỗ MỚI: khách nói trong chat (args) > SĐT đã xác minh > SĐT khách đã đưa (chưa xác minh,
+    ctx.contact_phone — chỉ làm liên lạc, không bao giờ làm bằng chứng chủ) ; tên đã biết của khách nếu AI không truyền."""
+    name = clean_name(args.get('customer_name') or ctx.get('customer_name'))
+    phone = clean_phone(args.get('phone') or ctx.get('phone') or ctx.get('contact_phone'))
+    return name, phone
 
 
 def ai_tags(ctx):
@@ -509,20 +601,40 @@ def ai_tags(ctx):
             'ai_channel': ctx.get('channel') or 'web'}
 
 
+def ownership_query(ctx):
+    """Lọc ỨNG VIÊN ngay trong Mongo (mã chat / hội thoại / SĐT đã xác minh — 8 số cuối, mọi cách ghi) để quán đông khách
+    không làm rơi đặt chỗ của khách khỏi trang kết quả; is_owned() vẫn kiểm chính xác từng dòng sau đó. None = không có
+    bằng chứng nào."""
+    ors = []
+    th, cid = _token_proof(ctx), _conversation_proof(ctx)
+    if th:
+        ors.append({'chat_token_hash': th})
+    if cid:
+        ors.append({'ai_conversation_id': cid})
+    digits = re.sub(r'\D', '', str((ctx or {}).get('phone') or ''))
+    if len(digits) >= 8:
+        ors.append({'customer_phone': {'$regex': r'\D*'.join(digits[-8:]) + r'\D*$'}})
+    return {'$or': ors} if ors else None
+
+
 def owned_upcoming(coll, business_id, ctx, statuses, now, back_hours=2, limit=10):
     """Đặt chỗ sắp tới (và lượt đang diễn ra trong `back_hours`) của CHÍNH cuộc chat này."""
+    own = ownership_query(ctx)
+    if own is None:
+        return []
     since = (now - timedelta(hours=back_hours)).strftime('%Y-%m-%dT%H:%M')
-    rows = coll.find({'business_id': business_id, 'status': {'$in': list(statuses)}, 'reserved_time': {'$gte': since}},
-                     {'_id': 0}).sort('reserved_time', 1).limit(500)
+    rows = coll.find(dict(own, business_id=business_id, status={'$in': list(statuses)}, reserved_time={'$gte': since}),
+                     {'_id': 0}).sort('reserved_time', 1).limit(200)
     return [r for r in rows if is_owned(r, ctx)][:limit]
 
 
-def find_duplicate(coll, business_id, phone, when, statuses):
+def find_duplicate(coll, business_id, phone, when, statuses, country=None):
     """Cùng SĐT + cùng giờ + còn hiệu lực (khách nói "đặt giúp" 2 lần) -> bản ghi cũ."""
     stamp = when.strftime('%Y-%m-%dT%H:%M')
+    country = country or country_of(business_id)
     for r in coll.find({'business_id': business_id, 'status': {'$in': list(statuses)},
                         'reserved_time': {'$gte': stamp, '$lte': stamp + ':59'}}, {'_id': 0}):
-        if same_phone(r.get('customer_phone'), phone):
+        if same_phone(r.get('customer_phone'), phone, country):
             return r
     return None
 

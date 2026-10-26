@@ -15,6 +15,7 @@ from mongo_client import db
 
 INDUSTRIES = ('karaoke',)
 RESOURCE = 'room_hour'
+FACTS_INCLUDE_CATALOG = True   # facts() đã liệt kê phòng + giá giờ + đồ ăn uống (bỏ món "phí giờ") -> lõi không lặp bảng giá
 
 
 def _fn(name, desc, props, required=()):
@@ -112,7 +113,8 @@ def _food_menu(business_id, cur, limit=30):
                             {'_id': 0, 'name': 1, 'price': 1, 'category': 1, 'is_room_fee': 1}).limit(200)
     for p in sorted(rows, key=lambda p: (str(p.get('category') or ''), str(p.get('name') or ''))):
         if (p.get('is_room_fee') or str(p.get('category') or '').strip().lower() in _FEE_CATEGORIES
-                or str(p.get('name') or '').strip().lower() in _FEE_NAMES or not p.get('name')):
+                or str(p.get('name') or '').strip().lower() in _FEE_NAMES or not p.get('name')
+                or not rc._num(p.get('price'), 0.0, float) > 0):  # menu QR phòng hát (_karaoke_menu) cũng chỉ bán món có giá
             continue
         out.append(f"- {p['name']} — {rc.money(p.get('price') or 0, cur)}")
         if len(out) >= limit:
@@ -217,7 +219,7 @@ def _not_yours(ctx):
 
 def _staff_note(ctx, vi_text, en_text):
     vi_shop = rc.currency(ctx['business_id']) == 'VND'
-    rc.note_for_staff(ctx['business_id'], ctx.get('customer_id'), vi_text if vi_shop else en_text)
+    rc.note_for_staff(ctx['business_id'], rc.staff_thread(ctx), vi_text if vi_shop else en_text)
 
 
 def _say(status):
@@ -354,8 +356,7 @@ def _pick(fits, unknown, room_id):
 
 def _reserve(args, ctx):
     bid, rules, rooms, now, cur = _setup(ctx)
-    name = rc.clean_name(args.get('customer_name'))
-    phone = rc.clean_phone(args.get('phone') or ctx.get('phone'))
+    name, phone = rc.booking_contact(args, ctx)
     day = rc.parse_day(args.get('date'))
     if not str(args.get('time') or '').strip():
         raise rc.ReservationError('bad_time')
@@ -376,7 +377,7 @@ def _reserve(args, ctx):
     except rc.ReservationError as e:
         return {'success': False, 'reason': e.reason, 'message': rc.explain(e),
                 **_alternatives(bid, rules, rooms, day, hours, group, now, kind, room_type, want)}
-    dup = rc.find_duplicate(db.karaoke_room_reservations, bid, phone, start, rc.KARAOKE_ACTIVE)
+    dup = rc.find_duplicate(db.karaoke_room_reservations, bid, phone, start, rc.KARAOKE_ACTIVE, rc.ctx_country(ctx))
     if dup:
         return _dup_result(dup, ctx, name, args.get('note'), cur)
     stamp = rc.iso_slot(start)

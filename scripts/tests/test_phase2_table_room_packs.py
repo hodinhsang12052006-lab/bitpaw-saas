@@ -328,6 +328,15 @@ class PackContract(unittest.TestCase):
                 self.assertGreater(len(t['function']['description']), 40)
             self.assertEqual(set(pack.PROMPT_RULES), {'en', 'vi'})
             self.assertTrue(callable(pack.facts) and callable(pack.execute))
+            self.assertIs(pack.FACTS_INCLUDE_CATALOG, True)       # facts() đã có thực đơn / phòng + giá
+
+    @unittest.skipUnless(hasattr(ai_packs, '_validate'), 'registry lõi ai_packs/__init__.py chưa có trong worktree này')
+    def test_core_registry_accepts_both_packs(self):
+        for name, mod in (('fnb', fnb), ('karaoke', karaoke)):
+            pack = ai_packs._validate(name, mod)
+            self.assertEqual((pack.resource, pack.industries), (mod.RESOURCE, mod.INDUSTRIES))
+            self.assertEqual(pack.manage_tools, frozenset(mod.MANAGE_TOOLS))
+            self.assertTrue(pack.facts_include_catalog)
 
     def test_no_salon_vocabulary_in_pack_text(self):
         DB.reset()
@@ -567,9 +576,11 @@ class FnbTables(Base):
         table_row(1, '2026-10-30T18:30:00', 5, status='confirmed', table_id=4)   # T4 bận 18:30-20:00
         table_row(2, '2026-10-30T19:30:00', 4)                                    # chưa xếp bàn: sẽ cần 1 bàn 4
         r = self.reserve(3)
-        self.assertEqual((r['status'], r['table']), ('confirmed', 'T2'))
-        self.assertEqual(DB.table_reservations.find_one({'id': r['reservation_id']})['table_id'], 2)
-        # T3 còn lại phải dành cho yêu cầu 19:30 chưa xếp -> nhóm 4 lúc 19:00 hết bàn
+        # bàn 4 ghế (T2 hoặc T3 — 1 bàn được trừ hao cho yêu cầu 19:30 chưa xếp), không lấy T4 đang bận, không T1 (2 ghế)
+        self.assertEqual(r['status'], 'confirmed')
+        self.assertIn(r['table'], ('T2', 'T3'))
+        self.assertIn(DB.table_reservations.find_one({'id': r['reservation_id']})['table_id'], (2, 3))
+        # bàn 4 ghế còn lại phải dành cho yêu cầu 19:30 chưa xếp -> nhóm 4 lúc 19:00 hết bàn
         full = self.reserve(4, phone='0499888777')
         self.assertFalse(full['success'])
         self.assertEqual(full['reason'], 'no_table')
@@ -663,6 +674,106 @@ class FnbManage(Base):
         self.assertEqual(DB.table_reservations.find_one({'id': 900})['reserved_time'], '2026-10-30T20:00:00')
 
 
+class OwnershipAndContact(Base):
+    """Cùng luật chứng minh chủ với lõi (ai_packs.manage_filter): mã 'anon:' không là bằng chứng, customer_id web dạng
+    '<thread>~<băm mã>' là bằng chứng, SĐT so theo nước quán (không so 'mấy số cuối'), contact_phone chỉ để liên lạc."""
+
+    def setUp(self):
+        super().setUp()
+        biz('fnb')
+        settings(hours=FNB_HOURS, auto_confirm=True, table={'max_covers_per_slot': 30})
+
+    def reserve(self, ctx, time='19:00', **kw):
+        args = {'date': FRI, 'time': time, 'party_size': 2, 'customer_name': 'Mia', 'phone': '0412345678'}
+        args.update(kw)
+        return self.call(fnb, 'fnb_reserve_table', args, ctx)
+
+    def test_anon_token_is_not_proof(self):
+        anon = web_ctx(token=None, chat_token_hash='anon:1f2e3d', customer_id=f"{BID}:0412345678~anon")
+        rid = self.reserve(anon)['reservation_id']
+        self.assertEqual(DB.table_reservations.find_one({'id': rid})['chat_token_hash'], 'anon:1f2e3d')
+        mine = self.call(fnb, 'fnb_my_reservations', {}, dict(anon))
+        self.assertFalse(mine['verified'])
+        self.assertEqual(mine['reservations'], [])
+        self.refuse(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, dict(anon))
+        self.assertEqual(DB.table_reservations.find_one({'id': rid})['status'], 'confirmed')
+
+    def test_web_thread_conversation_id_is_proof_and_staff_note_goes_to_the_thread(self):
+        thread = f"{BID}:0412345678"
+        ctx = web_ctx(token='a' * 40, customer_id=thread + '~0123456789abcdef')
+        rid = self.reserve(ctx)['reservation_id']
+        row = DB.table_reservations.find_one({'id': rid})
+        self.assertEqual(row['ai_conversation_id'], thread + '~0123456789abcdef')
+        self.assertTrue(any(m['customer_id'] == thread and '#%d' % rid in m['content'] for m in DB.bot_messages.docs))
+        # cùng hội thoại (cùng băm mã chat trong customer_id) dù chat_token_hash khác cách băm -> vẫn của mình
+        same_conv = web_ctx(token='b' * 40, customer_id=thread + '~0123456789abcdef')
+        self.assertEqual([x['reservation_id'] for x in self.call(fnb, 'fnb_my_reservations', {}, same_conv)['reservations']], [rid])
+        # cùng SĐT (thread cũ '<quán>:<SĐT>') nhưng trình duyệt khác -> không thấy, không huỷ được
+        stranger = web_ctx(token='c' * 40, customer_id=thread + '~fedcba9876543210')
+        self.assertEqual(self.call(fnb, 'fnb_my_reservations', {}, stranger)['reservations'], [])
+        self.refuse(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, stranger)
+        explicit = web_ctx(token='a' * 40, customer_id=thread + '~0123456789abcdef', thread_id='thread-77')
+        self.call(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, explicit)
+        self.assertTrue(any(m['customer_id'] == 'thread-77' for m in DB.bot_messages.docs))
+
+    def test_phone_match_follows_the_shop_country(self):
+        self.assertTrue(rc.same_phone('0412 345 678', '+61 412 345 678', 'AU'))
+        self.assertTrue(rc.same_phone('(212) 555-1234', '+12125551234', 'US'))
+        self.assertFalse(rc.same_phone('(312) 555-1234', '+12125551234', 'US'))   # chỉ trùng 9 số cuối: KHÁC người
+        self.assertTrue(rc.same_phone('0912 345 678', '+84912345678', 'VN'))
+        self.assertFalse(rc.same_phone('1234567', '1234567', 'US'))                # quá ngắn: không bao giờ là bằng chứng
+        DB.businesses.update_one({'id': BID}, {'$set': {'country': 'US'}})
+        table_row(70, '2026-10-30T20:00:00', 2, status='confirmed', phone='(312) 555-1234')
+        table_row(71, '2026-10-30T21:00:00', 2, status='confirmed', phone='212.555.1234')
+        ctx = web_ctx(token=None, phone='+12125551234', channel='sms', customer_id=f"{BID}:sms:+12125551234")
+        ids = [x['reservation_id'] for x in self.call(fnb, 'fnb_my_reservations', {}, ctx)['reservations']]
+        self.assertEqual(ids, [71])
+        self.refuse(fnb, 'fnb_cancel_reservation', {'reservation_id': 70}, ctx)
+
+    def test_own_bookings_are_found_in_a_busy_restaurant(self):
+        for i in range(600):                                  # 600 đặt bàn của người khác xếp TRƯỚC đặt bàn của khách
+            table_row(10000 + i, '2026-10-27T12:00:00', 1, status='confirmed', phone=f'0400 {i:06d}')
+        rid = self.reserve(web_ctx())['reservation_id']
+        table_row(90, '2026-11-20T19:00:00', 2, status='pending', phone='0412-345-678')   # form, cách ghi khác
+        self.assertEqual([x['reservation_id'] for x in self.call(fnb, 'fnb_my_reservations', {})['reservations']], [rid])
+        ctx = web_ctx(token=None, phone='+61412345678', channel='sms', customer_id=f"{BID}:sms:+61412345678")
+        self.assertEqual([x['reservation_id'] for x in self.call(fnb, 'fnb_my_reservations', {}, ctx)['reservations']],
+                         [rid, 90])
+        self.assertIsNone(rc.ownership_query(web_ctx(token=None)))
+        self.assertIsNone(rc.ownership_query(web_ctx(token=None, chat_token_hash='anon:5', customer_id=f"{BID}:1~anon")))
+
+    def test_contact_phone_books_but_never_proves_ownership(self):
+        table_row(80, '2026-10-30T20:00:00', 2, status='confirmed', phone='0412345678')   # form công khai, cùng SĐT
+        ctx = web_ctx(token=None, chat_token_hash='anon:9', contact_phone='0412 345 678', customer_name='Mia Chen')
+        r = self.call(fnb, 'fnb_reserve_table', {'date': FRI, 'time': '18:00', 'party_size': 2}, ctx)
+        self.assertTrue(r['success'])
+        row = DB.table_reservations.find_one({'id': r['reservation_id']})
+        self.assertEqual((row['customer_phone'], row['customer_name']), ('0412 345 678', 'Mia Chen'))
+        self.assertFalse(self.call(fnb, 'fnb_my_reservations', {}, dict(ctx))['verified'])
+        self.refuse(fnb, 'fnb_cancel_reservation', {'reservation_id': 80}, dict(ctx))
+        # thiếu cả SĐT lẫn tên -> phải hỏi khách, không ghi gì
+        self.assertIn('phone', self.refuse(fnb, 'fnb_reserve_table', {'date': FRI, 'time': '18:30', 'party_size': 2,
+                                                                      'customer_name': 'Leo'}, web_ctx()))
+        self.assertIn('name', self.refuse(fnb, 'fnb_reserve_table', {'date': FRI, 'time': '18:30', 'party_size': 2,
+                                                                     'phone': '0499888777'}, web_ctx()))
+        self.assertEqual(len(DB.table_reservations.docs), 2)
+
+    def test_karaoke_uses_the_same_ownership_rules(self):
+        room(1, 'Room A (2-6 people)', 20)
+        DB.booking_settings.update_one({'business_id': BID}, {'$set': {'hours': KTV_HOURS}})
+        anon = web_ctx(token=None, chat_token_hash='anon:2', contact_phone='0412345678')
+        r = self.call(karaoke, 'karaoke_reserve_room', {'date': FRI, 'time': '20:00', 'hours': 2, 'group_size': 4,
+                                                        'customer_name': 'Kai'}, anon)
+        self.assertTrue(r['success'])
+        row = DB.karaoke_room_reservations.find_one({'id': r['reservation_id']})
+        self.assertEqual((row['customer_phone'], row['source'], row['room_id']), ('0412345678', 'ai_bot', 1))
+        self.assertFalse(self.call(karaoke, 'karaoke_my_reservations', {}, dict(anon))['verified'])
+        self.refuse(karaoke, 'karaoke_cancel_reservation', {'reservation_id': r['reservation_id']}, dict(anon))
+        verified = web_ctx(token=None, phone='+61412345678', channel='whatsapp', customer_id=f"{BID}:whatsapp:61412345678")
+        self.assertTrue(self.call(karaoke, 'karaoke_cancel_reservation', {'reservation_id': r['reservation_id']},
+                                  verified)['cancelled'])
+
+
 # ================================================================ Karaoke
 class KaraokeBase(Base):
     def setUp(self):
@@ -684,7 +795,8 @@ class KaraokeFacts(KaraokeBase):
         settings(hours=KTV_HOURS, auto_confirm=True, karaoke_rules={'hold_minutes': 15})
         DB.products.insert_many([{'id': 1, 'business_id': BID, 'name': 'Tiger beer', 'price': 8, 'is_active': 1},
                                  {'id': 2, 'business_id': BID, 'name': 'Karaoke room time', 'price': 0, 'is_active': 1,
-                                  'is_room_fee': True}])
+                                  'is_room_fee': True},
+                                 {'id': 3, 'business_id': BID, 'name': 'Tap water', 'price': 0, 'is_active': 1}])
         f = karaoke.facts(BID, 'en', NOW)
         self.assertIn('VIP Room 1 (room_id 1, karaoke room) — $25.00/hour, size not listed', f)
         self.assertIn('Couple Room (2–4) (room_id 2, karaoke room) — $12.00/hour, up to 4 people', f)
@@ -694,6 +806,7 @@ class KaraokeFacts(KaraokeBase):
         self.assertIn('CONFIRMED instantly', f)
         self.assertIn('Tiger beer — $8.00', f)
         self.assertNotIn('Karaoke room time', f)
+        self.assertNotIn('Tap water', f)                                  # menu QR phòng hát chỉ có món có giá
 
     def test_vnd_venue_prices(self):
         DB.businesses.update_one({'id': BID}, {'$set': {'currency': 'VND', 'country': 'VN'}})
@@ -885,8 +998,13 @@ class KaraokeManage(KaraokeBase):
 
 
 # ================================================================ cùng luật với màn nhân viên + route công khai
+def _app_source():
+    with io.open(os.path.join(ROOT, 'app.py'), encoding='utf-8') as fh:
+        return fh.read()
+
+
 def _app_function(name):
-    src = io.open(os.path.join(ROOT, 'app.py'), encoding='utf-8').read()
+    src = _app_source()
     tree = ast.parse(src)
     fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
     fn.decorator_list = []
@@ -951,7 +1069,7 @@ class PublicRoutes(Base):
             self.assertEqual((row['room_id'], row['status'], row['source'], row['party_size']), (None, 'pending', 'web', 5))
 
     def test_routes_call_reservations_core(self):
-        src = io.open(os.path.join(ROOT, 'app.py'), encoding='utf-8').read()
+        src = _app_source()
         for name, helper in (('api_public_reservation_create', 'create_table_reservation'),
                              ('api_public_karaoke_reservation_create', 'create_karaoke_reservation')):
             body = ast.get_source_segment(src, next(n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == name))
