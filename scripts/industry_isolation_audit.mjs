@@ -86,7 +86,9 @@ for (const ind of ONLY) {
     // trang chủ của CHÍNH ngành mình là đúng thiết kế
     const hrefPath = href.split('?')[0];
     const linksForeign = allForeignPagePaths.has(hrefPath) && !ownPages.has(hrefPath);
-    if (resp.status() !== 200 || foreign || linksForeign) badLinks.push(`${href}→${final} (${resp.status()})`);
+    // link chỉ khác phần #… (vd /ai_bot#copilot ngay sau /ai_bot) = điều hướng trong cùng trang -> Playwright trả null, coi là 200
+    const st = resp ? resp.status() : 200;
+    if (st !== 200 || foreign || linksForeign) badLinks.push(`${href}→${final} (${st})`);
   }
   rec(ind, `${links.length} link sidebar mở đúng, không dẫn sang ngành khác`, badLinks.length === 0, badLinks.join(', '));
   await page.goto(`${BASE}/bangluong`, { waitUntil: 'domcontentloaded' });
