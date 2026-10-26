@@ -9779,60 +9779,168 @@ def api_payment_local_checkout():
 # Vercel Cron Job (xem vercel.json) gọi HTTP vào route này theo lịch hàng ngày.
 # Bảo vệ bằng CRON_SECRET (header Authorization: Bearer <secret>) thay vì
 # @login_required vì Vercel Cron không mang session cookie.
-def _generate_restock_reason_with_ai(product_name, stock, avg_daily, days_left):
-    """Dùng DeepSeek CHỈ để diễn giải cảnh báo bằng lời tự nhiên — số liệu (tồn kho,
-    tốc độ bán, số ngày còn lại) luôn được tính bằng Python trước, AI không tự bịa số."""
-    fallback = (
-        f"Sản phẩm '{product_name}' còn {stock} đơn vị, bán trung bình {avg_daily:.1f}/ngày "
-        f"-> dự kiến hết trong khoảng {days_left:.1f} ngày nữa. Đề xuất nhập thêm hàng sớm."
-    )
-    api_key = os.environ.get('DEEPSEEK_API_KEY')
-    if not api_key:
-        return fallback
+def _shop_lang_currency(business_id):
+    """(ngôn ngữ 'vi'|'en', tiền tệ) của tiệm cho câu chữ gửi CHỦ TIỆM (đề xuất nhập hàng, cảnh báo đối soát).
+    Tiền tệ: businesses.currency, chưa có thì theo quốc gia (VN -> VND, AU -> AUD, nước khác -> USD) — không còn mặc
+    định VND cho tiệm Mỹ/Úc. Tiệm cũ không có dòng businesses (đăng ký đời đầu) giữ VN/VND như _tenant_currency.
+    Ngôn ngữ: ngôn ngữ tiệm chọn ở trang Nhắn tin (db.messaging_settings.language — trường messaging.get_settings đọc),
+    chưa chọn thì theo quốc gia."""
+    row = {}
     try:
-        resp = requests.post(
-            "https://api.deepseek.com/chat/completions",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-            json={
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": "Bạn là trợ lý quản lý kho, viết đúng 1 câu cảnh báo ngắn gọn, "
-                     "thân thiện bằng Tiếng Việt cho chủ tiệm dựa ĐÚNG số liệu được cung cấp, không bịa thêm số liệu khác."},
-                    {"role": "user", "content": f"Sản phẩm: {product_name}. Tồn kho hiện tại: {stock}. "
-                     f"Tốc độ bán trung bình: {avg_daily:.1f}/ngày. Số ngày còn lại trước khi hết hàng: {days_left:.1f}."}
-                ],
-                "temperature": 0.5,
-                "max_tokens": 120
-            },
-            timeout=10
-        )
-        resp.raise_for_status()
-        content = resp.json()['choices'][0]['message']['content'].strip()
-        return content or fallback
+        row = db.businesses.find_one({'id': business_id}, {'_id': 0, 'country': 1, 'currency': 1}) or {}
     except Exception:
-        return fallback
+        pass
+    country = str(row.get('country') or '').upper()
+    currency = str(row.get('currency') or {'VN': 'VND', 'AU': 'AUD', '': 'VND'}.get(country, 'USD')).upper()
+    if not country:
+        country = {'VND': 'VN', 'AUD': 'AU'}.get(currency, 'US')
+    lang = 'vi' if country == 'VN' else 'en'
+    try:
+        chosen = (db.messaging_settings.find_one({'business_id': business_id}, {'_id': 0, 'language': 1}) or {}).get('language')
+        if chosen in ('vi', 'en'):
+            lang = chosen
+    except Exception:
+        pass
+    return lang, currency
+
+
+def _fmt_num(value, lang, decimals=1):
+    """Số theo cách viết của tiệm: 1234.5 -> '1,234.5' (en) / '1.234,5' (vi); bỏ đuôi ',0' / '.0'."""
+    try:
+        v = float(value or 0)
+    except (TypeError, ValueError):
+        v = 0.0
+    s = f"{v:,.{decimals}f}"
+    if decimals and s.endswith('.' + '0' * decimals):
+        s = s[:-(decimals + 1)]
+    return s.replace(',', '\x00').replace('.', ',').replace('\x00', '.') if lang == 'vi' else s
+
+
+def _restock_reason_template(product_name, stock, avg_daily, days_left, suggested_qty, lang, currency, unit_cost=0,
+                             lookback_days=14):
+    """Lý do đề xuất nhập hàng KHÔNG cần AI — đúng ngôn ngữ tiệm, số thật, tiền theo tiền tệ tiệm (giá vốn x số nhập)."""
+    n = lambda v, d=1: _fmt_num(v, lang, d)  # noqa: E731
+    cost = format_money(suggested_qty * unit_cost, currency) if unit_cost and unit_cost > 0 else None
+    if lang == 'vi':
+        when = 'đã hết hàng' if stock <= 0 else f"dự kiến hết sau khoảng {n(days_left)} ngày"
+        return (f"'{product_name}' còn {n(stock)}, bán trung bình {n(avg_daily)}/ngày trong {lookback_days} ngày qua — {when}. "
+                f"Đề xuất nhập {n(suggested_qty, 0)}" + (f" (khoảng {cost} theo giá vốn)." if cost else "."))
+    when = 'already out of stock' if stock <= 0 else f"runs out in about {n(days_left)} days"
+    return (f"'{product_name}': {n(stock)} left, selling about {n(avg_daily)}/day over the last {lookback_days} days — {when}. "
+            f"Suggest ordering {n(suggested_qty, 0)}" + (f" (about {cost} at cost)." if cost else "."))
+
+
+_VI_DIACRITIC_RE = re.compile(r'[ăâđêôơưàáạảãằắặẳẵầấậẩẫèéẹẻẽềếệểễìíịỉĩòóọỏõồốộổỗờớợởỡùúụủũừứựửữỳýỵỷỹ]', re.I)
+
+
+def _restock_ai_text_ok(text, product_name, facts, lang):
+    """Câu AI chỉ được dùng khi: 1 câu ngắn, mọi con số trong câu đều có trong số liệu đã cho (AI không bịa số),
+    và tiệm tiếng Anh không nhận câu tiếng Việt."""
+    if not text or len(text) < 10 or len(text) > 400:
+        return False
+    rest = text.replace(product_name or '', ' ')
+    allowed = set(re.findall(r'\d+', ' '.join(facts)))
+    if not set(re.findall(r'\d+', rest)) <= allowed:
+        return False
+    return not (lang == 'en' and _VI_DIACRITIC_RE.search(rest))
+
+
+def _log_restock_ai_usage(business_id, result):
+    """Sổ dùng AI (db.ai_usage, cùng dạng dòng 'text' của ai_media) với số token THẬT DeepSeek trả về."""
+    usage = (result or {}).get('usage') or {}
+    try:
+        db.ai_usage.insert_one({'business_id': business_id, 'kind': 'text', 'feature': 'restock_reason', 'model': 'deepseek-chat',
+                                'units': int(usage.get('total_tokens') or 0), 'prompt_tokens': int(usage.get('prompt_tokens') or 0),
+                                'completion_tokens': int(usage.get('completion_tokens') or 0), 'job_id': None,
+                                'created_at': datetime.now(timezone.utc)})
+    except Exception as e:
+        print(f"[restock] usage log: {e}")
+
+
+def _generate_restock_reason_with_ai(product_name, stock, avg_daily, days_left, business_id=None, suggested_qty=None,
+                                     lang=None, currency=None, unit_cost=0, lookback_days=14, use_ai=True):
+    """Trả (lý do, nguồn 'ai'|'template'). Số liệu (tồn kho, tốc độ bán, số ngày còn lại, số nhập, tiền) luôn do Python
+    tính và định dạng trước; DeepSeek (qua ai_deepseek_client — đi qua AI Proxy ở Desktop, ghi sổ token) CHỈ diễn đạt
+    lại bằng ngôn ngữ của tiệm. AI lỗi / bịa số / sai ngôn ngữ / gói không có tính năng -> câu mẫu (vẫn số thật)."""
+    if lang is None or currency is None:
+        _lang, _cur = _shop_lang_currency(business_id)
+        lang, currency = lang or _lang, currency or _cur
+    if suggested_qty is None:
+        suggested_qty = max(int(avg_daily * 7 - stock), int(avg_daily * 3) + 1)
+    fallback = _restock_reason_template(product_name, stock, avg_daily, days_left, suggested_qty, lang, currency,
+                                        unit_cost, lookback_days)
+    is_desktop = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+    key = os.environ.get('BITPAW_AI_PROXY_KEY') if is_desktop else os.environ.get('DEEPSEEK_API_KEY')
+    if not use_ai or not key or not business_id:
+        return fallback, 'template'
+    n = lambda v, d=1: _fmt_num(v, lang, d)  # noqa: E731
+    vi = lang == 'vi'
+    facts = [f"{'Sản phẩm' if vi else 'Product'}: {product_name}",
+             f"{'Tồn kho hiện tại' if vi else 'In stock now'}: {n(stock)}",
+             f"{'Bán trung bình mỗi ngày' if vi else 'Average sold per day'} ({lookback_days} {'ngày qua' if vi else 'days'}): {n(avg_daily)}",
+             (f"{'Số ngày còn lại trước khi hết' if vi else 'Days until it runs out'}: {n(days_left)}" if stock > 0
+              else ('Đã hết hàng' if vi else 'Already out of stock')),
+             f"{'Đề xuất nhập' if vi else 'Suggested order quantity'}: {n(suggested_qty, 0)}"]
+    if unit_cost and unit_cost > 0:
+        facts.append(f"{'Chi phí nhập ước tính (giá vốn)' if vi else 'Estimated cost at cost price'}: {format_money(suggested_qty * unit_cost, currency)}")
+    system = ("Bạn là trợ lý kho hàng. Viết ĐÚNG 1 câu ngắn, thân thiện bằng tiếng Việt cho chủ cửa hàng. Chỉ dùng các con số "
+              "được cho, chép y nguyên cách viết (kể cả ký hiệu tiền), không thêm con số nào khác, không dùng markdown." if vi else
+              "You are an inventory assistant. Write exactly ONE short, friendly sentence in English for the shop owner. Use only "
+              "the numbers given, copied exactly as written (including the currency sign), add no other numbers, no markdown.")
+    t0 = time.time()
+    try:
+        result = deepseek_chat_completion(
+            {"model": "deepseek-chat", "messages": [{"role": "system", "content": system},
+                                                    {"role": "user", "content": "\n".join(facts)}],
+             "temperature": 0.4, "max_tokens": 120},
+            business_id=business_id,
+            proxy_api_key=key if is_desktop else None,
+            direct_api_key=key if not is_desktop else None,
+            timeout=10,
+        )
+        _log_restock_ai_usage(business_id, result)
+        text = ' '.join(str(((result.get('choices') or [{}])[0].get('message') or {}).get('content') or '').split()).strip('"“” ')
+        ok = _restock_ai_text_ok(text, product_name, facts, lang)
+        _log_ai_run('restock_reason', business_id, time.time() - t0, fallback=not ok,
+                    error=None if ok else 'AI text rejected (numbers or language)')
+        return (text, 'ai') if ok else (fallback, 'template')
+    except Exception as e:
+        _log_ai_run('restock_reason', business_id, time.time() - t0, fallback=True, error=e)
+        return fallback, 'template'
 
 
 def _run_inventory_forecast_for_business(business_id, lookback_days, since_iso):
     """Tính tốc độ bán mỗi sản phẩm trong lookback_days ngày gần nhất, cảnh báo sản phẩm
-    sắp hết hàng (còn <= 3 ngày bán theo tốc độ trung bình) và tạo phiếu đề xuất nhập hàng."""
-    products = list(db.products.find(
-        {'business_id': business_id, 'is_active': 1}, {'id': 1, 'name': 1, 'stock': 1, '_id': 0}
-    ))
+    sắp hết hàng (còn <= 3 ngày bán theo tốc độ trung bình) và tạo phiếu đề xuất nhập hàng.
+    Chỉ sản phẩm CÓ theo dõi tồn kho (dịch vụ không có trường stock). Số bán lấy từ đơn bán thật trong kỳ
+    (order_items của POS không có created_at — trước đây lọc theo created_at nên đơn thật không bao giờ được đếm)."""
+    products = [p for p in db.products.find(
+        {'business_id': business_id, 'is_active': {'$in': [1, True]}}, {'id': 1, 'name': 1, 'stock': 1, 'cost_price': 1, '_id': 0}
+    ) if isinstance(p.get('stock'), (int, float)) and not isinstance(p.get('stock'), bool)]
     if not products:
         return 0
     product_ids = [p['id'] for p in products]
 
+    order_ids = [o['id'] for o in db.orders.find(
+        {'business_id': business_id, 'created_at': {'$gte': since_iso}, **_REVENUE_ORDER_FILTER}, {'id': 1, '_id': 0}
+    ) if o.get('id') is not None]
+    if not order_ids:
+        return 0
     items = list(db.order_items.find(
-        {'product_id': {'$in': product_ids}, 'created_at': {'$gte': since_iso}},
+        {'order_id': {'$in': order_ids}, 'product_id': {'$in': product_ids}},
         {'product_id': 1, 'quantity': 1, '_id': 0}
     ))
     sold_qty = {}
     for it in items:
         pid = it.get('product_id')
-        sold_qty[pid] = sold_qty.get(pid, 0) + (it.get('quantity') or 0)
+        try:
+            qty = float(it.get('quantity') or 0)
+        except (TypeError, ValueError):
+            qty = 0.0
+        sold_qty[pid] = sold_qty.get(pid, 0) + qty
 
     created = 0
+    lang = currency = use_ai = None
     for p in products:
         total_sold = sold_qty.get(p['id'], 0)
         if total_sold <= 0:
@@ -9849,8 +9957,20 @@ def _run_inventory_forecast_for_business(business_id, lookback_days, since_iso):
         if existing:
             continue  # đã có đề xuất đang chờ xử lý cho sản phẩm này, không tạo trùng
 
+        if lang is None:
+            lang, currency = _shop_lang_currency(business_id)
+            try:  # AI diễn đạt chỉ cho gói có Cảnh báo tồn kho (Pro+); gói thấp hơn vẫn có đề xuất bằng câu mẫu
+                use_ai = plans.allows(plans.business_plan(db, business_id), 'inventory')
+            except Exception:
+                use_ai = False
         suggested_qty = max(int(avg_daily * 7 - stock), int(avg_daily * 3) + 1)
-        reason = _generate_restock_reason_with_ai(p['name'], stock, avg_daily, days_left)
+        try:
+            unit_cost = float(p.get('cost_price') or 0)
+        except (TypeError, ValueError):
+            unit_cost = 0.0
+        reason, reason_source = _generate_restock_reason_with_ai(
+            p['name'], stock, avg_daily, days_left, business_id=business_id, suggested_qty=suggested_qty, lang=lang,
+            currency=currency, unit_cost=unit_cost, lookback_days=lookback_days, use_ai=use_ai)
         db.restock_proposals.insert_one({
             'id': next_mongo_id('restock_proposals'),
             'business_id': business_id,
@@ -9859,7 +9979,11 @@ def _run_inventory_forecast_for_business(business_id, lookback_days, since_iso):
             'current_stock': stock,
             'avg_daily_sales': round(avg_daily, 2),
             'suggested_qty': suggested_qty,
+            'est_cost': round(suggested_qty * unit_cost, 2) if unit_cost > 0 else None,
+            'currency': currency,
+            'lang': lang,
             'reason': reason,
+            'reason_source': reason_source,
             'status': 'pending',
             'created_at': datetime.now().isoformat(),
         })
@@ -9961,11 +10085,40 @@ def _get_all_active_business_ids():
     return list(ids)
 
 
+# Sai lệch tối thiểu để báo động, THEO TIỀN TỆ của tiệm: trước đây cứng 1.000 đơn vị cho mọi tiệm -> tiệm USD/AUD
+# chỉ được báo khi lệch từ $1.000 (gần như tắt). VND: 1.000đ; tiền có xu (USD, AUD...): 1,00.
+_RECON_MIN_MISMATCH = {'VND': 1000.0}
+
+
+def _reconciliation_threshold(currency):
+    return _RECON_MIN_MISMATCH.get(str(currency or '').upper(), 1.0)
+
+
+def _reconciliation_details(issue_type, lang, currency, txn_id, amount=0.0, order_amount=0.0, age_hours=0.0):
+    """Câu báo động đối soát bằng ngôn ngữ của tiệm, tiền theo tiền tệ của tiệm."""
+    money = lambda v: format_money(v, currency)  # noqa: E731
+    vi = lang == 'vi'
+    if issue_type == 'missing_order':
+        return (f"Giao dịch {txn_id} báo hoàn tất nhưng không tìm thấy đơn hàng tương ứng." if vi else
+                f"Payment {txn_id} is marked completed, but no matching order was found.")
+    if issue_type == 'amount_mismatch':
+        diff = order_amount - amount
+        if vi:
+            return (f"Giao dịch {txn_id}: số tiền ghi nhận {money(amount)} nhưng đơn hàng thực tế {money(order_amount)} "
+                    f"({'thu thiếu' if diff > 0 else 'thu thừa'} {money(abs(diff))}).")
+        return (f"Payment {txn_id}: {money(amount)} was recorded, but the order total is {money(order_amount)} "
+                f"({money(abs(diff))} {'short' if diff > 0 else 'over'}).")
+    hours = _fmt_num(age_hours, lang)
+    return (f"Giao dịch {txn_id} vẫn ở trạng thái chờ sau {hours} giờ — nghi ngờ tiền chưa vào tài khoản." if vi else
+            f"Payment {txn_id} is still pending after {hours} hours — the money may not have arrived.")
+
+
 def _run_payment_reconciliation_for_business(business_id, lookback_days):
     """Đối soát chéo payment_transactions <-> orders, phát hiện: (a) giao dịch báo đã
     hoàn tất ('completed') nhưng không có order tương ứng, (b) số tiền giao dịch lệch với
     tổng đơn hàng (thu thiếu/thừa), (c) giao dịch treo 'pending' quá lâu (nghi ngờ tiền
-    chưa vào). Ghi báo động vào reconciliation_alerts, không tạo trùng cảnh báo đang chờ xử lý."""
+    chưa vào). Ghi báo động vào reconciliation_alerts, không tạo trùng cảnh báo đang chờ xử lý.
+    Ngưỡng lệch + câu báo theo tiền tệ / ngôn ngữ của tiệm (_shop_lang_currency)."""
     since_iso = (datetime.now() - timedelta(days=lookback_days)).isoformat()
     alerts_created = 0
     try:
@@ -9975,9 +10128,14 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
     except Exception as e:
         print(f"Loi lay payment_transactions cho {business_id}: {e}")
         return 0
+    if not txns:
+        return 0
+    lang, currency = _shop_lang_currency(business_id)
+    min_mismatch = _reconciliation_threshold(currency)
 
+    # đơn lấy rộng hơn 1 ngày: giao dịch đầu kỳ có đơn tạo ngay trước mốc không bị báo nhầm "không có đơn"
     orders_data = list(db.orders.find(
-        {'business_id': business_id, 'created_at': {'$gte': since_iso}},
+        {'business_id': business_id, 'created_at': {'$gte': (datetime.now() - timedelta(days=lookback_days + 1)).isoformat()}},
         {'metadata.order_code': 1, 'total_amount': 1, '_id': 0}
     ))
     orders_by_code = {
@@ -9989,7 +10147,10 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
     for txn in txns:
         txn_id = txn.get('transaction_id')
         status = txn.get('status')
-        amount = txn.get('amount') or 0
+        try:
+            amount = float(txn.get('amount') or 0)
+        except (TypeError, ValueError):
+            amount = 0.0
         issue_type = None
         details = None
         expected_amount = None
@@ -9998,16 +10159,16 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
             order = orders_by_code.get(txn_id)
             if not order:
                 issue_type = 'missing_order'
-                details = f"Giao dịch {txn_id} báo hoàn tất nhưng không tìm thấy đơn hàng tương ứng."
+                details = _reconciliation_details(issue_type, lang, currency, txn_id)
             else:
-                order_amount = order.get('total_amount') or 0
-                if abs(order_amount - amount) >= 1000:  # sai lệch từ 1.000đ trở lên mới báo động
+                try:
+                    order_amount = float(order.get('total_amount') or 0)
+                except (TypeError, ValueError):
+                    order_amount = 0.0
+                if round(abs(order_amount - amount), 2) >= min_mismatch:
                     issue_type = 'amount_mismatch'
                     expected_amount = order_amount
-                    details = (
-                        f"Giao dịch {txn_id}: số tiền ghi nhận {amount:,.0f}đ nhưng đơn hàng thực tế "
-                        f"{order_amount:,.0f}đ (chênh lệch {order_amount - amount:,.0f}đ)."
-                    ).replace(',', '.')
+                    details = _reconciliation_details(issue_type, lang, currency, txn_id, amount, order_amount)
         elif status == 'pending':
             created_at_str = txn.get('created_at')
             if created_at_str:
@@ -10016,7 +10177,7 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
                     age_hours = (datetime.now(created_at.tzinfo) - created_at).total_seconds() / 3600
                     if age_hours >= stale_pending_hours:
                         issue_type = 'stale_pending'
-                        details = f"Giao dịch {txn_id} vẫn ở trạng thái chờ sau {age_hours:.1f} giờ — nghi ngờ tiền chưa vào tài khoản."
+                        details = _reconciliation_details(issue_type, lang, currency, txn_id, age_hours=age_hours)
                 except Exception:
                     pass
 
@@ -10037,6 +10198,7 @@ def _run_payment_reconciliation_for_business(business_id, lookback_days):
             'issue_type': issue_type,
             'expected_amount': expected_amount,
             'actual_amount': amount,
+            'currency': currency,
             'details': details,
             'status': 'pending',
             'created_at': datetime.now().isoformat(),
