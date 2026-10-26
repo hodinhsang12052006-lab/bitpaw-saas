@@ -4,8 +4,9 @@ công (chủ tiệm phải tự bấm "Generate Campaign" mỗi lần muốn ch�
 db.customers đối chiếu với db.nurture_schedule_rules (cấu hình riêng từng tenant, tạo qua
 app.py:/api/ai/nurture/rules — vd "khách không ghé 30 ngày"). Khách nào khớp điều kiện: gọi
 Claude (qua AINurturingEngine.generate_single_nurture_message, xem ai_nurturing_engine.py) sinh
-1 tin nhắn, rồi đẩy vào db.campaign_messages — APPROVED (gửi thẳng, message_delivery_worker.py
-sẽ gửi) nếu rule.auto_send=True, hoặc PENDING (vào hàng chờ duyệt tay, y hệt UI đã có) nếu False.
+1 tin nhắn, rồi đẩy vào db.campaign_messages — APPROVED (gửi thẳng: bộ gửi chung messaging.pump xếp hàng + gửi
+trong khung giờ của tiệm, bỏ khách đã từ chối nhận tin) nếu rule.auto_send=True, hoặc PENDING (hàng chờ duyệt tay) nếu False.
+Kênh: 1 bộ chữ thường messaging.CHANNELS (sms, email, zalo, messenger) — rule cũ lưu 'zalo_oa'/'facebook' được chuẩn hoá.
 
 CÁCH CHẠY:
     python nurture_scheduler.py            # quét 1 lần rồi thoát — dùng với cron thật:
@@ -14,7 +15,7 @@ CÁCH CHẠY:
 """
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Ép stdout/stderr UTF-8 khi chạy standalone trên Windows (không qua app.py) — cùng lớp bug với
 # app.py: log tiếng Việt có dấu ném UnicodeEncodeError nếu console/pipe không phải UTF-8, làm
@@ -81,11 +82,14 @@ def _process_rule(rule):
     import messaging
     lang = messaging.get_settings(business_id)['language']
     template = None
-    default_channel = 'zalo_oa' if lang == 'vi' else 'SMS'
+    default_channel = 'zalo' if lang == 'vi' else 'sms'
+    channel = messaging.normalize_channel(rule.get('channel'), default_channel)
 
     for cust in customers:
         if not _customer_matches_rule(cust, rule):
             continue
+        if not any(cust.get(k) for k in ('phone', 'email', 'zalo_user_id', 'fb_psid')):
+            continue  # không có cách liên lạc nào -> không tạo tin chờ duyệt vô ích
         cust_id = cust.get('id')
         if _already_triggered_recently(business_id, rule_id, cust_id, cooldown_days):
             continue
@@ -109,9 +113,10 @@ def _process_rule(rule):
             'customer_id': cust_id,
             'step_delay': 0,
             'message_body': message_body,
-            'channel': rule.get('channel') or default_channel,
+            'channel': channel,
             'approval_status': approval_status,
-            'approved_at': datetime.now().isoformat() if approval_status == 'APPROVED' else None,
+            # UTC có múi giờ, như /api/ai/nurture/approve-message (messaging.produce_nurture tính ngày gửi từ mốc này)
+            'approved_at': datetime.now(timezone.utc).isoformat() if approval_status == 'APPROVED' else None,
             'source': 'auto_rule',
             'rule_id': rule_id,
             'created_at': datetime.now().isoformat(),

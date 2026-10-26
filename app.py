@@ -5040,31 +5040,38 @@ def _resolve_staff_commission_rate(business_id, staff_doc, override_rate=None):
     return _get_business_commission_rate(business_id)
 
 
-def _queue_loyalty_notification(business_id, customer, event_type, message):
-    """Ghi lại thông báo loyalty (tích điểm/lên hạng/sinh nhật) vào bảng loyalty_events.
-    Nếu khách đã có zalo_user_id/fb_psid (từng tương tác qua OA/Messenger) VÀ server đã cấu hình
-    access token thật (ZALO_OA_ACCESS_TOKEN / FB_PAGE_ACCESS_TOKEN) thì gửi luôn; ngược lại chỉ
-    lưu trạng thái 'queued' để nhân viên tự liên hệ hoặc chờ khi nào cấu hình kênh gửi."""
+def _queue_loyalty_notification(business_id, customer, event_type, message, send_after=None, dedupe_key=None, settings=None):
+    """Thông báo cho KHÁCH (tích điểm / lên hạng / sinh nhật / nhắc lịch kiểu cũ của tiệm VN) qua kênh của CHÍNH tiệm:
+    Zalo OA / Messenger đã nối ở Hộp thư chung (chỉ trong khung trả lời của nền tảng: 24 giờ / 48 giờ kể từ tin gần nhất
+    của khách), hoặc SMS (Twilio của tiệm) / email — qua hàng đợi messaging (khung giờ gửi của tiệm, khách đã từ chối thì
+    không gửi, chống trùng), bộ gửi messaging.pump gửi thật. Trước đây: 1 token Zalo/Facebook CHUNG của cả máy chủ
+    (ZALO_OA_ACCESS_TOKEN / FB_PAGE_ACCESS_TOKEN) — tin có thể đi ra từ OA/Page của tiệm KHÁC, luôn tiếng Việt.
+    message: chuỗi, hoặc (tiếng Anh, tiếng Việt) để chọn theo ngôn ngữ của tiệm; '{shop}' = tên tiệm.
+    Tích điểm/lên hạng: SMS (tốn phí mỗi bill) chỉ khi chủ tiệm bật loyalty_sms_enabled. Ghi nhật ký loyalty_events.
+    Trả trạng thái: queued | duplicate | skipped_no_channel | no_channel | opted_out | skipped | disabled | failed."""
     channel = None
     status = 'skipped_no_channel'
     try:
-        if customer.get('zalo_user_id') and os.environ.get('ZALO_OA_ACCESS_TOKEN'):
-            channel = 'zalo'
-            resp = requests.post(
-                'https://openapi.zalo.me/v3.0/oa/message/cs',
-                headers={'access_token': os.environ.get('ZALO_OA_ACCESS_TOKEN'), 'Content-Type': 'application/json'},
-                json={'recipient': {'user_id': customer['zalo_user_id']}, 'message': {'text': message}},
-                timeout=10
-            )
-            status = 'sent' if resp.ok else 'failed'
-        elif customer.get('fb_psid') and os.environ.get('FB_PAGE_ACCESS_TOKEN'):
-            channel = 'facebook'
-            resp = requests.post(
-                f"https://graph.facebook.com/v18.0/me/messages?access_token={os.environ.get('FB_PAGE_ACCESS_TOKEN')}",
-                json={'recipient': {'id': customer['fb_psid']}, 'message': {'text': message}},
-                timeout=10
-            )
-            status = 'sent' if resp.ok else 'failed'
+        import messaging
+        st = settings or messaging.get_settings(business_id)
+        if isinstance(message, (tuple, list)):
+            message = message[0] if st['language'] == 'en' else message[1]
+        message = str(message).replace('{shop}', st['business_name'])
+        kind = {'birthday': 'birthday', 'points_awarded': 'loyalty', 'tier_upgrade': 'loyalty'}.get(event_type, event_type)
+        allow = None
+        if event_type == 'appointment_reminder':
+            allow = messaging.SOCIAL_CHANNELS   # SMS/email của nhắc lịch: messaging.produce_appointment_reminders
+        elif kind == 'loyalty':
+            allow = ('zalo', 'messenger', 'email') + (('sms',) if st.get('loyalty_sms_enabled') else ())
+        enabled = st.get('birthday_enabled', True) if kind == 'birthday' else (
+            st.get('loyalty_messages_enabled', True) if kind == 'loyalty' else True)
+        if not enabled:
+            status = 'disabled'
+        else:
+            channel, status, _qid = messaging.queue_customer_message(business_id, customer or {}, message, kind, settings=st,
+                                                                     send_after=send_after, dedupe_key=dedupe_key, allow=allow)
+            if status == 'no_contact':
+                status = 'skipped_no_channel'
     except Exception as e:
         status = 'failed'
         print(f"Loi gui loyalty notification: {e}")
@@ -5074,15 +5081,16 @@ def _queue_loyalty_notification(business_id, customer, event_type, message):
             db.loyalty_events.insert_one({
                 'id': next_mongo_id('loyalty_events'),
                 'business_id': business_id,
-                'customer_id': customer.get('id'),
+                'customer_id': (customer or {}).get('id'),
                 'event_type': event_type,
                 'channel': channel or 'none',
-                'message': message,
+                'message': message if isinstance(message, str) else ' / '.join(map(str, message)),
                 'status': status,
                 'created_at': datetime.now().isoformat(),
             })
     except Exception as e:
         print(f"Loi ghi loyalty_events: {e}")
+    return status
 
 
 def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='VND', name=None):
@@ -5137,18 +5145,19 @@ def _award_loyalty_points(business_id, customer_phone, amount_spent, currency='V
                                         {'$set': {'tier': new_tier}})
                 customer['tier'] = new_tier
 
-        # Tin gửi KHÁCH của tiệm: tiệm Mỹ/Úc (tiền đô) viết tiếng Anh — trước đây khách ở Úc nhận tin tiếng Việt
+        # Tin gửi KHÁCH theo NGÔN NGỮ của tiệm (cài đặt Nhắn tin), qua kênh của chính tiệm. Không hứa "ưu đãi đặc biệt"
+        # mà chủ tiệm chưa từng đặt ra.
         total_pts = customer.get('loyalty_points', 0)
         _queue_loyalty_notification(
             business_id, customer, 'points_awarded',
-            f"Thanks for visiting! You earned {points_earned} reward points — you now have {total_pts}." if is_usd else
-            f"Cảm ơn bạn đã mua hàng! Bạn vừa được cộng {points_earned} điểm thưởng, tổng hiện có {total_pts} điểm."
+            (f"Thanks for visiting {{shop}}! You earned {points_earned} reward points — you now have {total_pts}.",
+             f"Cảm ơn bạn đã ghé {{shop}}! Bạn vừa được cộng {points_earned} điểm thưởng, tổng hiện có {total_pts} điểm.")
         )
         if old_tier is not None and new_tier != old_tier:
             _queue_loyalty_notification(
                 business_id, customer, 'tier_upgrade',
-                f"Congratulations — you're now a {new_tier} member. A special offer is waiting for you on your next visit!" if is_usd else
-                f"Chúc mừng! Bạn vừa được nâng hạng thành viên lên {new_tier}. Một ưu đãi đặc biệt đang chờ bạn ở lần ghé thăm tiếp theo!"
+                (f"Congratulations — you're now a {new_tier} member at {{shop}}. Thank you for coming back!",
+                 f"Chúc mừng! Bạn vừa được nâng hạng thành viên {new_tier} tại {{shop}}. Cảm ơn bạn đã luôn ủng hộ!")
             )
     except Exception as e:
         print(f"Loi award loyalty points: {e}")
@@ -9867,24 +9876,36 @@ def _run_inventory_forecast_for_business(business_id, lookback_days, since_iso):
     return created
 
 
-def _run_birthday_check_for_business(business_id):
-    """Quét khách hàng có sinh nhật hôm nay, xếp hàng gửi lời chúc + ưu đãi qua loyalty_events."""
-    today_md = datetime.now().strftime('%m-%d')
-    customers_data = list(db.customers.find({'business_id': business_id}, {'_id': 0})) if db is not None else []
-    sent = 0
-    for c in customers_data:
-        dob = c.get('dob')
-        if not dob or len(str(dob)) < 10:
+def _run_birthday_check_for_business(business_id, now_utc=None):
+    """Lời chúc sinh nhật theo GIỜ + NGÔN NGỮ của tiệm, qua kênh của chính tiệm (Zalo/Messenger trong khung, SMS, email).
+    Ngày chúc = ngày gửi kế tiếp theo giờ tiệm (messaging.birthday_plan: cron 02:00 UTC là 22:00 hôm trước ở Mỹ -> xếp cho
+    9:00 sáng hôm sinh nhật, không trễ 1 ngày), sớm N ngày nếu chủ tiệm cài birthday_days_before. Mỗi khách 1 lần/năm.
+    Không kèm "ưu đãi" tự bịa (trước đây hứa quà theo hạng mà tiệm chưa từng đặt ra). Trả số tin đã xếp hàng."""
+    if db is None:
+        return 0
+    import messaging
+    st = messaging.get_settings(business_id)
+    if not st.get('birthday_enabled', True):
+        return 0
+    plan = messaging.birthday_plan(st, now_utc)
+    early = plan['days_before'] > 0
+    when_en = plan['birthday'].strftime('%A %b %d').replace(' 0', ' ')
+    when_vi = plan['birthday'].strftime('%d/%m')
+    queued = 0
+    for c in db.customers.find({'business_id': business_id, 'dob': {'$nin': [None, '']}},
+                               {'_id': 0, 'id': 1, 'name': 1, 'phone': 1, 'email': 1, 'dob': 1, 'zalo_user_id': 1, 'fb_psid': 1}):
+        dob = str(c.get('dob') or '')
+        if len(dob) < 10 or dob[5:10] not in plan['match_md']:
             continue
-        if str(dob)[5:10] != today_md:
-            continue
-        message = (
-            f"🎉 Chúc mừng sinh nhật {c.get('name') or 'bạn'}! Nhân dịp đặc biệt này, tiệm xin tặng bạn "
-            f"1 ưu đãi dành riêng cho hạng {c.get('tier') or 'Normal'} — ghé tiệm trong tuần này để nhận quà nhé!"
-        )
-        _queue_loyalty_notification(business_id, c, 'birthday', message)
-        sent += 1
-    return sent
+        first = messaging.first_name(c.get('name'), st)
+        message = ((f"Hi {first}, your birthday is coming up on {when_en} — everyone at {{shop}} wishes you a wonderful day!",
+                    f"Chào {first}, sắp tới sinh nhật bạn ({when_vi}) rồi — {{shop}} chúc bạn một ngày thật vui!") if early else
+                   (f"Happy birthday, {first}! Everyone at {{shop}} wishes you a wonderful day.",
+                    f"Chúc mừng sinh nhật {first}! {{shop}} chúc bạn một ngày thật vui và nhiều niềm vui."))
+        status = _queue_loyalty_notification(business_id, c, 'birthday', message, send_after=plan['send_after'],
+                                             dedupe_key=f"bday:{business_id}:{c.get('id')}:{plan['birthday'].year}", settings=st)
+        queued += 1 if status == 'queued' else 0
+    return queued
 
 
 def _run_appointment_reminder_check_for_business(business_id, now):
@@ -10118,12 +10139,19 @@ def cron_daily_tasks():
             results["errors"].append(f"reconciliation[{business_id}]: {str(e)}")
         try:
             import messaging
-            msg_stats = messaging.pump(business_id, base_url=os.environ.get('PUBLIC_BASE_URL', request.host_url))
+            base_url = os.environ.get('PUBLIC_BASE_URL', request.host_url)
+            msg_stats = messaging.pump(business_id, base_url=base_url)
             results["appointment_reminders_queued"] += msg_stats.get('produced', 0)
             results.setdefault("messages_sent", 0)
             results["messages_sent"] += msg_stats.get('sent', 0)
-            if messaging.get_settings(business_id)['country'] == 'VN':
-                results["appointment_reminders_queued"] += _run_appointment_reminder_check_for_business(business_id, now)
+            msg_settings = messaging.get_settings(business_id)
+            if msg_settings['country'] == 'VN':
+                # Lịch hẹn khách KHÔNG có SMS/email (pump đã nhắc phần còn lại): Zalo/Messenger của chính tiệm trong khung trả
+                # lời. Giờ ĐỊA PHƯƠNG của tiệm (book_time lưu giờ tiệm) — trước đây so với giờ máy chủ UTC.
+                legacy = _run_appointment_reminder_check_for_business(business_id, messaging.local_now(msg_settings).replace(tzinfo=None))
+                results["appointment_reminders_queued"] += legacy
+                if legacy:
+                    results["messages_sent"] += messaging.pump(business_id, base_url=base_url, produce=False).get('sent', 0)
         except Exception as e:
             results["errors"].append(f"messaging[{business_id}]: {str(e)}")
 
@@ -13364,133 +13392,33 @@ def nurture_connect_status():
 @app.route('/api/ai/nurture/toggle-connection', methods=['POST'])
 @login_required
 def nurture_toggle_connection():
-    data = request.json or {}
-    platform = data.get('platform')
-    action = data.get('action') # 'CONNECT', 'DISCONNECT', 'SAVE'
-    
-    if not platform:
-        return jsonify({"success": False, "message": "Missing platform parameter"}), 400
-        
-    business_id, _biz_err = _get_tenant_business_id_or_401()
-    if _biz_err:
-        return _biz_err
-    
-    try:
-        conn = sqlite3.connect('database.db')
-        c = conn.cursor()
-        
-        if action == 'DISCONNECT':
-            c.execute("UPDATE platform_connections SET connection_status = 'DISCONNECTED', config_data = NULL, updated_at = CURRENT_TIMESTAMP WHERE business_id = ? AND platform = ?",
-                      (business_id, platform))
-            conn.commit()
-            conn.close()
-            return jsonify({"success": True, "status": "DISCONNECTED"})
-            
-        elif action == 'SAVE':
-            account_name = data.get('account_name', '').strip()
-            channel_id = data.get('channel_id', '').strip()
-            access_token = data.get('access_token', '').strip()
-            
-            if not account_name or not channel_id or not access_token:
-                conn.close()
-                return jsonify({"success": False, "message": "Vui lòng nhập đầy đủ thông tin kết nối và API Access Token!"}), 400
-                
-            config_payload = {
-                "account_name": account_name,
-                "channel_id": channel_id,
-                "access_token": access_token
-            }
-            config_str = json.dumps(config_payload)
-            
-            c.execute("INSERT OR REPLACE INTO platform_connections (id, business_id, platform, connection_status, config_data, updated_at) VALUES (?, ?, ?, 'CONNECTED', ?, CURRENT_TIMESTAMP)",
-                      (f"{business_id}-{platform}", business_id, platform, config_str))
-            conn.commit()
-            conn.close()
-            return jsonify({"success": True, "status": "CONNECTED"})
-            
-        else: # Standard fallback toggle
-            c.execute("SELECT connection_status, config_data FROM platform_connections WHERE business_id = ? AND platform = ?", (business_id, platform))
-            row = c.fetchone()
-            current_status = row[0] if row else 'DISCONNECTED'
-            config_str = row[1] if row else None
-            
-            new_status = 'DISCONNECTED' if current_status == 'CONNECTED' else 'CONNECTED'
-            
-            if new_status == 'CONNECTED':
-                config = {}
-                if config_str:
-                    try:
-                        config = json.loads(config_str)
-                    except Exception:
-                        pass
-                if not config.get('access_token'):
-                    conn.close()
-                    return jsonify({"success": False, "message": "Chưa cấu hình API key. Vui lòng cấu hình tài khoản trước!"}), 400
-            
-            c.execute("INSERT OR REPLACE INTO platform_connections (id, business_id, platform, connection_status, config_data, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
-                      (f"{business_id}-{platform}", business_id, platform, new_status, config_str))
-            conn.commit()
-            conn.close()
-            return jsonify({"success": True, "status": new_status})
-            
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    """ĐÃ NGỪNG: trước đây lưu token Zalo/Facebook vào SQLite database.db (không tồn tại/không bền trên Vercel) — báo
+    'CONNECTED' mà không tin chăm sóc nào dùng tới. Kết nối kênh nay chỉ có 1 nơi: Hộp thư chung (/inbox/channels,
+    inbox_channels.py) — vừa nhận tin, vừa gửi tin chăm sóc/sinh nhật/tích điểm qua đúng kênh đó (messaging.pump)."""
+    return _nurture_connect_moved()
+
+
+def _nurture_connect_moved():
+    return jsonify({
+        "success": False, "code": "moved_to_inbox_channels", "redirect": "/inbox/channels",
+        "message": _vi_en('Kết nối Zalo OA / Messenger nay ở Kênh nhắn tin (/inbox/channels): kết nối 1 lần là vừa nhận tin '
+                          'của khách, vừa gửi được tin chăm sóc, sinh nhật, tích điểm qua đúng OA/Page của tiệm. '
+                          'Zalo/Messenger chỉ gửi được trong khung trả lời của nền tảng (Messenger 24 giờ, Zalo 48 giờ kể từ '
+                          'tin gần nhất của khách); ngoài khung tin sẽ đi SMS/email nếu khách có.',
+                          'Zalo OA / Messenger are now connected in Messaging channels (/inbox/channels): connect once to '
+                          'receive customer messages and send follow-ups, birthday and rewards messages from your own '
+                          'OA/Page. Zalo/Messenger can only send inside the platform reply window (Messenger 24 h, Zalo 48 h '
+                          "after the customer's last message); outside it the message goes by SMS/email when available."),
+    }), 410
+
 
 @app.route('/api/ai/nurture/test-connection', methods=['POST'])
 @login_required
 def nurture_test_connection():
-    """Mã Nurture Part 3 audit — TRƯỚC ĐÂY: trả 'Kết nối thử nghiệm thành công' hardcode ngay
-    khi thấy access_token/channel_id không rỗng, KHÔNG hề gọi provider nào để xác minh. GIỜ: gọi
-    thật API của Zalo OA / Facebook để xác thực token, chỉ báo thành công khi provider THẬT SỰ
-    xác nhận, và lưu token đã xác thực (mã hoá) theo business_id để message_delivery_worker.py
-    dùng lại khi gửi tin nhắn nurture thật."""
-    data = request.json or {}
-    platform = (data.get('platform') or '').strip().lower()
-    access_token = (data.get('access_token') or '').strip()
-
-    if platform not in ('zalo', 'zalo_oa', 'facebook', 'messenger'):
-        return jsonify({"success": False, "message": f"Platform '{platform}' chưa được hỗ trợ thật."}), 400
-    if not access_token:
-        return jsonify({"success": False, "message": "Thiếu access_token."}), 400
-
-    business_id = session.get('business_id') or session['user_id']
-    norm_platform = 'zalo_oa' if platform in ('zalo', 'zalo_oa') else 'facebook'
-
-    try:
-        if norm_platform == 'zalo_oa':
-            resp = requests.get(
-                'https://openapi.zalo.me/v2.0/oa/getoa',
-                headers={'access_token': access_token}, timeout=10,
-            )
-            payload = resp.json()
-            if payload.get('error') not in (0, None):
-                return jsonify({"success": False, "message": f"Zalo từ chối token: {payload.get('message')}"}), 400
-            oa_data = payload.get('data') or {}
-            extra = {'oa_id': oa_data.get('oa_id'), 'oa_name': oa_data.get('name')}
-        else:
-            resp = requests.get(
-                'https://graph.facebook.com/v21.0/me',
-                params={'access_token': access_token, 'fields': 'id,name'}, timeout=10,
-            )
-            payload = resp.json()
-            if 'error' in payload:
-                return jsonify({"success": False, "message": f"Facebook từ chối token: {payload['error'].get('message')}"}), 400
-            extra = {'page_id': payload.get('id'), 'page_name': payload.get('name')}
-    except requests.exceptions.Timeout:
-        return jsonify({"success": False, "message": "Provider API timeout, vui lòng thử lại."}), 504
-    except requests.exceptions.RequestException as e:
-        return jsonify({"success": False, "message": f"Lỗi kết nối tới provider: {e}"}), 502
-
-    try:
-        nurture_channel_tokens.save_channel_token(business_id, norm_platform, access_token, extra)
-    except RuntimeError as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-    return jsonify({
-        "success": True,
-        "message": f"Đã xác thực & lưu token {norm_platform} thật (phản hồi provider: {extra}).",
-        "info": extra,
-    })
+    """ĐÃ NGỪNG (gộp vào Hộp thư chung): trước đây xác thực token rồi lưu riêng vào nurture_channel_tokens ('zalo_oa' /
+    'facebook') cho message_delivery_worker.py — worker không chạy, và token đó không nhận được tin của khách nên không bao
+    giờ biết zalo_user_id/fb_psid hay khung 24 giờ. Giờ inbox_channels.connect() xác thực THẬT với nền tảng + nhận webhook."""
+    return _nurture_connect_moved()
 
 
 
@@ -13723,7 +13651,9 @@ def nurture_import_data():
 
     try:
         recomputed = recompute_customer_segments(business_id)
-        return jsonify({"success": True, "message": f"Đã tính lại phân khúc chăm sóc cho {recomputed} khách hàng thành công!"})
+        return jsonify({"success": True, "recomputed": recomputed,
+                        "message": _vi_en(f"Đã tính lại phân khúc chăm sóc cho {recomputed} khách hàng.",
+                                          f"Recalculated care segments for {recomputed} customers.")})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -13751,10 +13681,9 @@ def nurture_generate_campaign():
     from ai_nurturing_engine import customer_fill_values
     msg_settings = messaging.get_settings(business_id)
     lang = msg_settings['language']
-    # Mỹ/Úc: SMS (Twilio) hoặc Email; Việt Nam: Zalo/Messenger như trước
-    channel = (data.get('channel') or ('SMS' if lang == 'en' else 'ZALO')).upper()
-    if channel not in ('SMS', 'EMAIL', 'ZALO', 'FACEBOOK'):
-        channel = 'SMS'
+    # 1 bộ kênh chữ thường (messaging.CHANNELS): sms | email | zalo | messenger — form cũ gửi 'SMS'/'ZALO'/'FACEBOOK'
+    # (trước đây lưu nguyên chữ HOA, bộ gửi Zalo/Messenger so chữ thường nên không tin nào đi). Mỹ/Úc mặc định SMS, VN Zalo.
+    channel = messaging.normalize_channel(data.get('channel')) or ('sms' if lang == 'en' else 'zalo')
 
     # Chế độ XEM TRƯỚC cho 1 khách (customer_nurturing.html): AI viết 1 tin cho đúng khách đó rồi trả về — KHÔNG tạo
     # chiến dịch, KHÔNG tạo tin chờ duyệt nào. Trước đây nút "gợi ý" gọi route này với segment ALL nên mỗi lần bấm
@@ -13779,7 +13708,8 @@ def nurture_generate_campaign():
 
     campaign_id = f"camp-{next_mongo_id('nurturing_campaigns')}"
     goal_name = {'RECALL': 'Win-back', 'UPSELL': 'Upsell'}.get(str(goal).upper(), str(goal)) if lang == 'en' else goal
-    campaign_name = f"{goal_name} via {channel} ({tone})" if lang == 'en' else f"Chiến dịch {goal} qua kênh {channel} ({tone.upper()})"
+    ch_label = messaging.CHANNEL_LABELS.get(channel, channel)
+    campaign_name = f"{goal_name} via {ch_label} ({tone})" if lang == 'en' else f"Chiến dịch {goal} qua kênh {ch_label} ({tone.upper()})"
 
     try:
         biz = db.businesses.find_one({'id': business_id}, {'name': 1, 'currency': 1, '_id': 0}) or {}
@@ -13787,8 +13717,10 @@ def nurture_generate_campaign():
 
         query = {'business_id': business_id}
         if segment == 'VIP':
-            # ngưỡng VIP theo đúng tiền tệ của tiệm (trước: 5.000.000 cố định -> tiệm USD/AUD không có ai là VIP)
-            query['total_spent'] = {'$gte': 5000000 if (biz.get('currency') or 'VND').upper() == 'VND' else 400}
+            # VIP = top 25% chi tiêu của CHÍNH tiệm (không phụ thuộc tiền tệ; trước: 5.000.000đ / 400 cố định tự đặt)
+            from ai_nurturing_engine import top_spend_threshold
+            vip_min = top_spend_threshold(business_id)
+            query['total_spent'] = {'$gte': vip_min} if vip_min is not None else {'$gt': float('inf')}
         elif segment == 'CHURN':
             query['nurturing_status'] = 'CHURN_RISK'
 
@@ -13891,20 +13823,31 @@ def nurture_approve_message():
         st = messaging.get_settings(business_id)
         en = st['language'] == 'en'
         if action != 'APPROVED':
+            # đã duyệt + xếp hàng rồi mới từ chối -> huỷ tin chưa gửi (trước đây tin vẫn đi đúng ngày)
+            db.outbound_messages.update_many({'business_id': business_id, 'meta.campaign_message_id': message_id, 'status': 'queued'},
+                                             {'$set': {'status': 'cancelled', 'error': 'rejected by owner'}})
             return jsonify({"success": True, "message": "Message rejected." if en else "Đã từ chối tin nhắn."})
         due = now + timedelta(days=int(msg.get('step_delay') or 0))
         due_local = due.astimezone(messaging.ZoneInfo(st['timezone']))
-        ch = (msg.get('channel') or 'SMS').upper()
+        ch = messaging.normalize_channel(msg.get('channel'), 'sms')
         sms_ok = st['twilio_ready']
-        if ch == 'SMS' and not sms_ok:
+        if ch == 'sms' and not sms_ok:
             note = (" SMS is not connected yet — it will go by email if the customer has one. Connect SMS in Settings → Messaging." if en else
                     " Chưa kết nối SMS — tin sẽ gửi qua email nếu khách có email. Kết nối SMS ở Cài đặt → Nhắn tin.")
+        elif ch in messaging.SOCIAL_CHANNELS:
+            hrs = messaging.MESSAGING_WINDOW_HOURS[ch]
+            label = messaging.CHANNEL_LABELS[ch]
+            note = (f" {label} only delivers if the customer messaged your {label} within the last {hrs} hours at send time "
+                    f"(platform rule); otherwise it goes by SMS or email if they have one, or is skipped." if en else
+                    f" {label} chỉ gửi được nếu khách đã nhắn {label} của tiệm trong {hrs} giờ trước lúc gửi (luật của nền tảng); "
+                    f"không thì tin đi SMS/email nếu khách có, hoặc bị bỏ qua.")
         else:
             note = ""
         when = due_local.strftime('%a %b %d') if en else due_local.strftime('%d/%m')
         window = f"{st['send_window_start']}:00–{st['send_window_end']}:00"
-        return jsonify({"success": True, "message": (f"Approved. It will be sent on {when} between {window} (shop time) by {ch.lower()}.{note}" if en else
-                                                     f"Đã duyệt. Tin sẽ gửi ngày {when} trong khung {window} (giờ tiệm) qua {ch}.{note}")})
+        ch_label = messaging.CHANNEL_LABELS.get(ch, ch)
+        return jsonify({"success": True, "message": (f"Approved. It will be sent on {when} between {window} (shop time) by {ch}.{note}" if en else
+                                                     f"Đã duyệt. Tin sẽ gửi ngày {when} trong khung {window} (giờ tiệm) qua {ch_label}.{note}")})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -13914,43 +13857,64 @@ def nurture_approve_message():
 @app.route('/api/ai/nurture/rules', methods=['GET'])
 @login_required
 def nurture_rules_list():
+    import messaging
     business_id = session.get('business_id') or session['user_id']
     rules = list(db.nurture_schedule_rules.find({'business_id': business_id}, {'_id': 0}).sort('created_at', -1))
-    return jsonify({"success": True, "data": rules})
+    for r in rules:   # rule cũ lưu 'zalo_oa'/'facebook' -> trả đúng bộ kênh chữ thường
+        r['channel'] = messaging.normalize_channel(r.get('channel'), r.get('channel'))
+    return jsonify({"success": True, "data": rules, "channels": list(messaging.CHANNELS)})
 
 
 @app.route('/api/ai/nurture/rules', methods=['POST'])
 @login_required
 def nurture_rules_create():
+    """Luật tự động (vd "N ngày chưa quay lại") cho nurture_scheduler.py (cron ngày). Kênh: sms | email | zalo | messenger
+    (nhận cả giá trị cũ 'zalo_oa'/'facebook'/'SMS'...). Trước đây chỉ nhận zalo_oa/facebook, và 'zalo_oa' bị đổi thành
+    'ZALO_OA' không khớp nhánh gửi nào -> luật chết; tiệm Mỹ/Úc (SMS/email) không tạo được luật nào."""
+    import messaging
     data = request.json or {}
-    name = (data.get('name') or '').strip()
-    condition_days = data.get('condition_days')
-    channel = (data.get('channel') or 'zalo_oa').strip().lower()
-
-    if not name or not condition_days:
-        return jsonify({"success": False, "message": "Thiếu name hoặc condition_days."}), 400
-    try:
-        condition_days = int(condition_days)
-    except (TypeError, ValueError):
-        return jsonify({"success": False, "message": "condition_days phải là số nguyên."}), 400
-    if channel not in ('zalo_oa', 'facebook'):
-        return jsonify({"success": False, "message": "channel phải là 'zalo_oa' hoặc 'facebook'."}), 400
-
     business_id = session.get('business_id') or session['user_id']
+    en = messaging.get_settings(business_id)['language'] == 'en'
+    t = (lambda e, v: e if en else v)  # noqa: E731
+    name = str(data.get('name') or '').strip()[:120]
+    raw_channel = data.get('channel')
+    channel = messaging.normalize_channel(raw_channel) if raw_channel else ('sms' if en else 'zalo')
+
+    def _int(key, default, lo, hi):
+        v = data.get(key, default)
+        if isinstance(v, bool):
+            raise ValueError
+        v = int(v if v not in (None, '') else default)
+        if not lo <= v <= hi:
+            raise ValueError
+        return v
+
+    if not name or data.get('condition_days') in (None, ''):
+        return jsonify({"success": False, "message": t("Name and condition_days are required.", "Thiếu name hoặc condition_days.")}), 400
+    try:
+        condition_days = _int('condition_days', 30, 1, 730)
+        cooldown_days = _int('cooldown_days', 14, 1, 365)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": t("condition_days must be 1–730 and cooldown_days 1–365 (whole days).",
+                                                       "condition_days phải từ 1–730, cooldown_days từ 1–365 (số ngày nguyên).")}), 400
+    if channel not in messaging.CHANNELS:
+        return jsonify({"success": False, "message": t("channel must be one of: sms, email, zalo, messenger.",
+                                                       "channel phải là 1 trong: sms, email, zalo, messenger.")}), 400
+    goal = str(data.get('goal') or 'RECALL').upper()
     rule_id = next_mongo_id('nurture_schedule_rules')
     db.nurture_schedule_rules.insert_one({
         'id': rule_id, 'business_id': business_id, 'name': name,
         'condition_days': condition_days,
-        'goal': (data.get('goal') or 'RECALL').upper(),
-        'tone': data.get('tone') or 'friendly',
+        'goal': goal if goal in ('RECALL', 'UPSELL') else 'RECALL',
+        'tone': str(data.get('tone') or 'friendly')[:30],
         'channel': channel,
         'auto_send': bool(data.get('auto_send', False)),  # False -> vào hàng chờ duyệt tay; True -> gửi thẳng
-        'cooldown_days': int(data.get('cooldown_days') or 14),  # tránh nhắn lại cùng 1 khách mỗi ngày 1 lần
+        'cooldown_days': cooldown_days,  # tránh nhắn lại cùng 1 khách mỗi ngày 1 lần
         'is_active': True,
         'industry': session.get('business_mode', 'retail'),
         'created_at': datetime.now().isoformat(),
     })
-    return jsonify({"success": True, "id": rule_id})
+    return jsonify({"success": True, "id": rule_id, "channel": channel})
 
 
 @app.route('/api/ai/nurture/rules/<int:rule_id>', methods=['DELETE'])
