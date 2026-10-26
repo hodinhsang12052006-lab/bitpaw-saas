@@ -291,9 +291,8 @@
         let tableName = null;
         // business_id của tiệm sở hữu bàn đang được quét — dùng để chặn lộ menu/đơn hàng chéo giữa các tiệm khác nhau
         const tableBusinessId = {{ (table.business_id or '') | tojson }};
-        // AI CSKH widget đọc window.BITPAW_BUSINESS_ID để cá nhân hoá đúng tenant — trang
-        // này không có session đăng nhập (khách quét QR ẩn danh) nên phải set thủ công thành global.
-        window.BITPAW_BUSINESS_ID = tableBusinessId || null;
+        // KHÔNG nạp cskh_widget.js / cskh_track.js ở trang này: đó là bot bán phần mềm của BitPaw — thực khách quét QR
+        // từng thấy bong bóng "BitPaw Sales" và SĐT của họ bị ghi thành lead bán hàng của BitPaw (/api/cskh/request).
 
         // Load table parameters from DOM data attributes
         const tableDisplayEl = document.getElementById('tableNameDisplay');
@@ -797,9 +796,6 @@
             document.getElementById('currentLangName').innerText = name;
         }
         
-        // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
-        // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
-
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
@@ -873,7 +869,5 @@
         }
         init();
     </script>
-    <script src="/static/js/cskh_widget.js?v={{ asset_v('js/cskh_widget.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
 </body>
 </html>

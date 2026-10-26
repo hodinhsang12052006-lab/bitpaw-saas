@@ -132,18 +132,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <h2 class="text-xl md:text-2xl font-black tracking-widest flex items-center gap-3 drop-shadow-md text-white">
                         <span data-i18n="map_dashboard_header_title">Radar <span class="text-cyan-400">Điều Phối</span></span> <i class="fas fa-satellite-dish text-cyan-500 animate-pulse text-sm ml-1"></i>
                     </h2>
-                    <p class="text-gray-400 text-[10px] mt-0.5 font-bold uppercase tracking-widest" data-i18n="map_dashboard_header_subtitle">Giám sát vệ tinh & Routing AI</p>
+                    <p class="text-gray-400 text-[10px] mt-0.5 font-bold uppercase tracking-widest" data-i18n="map_dashboard_header_subtitle">Vị trí GPS của thợ & giao việc</p>
                 </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
                 <button id="langToggleBtn" type="button" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-3 rounded-xl text-xs font-bold transition">EN</button>
-                <button onclick="kichHoatAIDieuPhoi()" class="flex-1 md:flex-none bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black px-6 py-3 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-105 active:scale-95 transition-transform cursor-pointer flex items-center justify-center text-xs uppercase tracking-widest border border-cyan-400/50">
-                    <i class="fas fa-brain mr-2 text-base"></i> Auto-Dispatch
-                </button>
-
-                <button onclick="kichHoatBotAI()" class="flex-1 md:flex-none bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white font-black px-5 py-3 rounded-xl shadow-[0_0_20px_rgba(225,29,72,0.3)] transition-all cursor-pointer flex items-center justify-center text-xs uppercase tracking-widest border border-rose-500/50 active:scale-95">
-                    <i class="fas fa-robot mr-2"></i> <span data-i18n="map_dashboard_btn_scan">QUÉT VI PHẠM</span>
+                <button id="btnSuggestNearest" onclick="goiYThoRanhGanNhat()" class="flex-1 md:flex-none bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black px-6 py-3 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-105 active:scale-95 transition-transform cursor-pointer flex items-center justify-center text-xs uppercase tracking-widest border border-cyan-400/50">
+                    <i class="fas fa-location-crosshairs mr-2 text-base"></i> <span data-i18n="map_dashboard_btn_suggest">Gợi ý thợ rảnh gần nhất</span>
                 </button>
             </div>
         </div>
@@ -192,13 +188,17 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <div class="flex items-center gap-3"><span class="w-3.5 h-3.5 rounded-full bg-gray-600 border border-gray-400"></span> Offline</div>
                 </div>
 
-                <!-- Box Cảnh báo AI -->
+                <!-- Hộp thông báo điều phối (gợi ý thợ gần nhất) -->
                 <div id="ai_alert_box" class="absolute top-6 right-6 z-[999] bg-gradient-to-r from-cyan-900/95 to-[#08061a] backdrop-blur-xl border border-cyan-500/50 p-5 rounded-2xl shadow-[0_0_40px_rgba(6,182,212,0.5)] text-white max-w-sm hidden transition-all duration-500 transform translate-x-10 opacity-0">
                     <div class="flex gap-4">
-                        <i class="fas fa-robot text-3xl text-cyan-400 mt-1 drop-shadow-md"></i>
+                        <i class="fas fa-route text-3xl text-cyan-400 mt-1 drop-shadow-md"></i>
                         <div>
-                            <h4 class="font-black text-sm uppercase tracking-widest text-cyan-300 mb-1.5" id="ai_alert_title" data-i18n="map_dashboard_ai_title_default">AI Điều Phối</h4>
+                            <h4 class="font-black text-sm uppercase tracking-widest text-cyan-300 mb-1.5" id="ai_alert_title" data-i18n="map_dashboard_ai_title_default">Điều phối</h4>
                             <p id="ai_alert_text" class="text-xs text-gray-200 leading-relaxed font-medium"></p>
+                            <div id="ai_alert_actions" class="hidden mt-3 flex gap-2">
+                                <button type="button" id="ai_alert_confirm" class="bg-cyan-500 hover:bg-cyan-400 text-black font-black px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider"></button>
+                                <button type="button" id="ai_alert_dismiss" class="bg-white/10 hover:bg-white/20 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider"></button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -299,15 +299,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_nav_profit: 'Báo cáo lợi nhuận',
                 map_dashboard_logout: 'Đăng xuất',
                 map_dashboard_header_title: 'Radar <span class="text-cyan-400">Điều Phối</span>',
-                map_dashboard_header_subtitle: 'Giám sát vệ tinh & Routing AI',
-                map_dashboard_btn_scan: 'QUÉT VI PHẠM',
+                map_dashboard_header_subtitle: 'Vị trí GPS của thợ & giao việc',
+                map_dashboard_btn_suggest: 'Gợi ý thợ rảnh gần nhất',
                 map_dashboard_team_status: 'Trạng Thái Đội Ngũ',
                 map_dashboard_search_ph: 'Tìm tên thợ, mã NV...',
                 map_dashboard_filter_all: 'Tất cả',
                 map_dashboard_filter_available: 'Đang Rảnh',
                 map_dashboard_filter_busy: 'Đang Bận',
                 map_dashboard_scanning_satellite: 'Đang quét vệ tinh...',
-                map_dashboard_ai_title_default: 'AI Điều Phối',
+                map_dashboard_ai_title_default: 'Điều phối',
                 map_dashboard_modal_title: 'Giao Việc Thủ Công',
                 map_dashboard_assign_target: 'Mục tiêu Giao việc:',
                 map_dashboard_label_customer: 'Khách Hàng',
@@ -339,9 +339,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_ai_all_busy: 'Tất cả thợ đều đang BẬN hoặc Offline. Không có ai để rải việc lúc này.',
                 map_dashboard_ai_need_location: 'Việc #{jobid} chưa có vị trí trên bản đồ (địa chỉ: {addr}). Hãy ghi thêm quận/thành phố vào địa chỉ để hệ thống tìm thợ gần nhất.',
                 map_dashboard_ai_title_alert: 'Báo Động',
-                map_dashboard_ai_found_tech: 'Đã quét thấy KTV <b>{name}</b> cách khách {dist}km.<br><br>Hệ thống đã ép gán Job #{jobid} cho thợ này.',
-                map_dashboard_ai_title_success: 'Chốt Đơn Thành Công',
-                map_dashboard_toast_ai_error: 'Lỗi thuật toán AI: {msg}',
+                map_dashboard_suggest_title: 'Gợi ý thợ gần nhất',
+                map_dashboard_suggest_found: 'Việc chờ lâu nhất: <b>#{jobid}</b> ({addr}).<br>Thợ đang rảnh gần nhất: <b>{name}</b>, cách khoảng {dist} km (đường chim bay, theo vị trí GPS gần nhất của thợ).<br><br>Giao việc này cho {name}?',
+                map_dashboard_suggest_assign: 'Giao việc',
+                map_dashboard_suggest_dismiss: 'Bỏ qua',
+                map_dashboard_suggest_assigned: 'Đã giao việc #{jobid} cho <b>{name}</b>. Thợ thấy việc này trong app nhân viên (hệ thống chưa gửi thông báo đẩy/SMS).',
+                map_dashboard_suggest_job_taken: 'Việc #{jobid} vừa được nhận hoặc đã đổi trạng thái — chưa giao cho ai.',
+                map_dashboard_ai_title_success: 'Đã giao việc',
+                map_dashboard_toast_ai_error: 'Lỗi gợi ý thợ: {msg}',
                 map_dashboard_toast_need_customer_address: 'Vui lòng nhập Khách và Địa chỉ!',
                 map_dashboard_transmitting: 'ĐANG TRUYỀN...',
                 map_dashboard_dispatch_order_default: 'Lệnh điều phối từ Giám Đốc',
@@ -350,12 +355,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_toast_dispatch_success: 'Đã truyền lệnh thành công đến KTV {name}!',
                 map_dashboard_toast_assigned_offline: 'Đã giao việc cho {name} (thợ đang offline GPS)',
                 map_dashboard_toast_cloud_error: 'Lỗi gửi dữ liệu lên Cloud!',
-                map_dashboard_scanning: 'ĐANG QUÉT...',
-                map_dashboard_ai_all_working: 'Tuyệt vời! Toàn bộ đội ngũ đều đang bận rộn cày cuốc.',
-                map_dashboard_ai_title_positive: 'Báo cáo Tích cực',
-                map_dashboard_slacking_alert: 'BITPAW AI PHÁT HIỆN LƯỜI BIẾNG! 🚨\n\nNhân viên: {name}\nTrạng thái: Báo Rảnh nhưng không tự lên Chợ để nhận việc!\n\nĐã ghi nhận vào lịch sử trừ thi đua!',
-                map_dashboard_toast_scan_error: 'Lỗi quét vi phạm',
-                map_dashboard_ai_title_alert_generic: 'AI Cảnh Báo'
+                map_dashboard_ai_title_alert_generic: 'Thông báo'
             },
             en: {
                 map_dashboard_nav_overview: 'Overview',
@@ -369,15 +369,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_nav_profit: 'Profit Report',
                 map_dashboard_logout: 'Logout',
                 map_dashboard_header_title: 'Dispatch <span class="text-cyan-400">Radar</span>',
-                map_dashboard_header_subtitle: 'Satellite monitoring & AI Routing',
-                map_dashboard_btn_scan: 'SCAN VIOLATIONS',
+                map_dashboard_header_subtitle: 'Technician GPS & job dispatch',
+                map_dashboard_btn_suggest: 'Suggest nearest free technician',
                 map_dashboard_team_status: 'Team Status',
                 map_dashboard_search_ph: 'Search technician name, employee code...',
                 map_dashboard_filter_all: 'All',
                 map_dashboard_filter_available: 'Available',
                 map_dashboard_filter_busy: 'Busy',
                 map_dashboard_scanning_satellite: 'Scanning satellite...',
-                map_dashboard_ai_title_default: 'AI Dispatch',
+                map_dashboard_ai_title_default: 'Dispatch',
                 map_dashboard_modal_title: 'Manual Job Assignment',
                 map_dashboard_assign_target: 'Assignment Target:',
                 map_dashboard_label_customer: 'Customer',
@@ -409,9 +409,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_ai_all_busy: 'All technicians are BUSY or offline. No one available to dispatch right now.',
                 map_dashboard_ai_need_location: 'Job #{jobid} has no map location yet (address: {addr}). Add the suburb/city to the address so the nearest technician can be found.',
                 map_dashboard_ai_title_alert: 'Alert',
-                map_dashboard_ai_found_tech: 'Found technician <b>{name}</b> {dist}km from the customer.<br><br>The system has assigned Job #{jobid} to this technician.',
-                map_dashboard_ai_title_success: 'Job Confirmed',
-                map_dashboard_toast_ai_error: 'AI algorithm error: {msg}',
+                map_dashboard_suggest_title: 'Nearest technician',
+                map_dashboard_suggest_found: 'Longest-waiting job: <b>#{jobid}</b> ({addr}).<br>Nearest free technician: <b>{name}</b>, about {dist} km away (straight line, from their last GPS position).<br><br>Assign this job to {name}?',
+                map_dashboard_suggest_assign: 'Assign',
+                map_dashboard_suggest_dismiss: 'Dismiss',
+                map_dashboard_suggest_assigned: 'Job #{jobid} assigned to <b>{name}</b>. They will see it in the staff app (no push/SMS notification is sent yet).',
+                map_dashboard_suggest_job_taken: 'Job #{jobid} was just taken or changed status — not assigned.',
+                map_dashboard_ai_title_success: 'Job assigned',
+                map_dashboard_toast_ai_error: 'Suggestion error: {msg}',
                 map_dashboard_toast_need_customer_address: 'Please enter Customer and Address!',
                 map_dashboard_transmitting: 'TRANSMITTING...',
                 map_dashboard_dispatch_order_default: 'Dispatch order from Manager',
@@ -420,12 +425,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 map_dashboard_toast_dispatch_success: 'Successfully dispatched to technician {name}!',
                 map_dashboard_toast_assigned_offline: 'Job assigned to {name} (technician is GPS offline)',
                 map_dashboard_toast_cloud_error: 'Error sending data to Cloud!',
-                map_dashboard_scanning: 'SCANNING...',
-                map_dashboard_ai_all_working: 'Great! The whole team is busy working hard.',
-                map_dashboard_ai_title_positive: 'Positive Report',
-                map_dashboard_slacking_alert: 'BITPAW AI DETECTED SLACKING! 🚨\n\nEmployee: {name}\nStatus: Marked as Available but hasn\'t picked up any job from the Market!\n\nRecorded in the performance deduction history!',
-                map_dashboard_toast_scan_error: 'Error scanning violations',
-                map_dashboard_ai_title_alert_generic: 'AI Alert'
+                map_dashboard_ai_title_alert_generic: 'Notice'
             }
         };
         function t(key) {
@@ -722,9 +722,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             }
         }
 
-        // AI Dispatch
-        async function kichHoatAIDieuPhoi() {
-            const btnAI = document.querySelector('button[onclick="kichHoatAIDieuPhoi()"]');
+        // Gợi ý thợ rảnh gần nhất (quy tắc đơn giản, KHÔNG phải AI): lấy việc 'Chờ Nhận' CHỜ LÂU NHẤT (id nhỏ nhất —
+        // id tăng dần theo lúc tạo; trước đây lấy việc MỚI NHẤT vì /api/tasks trả id giảm dần), chọn thợ đang 'Rảnh' có GPS
+        // gần nhất theo đường chim bay, rồi HỎI người điều phối trước khi giao (trước đây tự ép gán và báo "Chốt đơn").
+        async function goiYThoRanhGanNhat() {
+            const btnAI = document.getElementById('btnSuggestNearest');
             const origHTML = btnAI.innerHTML;
             btnAI.innerHTML = `<i class="fas fa-spinner fa-spin mr-2 text-lg"></i> ${t('map_dashboard_calculating')}`;
             btnAI.disabled = true;
@@ -734,7 +736,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
             try {
                 const taskBody = await hrApi('/api/tasks');
-                const tasks = (taskBody.data || []).filter(t => t.trang_thai === 'Chờ Nhận').slice(0, 1);
+                const tasks = (taskBody.data || []).filter(tk => tk.trang_thai === 'Chờ Nhận')
+                    .sort((a, b) => Number(a.id) - Number(b.id)).slice(0, 1);
 
                 if(!tasks || tasks.length === 0) {
                     showAIAlert(t('map_dashboard_ai_no_jobs'), t('map_dashboard_ai_title_perfect'));
@@ -749,7 +752,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         targetTask.lat = g.lat; targetTask.lng = g.lng;
                         await hrApi(`/api/tasks/${targetTask.id}`, { method: 'PATCH', body: JSON.stringify({ lat: g.lat, lng: g.lng }) });
                     } catch (e) {
-                        showAIAlert(tf('map_dashboard_ai_need_location', { jobid: targetTask.id, addr: targetTask.dia_chi || '—' }), t('map_dashboard_ai_title_alert'));
+                        showAIAlert(tf('map_dashboard_ai_need_location', { jobid: targetTask.id, addr: __escHtml(targetTask.dia_chi || '—') }), t('map_dashboard_ai_title_alert'));
                         btnAI.innerHTML = origHTML; btnAI.disabled = false; return;
                     }
                 }
@@ -768,16 +771,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
                 onlineWorkers.forEach(w => {
                     const workerPoint = L.latLng(w.toa_do_lat, w.toa_do_lng);
-                    const distance = workerPoint.distanceTo(targetPoint); 
+                    const distance = workerPoint.distanceTo(targetPoint);
                     if (distance < shortestDistance) {
                         shortestDistance = distance;
                         bestWorker = w;
                     }
-                });
-
-                await hrApi(`/api/tasks/${targetTask.id}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({ trang_thai: 'Đã Nhận', nguoi_nhan: bestWorker.ho_ten }),
                 });
 
                 const workerLatLng = [bestWorker.toa_do_lat, bestWorker.toa_do_lng];
@@ -791,16 +789,40 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const bounds = L.latLngBounds([workerLatLng, jobLatLng]);
                 map.flyToBounds(bounds, { padding: [80, 80], duration: 1.5 });
 
+                const realDist = Math.round(shortestDistance / 1000 * 10) / 10;
+                const safeName = __escHtml(bestWorker.ho_ten);
                 setTimeout(() => {
                     activeLaserLine = L.polyline([workerLatLng, jobLatLng], {className: 'ai-laser-line'}).addTo(map);
-                    const realDist = Math.round(shortestDistance / 1000 * 10) / 10;
-                    showAIAlert(tf('map_dashboard_ai_found_tech', { name: bestWorker.ho_ten, dist: realDist, jobid: targetTask.id }), t('map_dashboard_ai_title_success'));
+                    showAIAlert(
+                        tf('map_dashboard_suggest_found', { name: safeName, dist: realDist, jobid: targetTask.id, addr: __escHtml(targetTask.dia_chi || '—') }),
+                        t('map_dashboard_suggest_title'),
+                        { label: t('map_dashboard_suggest_assign'), onConfirm: () => assignSuggestedJob(targetTask.id, bestWorker.ho_ten) }
+                    );
                 }, 1500);
 
             } catch (e) {
                 showToast(tf('map_dashboard_toast_ai_error', { msg: e.message }), "error");
             }
             btnAI.innerHTML = origHTML; btnAI.disabled = false;
+        }
+
+        // Người điều phối bấm "Giao việc": kiểm tra lại việc vẫn đang 'Chờ Nhận' (có thể thợ khác vừa tự nhận) rồi mới gán.
+        async function assignSuggestedJob(taskId, workerName) {
+            try {
+                const fresh = await hrApi('/api/tasks');
+                const job = (fresh.data || []).find(tk => tk.id == taskId);
+                if (!job || job.trang_thai !== 'Chờ Nhận') {
+                    showAIAlert(tf('map_dashboard_suggest_job_taken', { jobid: taskId }), t('map_dashboard_ai_title_alert'));
+                    return;
+                }
+                await hrApi(`/api/tasks/${taskId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ trang_thai: 'Đã Nhận', nguoi_nhan: workerName }),
+                });
+                showAIAlert(tf('map_dashboard_suggest_assigned', { jobid: taskId, name: __escHtml(workerName) }), t('map_dashboard_ai_title_success'));
+            } catch (e) {
+                showToast(tf('map_dashboard_toast_ai_error', { msg: e.message }), "error");
+            }
         }
 
         // Giao việc thủ công
@@ -881,47 +903,41 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             btn.innerHTML = `<i class="fas fa-satellite-dish text-lg"></i> ${t('map_dashboard_btn_send_signal')}`; btn.disabled = false;
         }
 
-        // Quét vi phạm
-        function kichHoatBotAI() {
-            const btnAI = document.querySelector('button[onclick="kichHoatBotAI()"]');
-            const origHTML = btnAI.innerHTML;
-            btnAI.innerHTML = `<i class="fas fa-spinner fa-spin mr-2 text-lg"></i> ${t('map_dashboard_scanning')}`;
-            btnAI.disabled = true;
-
-            try {
-                const thoRanh = currentWorkersData.filter(w => w.trang_thai_gps === 'Rảnh' && w.toa_do_lat);
-                if (thoRanh.length === 0) {
-                    showAIAlert(t('map_dashboard_ai_all_working'), t('map_dashboard_ai_title_positive'));
-                    btnAI.innerHTML = origHTML; btnAI.disabled = false; return;
-                }
-
-                const thoViPham = thoRanh[Math.floor(Math.random() * thoRanh.length)];
-                focusWorkerOnMap(thoViPham.ma_nv);
-
-                setTimeout(() => {
-                    alert(tf('map_dashboard_slacking_alert', { name: thoViPham.ho_ten }));
-                }, 1500);
-
-            } catch(e) { showToast(t('map_dashboard_toast_scan_error'), "error"); }
-            btnAI.innerHTML = origHTML; btnAI.disabled = false;
+        let aiAlertHideTimer = null;
+        function hideAIAlert() {
+            const box = document.getElementById('ai_alert_box');
+            clearTimeout(aiAlertHideTimer);
+            box.classList.remove('translate-x-0', 'opacity-100');
+            box.classList.add('translate-x-10', 'opacity-0');
+            aiAlertHideTimer = setTimeout(() => box.classList.add('hidden'), 500);
         }
-
-        function showAIAlert(message, title = t('map_dashboard_ai_title_alert_generic')) {
+        // action (tuỳ chọn) = { label, onConfirm }: hiện nút xác nhận + "Bỏ qua"; hộp không tự ẩn cho tới khi người dùng chọn.
+        function showAIAlert(message, title = t('map_dashboard_ai_title_alert_generic'), action = null) {
             const box = document.getElementById('ai_alert_box');
             document.getElementById('ai_alert_title').innerText = title;
             document.getElementById('ai_alert_text').innerHTML = message;
-            
+            const actions = document.getElementById('ai_alert_actions');
+            const confirmBtn = document.getElementById('ai_alert_confirm');
+            const dismissBtn = document.getElementById('ai_alert_dismiss');
+            clearTimeout(aiAlertHideTimer);
+            if (action) {
+                confirmBtn.textContent = action.label;
+                dismissBtn.textContent = t('map_dashboard_suggest_dismiss');
+                confirmBtn.onclick = async () => { confirmBtn.disabled = true; await action.onConfirm(); confirmBtn.disabled = false; };
+                dismissBtn.onclick = () => hideAIAlert();
+                actions.classList.remove('hidden');
+            } else {
+                actions.classList.add('hidden');
+                confirmBtn.onclick = null; dismissBtn.onclick = null;
+            }
+
             box.classList.remove('hidden');
             setTimeout(() => {
                 box.classList.remove('translate-x-10', 'opacity-0');
                 box.classList.add('translate-x-0', 'opacity-100');
             }, 50);
 
-            setTimeout(() => {
-                box.classList.remove('translate-x-0', 'opacity-100');
-                box.classList.add('translate-x-10', 'opacity-0');
-                setTimeout(() => box.classList.add('hidden'), 500);
-            }, 8000);
+            if (!action) aiAlertHideTimer = setTimeout(hideAIAlert, 8000);
         }
 
         // Khởi tạo và lắng nghe sự kiện tìm kiếm

@@ -151,9 +151,9 @@
             </div>
         </div>
 
-        <!-- Biểu đồ dự báo nhu cầu -->
+        <!-- Biểu đồ tồn kho hiện tại so với ngưỡng cảnh báo (KHÔNG phải dự báo nhu cầu: chỉ vẽ 2 số này) -->
         <div class="glass-panel p-5 mt-6">
-            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-line mr-2"></i> <span data-i18n="inventory_alert_chart_heading">Dự báo nhu cầu & xu hướng nhập hàng</span></h3>
+            <h3 class="text-sm font-bold text-cyan-400 mb-3"><i class="fas fa-chart-bar mr-2"></i> <span data-i18n="inventory_alert_chart_heading">Tồn kho hiện tại so với ngưỡng cảnh báo</span></h3>
             <canvas id="demandChart" height="150" style="max-height: 200px;"></canvas>
         </div>
 
@@ -394,8 +394,8 @@
             demandChart = new Chart(ctx, {
                 type: 'bar',
                 data: { labels: labels, datasets: [
-                    { label: 'Tồn kho hiện tại', data: stockData, backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 },
-                    { label: 'Ngưỡng cảnh báo', data: thresholds, backgroundColor: 'rgba(245,158,11,0.4)', borderColor: '#f59e0b', borderWidth: 1, type: 'line', fill: false }
+                    { label: t('inventory_alert_chart_stock'), data: stockData, backgroundColor: 'rgba(6,182,212,0.6)', borderColor: '#06b6d4', borderWidth: 1 },
+                    { label: t('inventory_alert_chart_threshold'), data: thresholds, backgroundColor: 'rgba(245,158,11,0.4)', borderColor: '#f59e0b', borderWidth: 1, type: 'line', fill: false }
                 ] },
                 options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#ccc' } } }, scales: { y: { ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa', rotation: -30 } } } }
             });
@@ -603,7 +603,9 @@
                 inventory_alert_th_status: 'Trạng thái',
                 inventory_alert_th_value: 'Giá trị',
                 inventory_alert_th_action: 'Thao tác',
-                inventory_alert_chart_heading: 'Dự báo nhu cầu & xu hướng nhập hàng',
+                inventory_alert_chart_heading: 'Tồn kho hiện tại so với ngưỡng cảnh báo',
+                inventory_alert_chart_stock: 'Tồn kho hiện tại',
+                inventory_alert_chart_threshold: 'Ngưỡng cảnh báo',
                 inventory_alert_modal_threshold_title: 'Cài đặt ngưỡng tồn kho mặc định',
                 inventory_alert_label_warning_threshold: 'Ngưỡng cảnh báo (dưới ngưỡng)',
                 inventory_alert_placeholder_e10: 'Ví dụ: 10',
@@ -680,7 +682,9 @@
                 inventory_alert_th_status: 'Status',
                 inventory_alert_th_value: 'Value',
                 inventory_alert_th_action: 'Action',
-                inventory_alert_chart_heading: 'Demand Forecast & Restock Trends',
+                inventory_alert_chart_heading: 'Current stock vs warning threshold',
+                inventory_alert_chart_stock: 'Current stock',
+                inventory_alert_chart_threshold: 'Warning threshold',
                 inventory_alert_modal_threshold_title: 'Default Inventory Threshold Settings',
                 inventory_alert_label_warning_threshold: 'Warning threshold (below)',
                 inventory_alert_placeholder_e10: 'e.g. 10',
@@ -743,6 +747,7 @@
             applyStaticTranslations();
             renderTable();
             updateStats();
+            if (demandChart) updateChart(); // nhãn 2 cột của biểu đồ theo ngôn ngữ mới
         }
         applyStaticTranslations();
         const langToggleBtn = document.getElementById('langToggleBtn');

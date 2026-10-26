@@ -11403,15 +11403,15 @@ def api_portal_messages_list():
 @app.route('/api/portal/messages', methods=['POST'])
 @limiter.limit("200 per hour;20 per minute")
 def api_portal_messages_create():
-    """Khách hàng (ẩn danh, không session) gửi tin nhắn HOẶC client tự ghi lại phản hồi AI giả
-    lập (sender_type='ai', giống hành vi getAIResponse() cũ ở portal.html). KHÔNG cho phép
-    sender_type='staff' qua route public này — trả lời thật của nhân viên chỉ được ghi qua
-    /api/bot/messages (đã có @login_required + business_id từ session)."""
+    """Khách hàng (ẩn danh, không session) gửi tin nhắn — CHỈ sender_type='customer'. Trước đây route
+    còn nhận sender_type='ai' (để portal.html tự ghi "AI" giả lập): ai biết customer_id cũng ghi được tin
+    giả danh trợ lý, và AI thật đọc lại chúng như lượt trả lời của chính nó. Trả lời của nhân viên chỉ ghi qua
+    /api/bot/messages (đã có @login_required + business_id từ session); trả lời AI do server tự ghi."""
     data = request.json or {}
     customer_id = data.get('customer_id', '')
     content = (data.get('content') or '').strip()
     sender_type = data.get('sender_type', 'customer')
-    if sender_type not in ('customer', 'ai'):
+    if sender_type != 'customer':
         return jsonify({"success": False, "message": "sender_type không hợp lệ."}), 400
     if not content:
         return jsonify({"success": False, "message": "Tin nhắn trống."}), 400
