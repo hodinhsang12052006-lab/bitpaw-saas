@@ -23,8 +23,6 @@ import json
 import re
 import datetime
 
-from ai_deepseek_client import deepseek_chat_completion
-
 
 class AINurturingEngine:
     @staticmethod
@@ -121,30 +119,20 @@ class AINurturingEngine:
         }.get((goal or '').upper(), "re-engage this customer")
 
     @staticmethod
-    def _call_deepseek(system_prompt, user_prompt, max_tokens=500, temperature=0.8, json_mode=False):
-        """Điểm gọi LLM DUY NHẤT của module này — đi qua ai_deepseek_client.py (Mã "Hợp nhất AI
-        bằng DeepSeek" audit, thay thế Anthropic/Claude đã dùng trước đó). Không có nhánh
-        Desktop-proxy ở đây vì AI Nurture chỉ chạy ở server/worker nền (nurture_scheduler.py),
-        không có luồng Desktop App nào gọi tới."""
-        api_key = os.environ.get('DEEPSEEK_API_KEY')
-        if not api_key:
+    def _call_deepseek(system_prompt, user_prompt, max_tokens=500, temperature=0.8, json_mode=False, business_id=None):
+        """Điểm gọi LLM DUY NHẤT của module này — đi qua ai_gateway (Phase 1): 1 dòng sổ db.ai_usage token thật
+        (tính năng 'nurture'), timeout + thử lại lỗi tạm thời, cổng gói 'crm_ai' lúc chạy (tiệm cũ chưa có gói = Empire).
+        business_id=None -> gateway lấy tiệm trong phiên đăng nhập (route của chủ tiệm). Gói không có CRM + AI ->
+        ai_gateway.AIPlanBlocked (các hàm generate_* bên dưới rơi về câu mẫu trung thực, không gọi AI)."""
+        if not os.environ.get('DEEPSEEK_API_KEY'):
             raise RuntimeError("DEEPSEEK_API_KEY chưa được cấu hình.")
-        payload = {
-            "model": "deepseek-chat",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        if json_mode:
-            payload["response_format"] = {"type": "json_object"}
-        result = deepseek_chat_completion(payload, direct_api_key=api_key)
-        return result['choices'][0]['message']['content']
+        import ai_gateway
+        return ai_gateway.text('nurture', business_id, system_prompt, user_prompt, temperature=temperature,
+                               max_tokens=max_tokens, json_mode=json_mode, require='crm_ai')
 
     @staticmethod
-    def generate_nurturing_copy(business_name, industry, goal, tone, customer_name, purchase_history=None, lang='vi'):
+    def generate_nurturing_copy(business_name, industry, goal, tone, customer_name, purchase_history=None, lang='vi',
+                                business_id=None):
         """
         Real LLM-generated (DeepSeek — Mã "Hợp nhất AI bằng DeepSeek" audit), personalized
         3/7/14-day nurturing message sequence — grounded in this customer's ACTUAL purchase
@@ -182,7 +170,8 @@ class AINurturingEngine:
         )
 
         try:
-            raw = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=500, temperature=0.8, json_mode=True)
+            raw = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=500, temperature=0.8, json_mode=True,
+                                                   business_id=business_id)
             raw = re.sub(r'^```(?:json)?|```$', '', raw.strip(), flags=re.MULTILINE).strip()
             parsed = json.loads(raw)
             if all(k in parsed and parsed[k] for k in ("3days", "7days", "14days")):
@@ -193,7 +182,7 @@ class AINurturingEngine:
 
     @staticmethod
     def generate_single_nurture_message(business_name, industry, goal, tone, customer_name,
-                                         purchase_history=None, trigger_reason=None, lang='vi'):
+                                         purchase_history=None, trigger_reason=None, lang='vi', business_id=None):
         """1 tin nhắn DUY NHẤT (không phải chuỗi 3/7/14 ngày) — dùng bởi nurture_scheduler.py
         khi 1 rule tự động vừa khớp điều kiện (vd 'không ghé 30 ngày'), cần 1 tin gửi NGAY,
         không phải lên lịch trước 3 mốc thời gian."""
@@ -220,13 +209,14 @@ class AINurturingEngine:
             f"Goal: {AINurturingEngine._goal_meaning(goal)}.\n\n{history_block}"
         )
         try:
-            text = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=300, temperature=0.8)
+            text = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=300, temperature=0.8,
+                                                    business_id=business_id)
             return text.strip().strip('"')
         except Exception:
             return AINurturingEngine._fallback_copy(name, lang)['7days']
 
     @staticmethod
-    def generate_sequence_template(business_name, industry, goal, tone, lang='en'):
+    def generate_sequence_template(business_name, industry, goal, tone, lang='en', business_id=None):
         """1 lần gọi AI cho CẢ chiến dịch: chuỗi 3 tin (3/7/14 ngày) có chỗ trống {first_name}, {last_service},
         {days_since_visit} — mỗi khách được điền DỮ LIỆU THẬT của chính họ. Chiến dịch 1.000 khách vẫn xong trong
         vài giây (trước đây gọi AI lần lượt từng khách trong 1 request — vượt thời gian chạy của máy chủ)."""
@@ -254,7 +244,8 @@ class AINurturingEngine:
                        f"Goal: {AINurturingEngine._goal_meaning(goal)}. Messages are sent 3, 7 and 14 days after the campaign starts, "
                        "only if the customer has not come back.")
         try:
-            raw = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=600, temperature=0.8, json_mode=True)
+            raw = AINurturingEngine._call_deepseek(system_prompt, user_prompt, max_tokens=600, temperature=0.8, json_mode=True,
+                                                   business_id=business_id)
             raw = re.sub(r'^```(?:json)?|```$', '', raw.strip(), flags=re.MULTILINE).strip()
             parsed = json.loads(raw)
             if all(isinstance(parsed.get(k), str) and parsed[k].strip() for k in ("3days", "7days", "14days")):

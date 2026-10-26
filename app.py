@@ -9854,23 +9854,12 @@ def _restock_ai_text_ok(text, product_name, facts, lang):
     return not (lang == 'en' and _VI_DIACRITIC_RE.search(rest))
 
 
-def _log_restock_ai_usage(business_id, result):
-    """Sổ dùng AI (db.ai_usage, cùng dạng dòng 'text' của ai_media) với số token THẬT DeepSeek trả về."""
-    usage = (result or {}).get('usage') or {}
-    try:
-        db.ai_usage.insert_one({'business_id': business_id, 'kind': 'text', 'feature': 'restock_reason', 'model': 'deepseek-chat',
-                                'units': int(usage.get('total_tokens') or 0), 'prompt_tokens': int(usage.get('prompt_tokens') or 0),
-                                'completion_tokens': int(usage.get('completion_tokens') or 0), 'job_id': None,
-                                'created_at': datetime.now(timezone.utc)})
-    except Exception as e:
-        print(f"[restock] usage log: {e}")
-
-
 def _generate_restock_reason_with_ai(product_name, stock, avg_daily, days_left, business_id=None, suggested_qty=None,
                                      lang=None, currency=None, unit_cost=0, lookback_days=14, use_ai=True):
     """Trả (lý do, nguồn 'ai'|'template'). Số liệu (tồn kho, tốc độ bán, số ngày còn lại, số nhập, tiền) luôn do Python
-    tính và định dạng trước; DeepSeek (qua ai_deepseek_client — đi qua AI Proxy ở Desktop, ghi sổ token) CHỈ diễn đạt
-    lại bằng ngôn ngữ của tiệm. AI lỗi / bịa số / sai ngôn ngữ / gói không có tính năng -> câu mẫu (vẫn số thật)."""
+    tính và định dạng trước; DeepSeek (qua ai_gateway: AI Proxy ở Desktop, 1 dòng sổ token thật 'restock_reason', cổng gói
+    'inventory' lúc chạy) CHỈ diễn đạt lại bằng ngôn ngữ của tiệm. AI lỗi / bịa số / sai ngôn ngữ / gói không có tính năng
+    -> câu mẫu (vẫn số thật)."""
     if lang is None or currency is None:
         _lang, _cur = _shop_lang_currency(business_id)
         lang, currency = lang or _lang, currency or _cur
@@ -9896,23 +9885,22 @@ def _generate_restock_reason_with_ai(product_name, stock, avg_daily, days_left, 
               "được cho, chép y nguyên cách viết (kể cả ký hiệu tiền), không thêm con số nào khác, không dùng markdown." if vi else
               "You are an inventory assistant. Write exactly ONE short, friendly sentence in English for the shop owner. Use only "
               "the numbers given, copied exactly as written (including the currency sign), add no other numbers, no markdown.")
+    import ai_gateway
     t0 = time.time()
     try:
-        result = deepseek_chat_completion(
+        result = ai_gateway.chat(
+            'restock_reason', business_id,
             {"model": "deepseek-chat", "messages": [{"role": "system", "content": system},
                                                     {"role": "user", "content": "\n".join(facts)}],
              "temperature": 0.4, "max_tokens": 120},
-            business_id=business_id,
-            proxy_api_key=key if is_desktop else None,
-            direct_api_key=key if not is_desktop else None,
-            timeout=10,
-        )
-        _log_restock_ai_usage(business_id, result)
+            timeout=10, require='inventory')
         text = ' '.join(str(((result.get('choices') or [{}])[0].get('message') or {}).get('content') or '').split()).strip('"“” ')
         ok = _restock_ai_text_ok(text, product_name, facts, lang)
         _log_ai_run('restock_reason', business_id, time.time() - t0, fallback=not ok,
                     error=None if ok else 'AI text rejected (numbers or language)')
         return (text, 'ai') if ok else (fallback, 'template')
+    except ai_gateway.AIPlanBlocked:  # gói hiện tại không có Cảnh báo tồn kho (vừa hạ gói): không gọi AI, không phải lượt AI lỗi
+        return fallback, 'template'
     except Exception as e:
         _log_ai_run('restock_reason', business_id, time.time() - t0, fallback=True, error=e)
         return fallback, 'template'
@@ -12567,22 +12555,21 @@ def api_ai_copilot():
             return jsonify({"success": False, "message": ("Thiếu câu hỏi." if lang == 'vi' else "Please type a question.")}), 400
         messages = None
         import ai_copilot_tools
+        import ai_gateway
         import booking_rules as _br
         _now = _br.local_now(business_id)
         agent_msgs = ai_copilot.agent_messages(snapshot, question, lang, f"TODAY (local): {_now:%A %Y-%m-%d %H:%M}")
-        is_desktop_mode = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+        # Sổ chi phí AI: mỗi vòng = 1 dòng db.ai_usage 'copilot' (token thật); _log_ai_run kèm tổng của cả lượt
+        ai_gateway.tag_request('copilot', business_id)
         _t0 = time.time()
         used = []
         try:
             text = ''
             for _round in range(6):
-                result = deepseek_chat_completion(
+                result = ai_gateway.chat(
+                    'copilot', business_id,
                     {"model": "deepseek-chat", "messages": agent_msgs, "temperature": 0.3, "max_tokens": 700,
-                     "tools": ai_copilot_tools.COPILOT_TOOLS, "tool_choice": "auto"},
-                    business_id=business_id,
-                    proxy_api_key=os.environ.get('BITPAW_AI_PROXY_KEY') if is_desktop_mode else None,
-                    direct_api_key=os.environ.get('DEEPSEEK_API_KEY') if not is_desktop_mode else None,
-                )
+                     "tools": ai_copilot_tools.COPILOT_TOOLS, "tool_choice": "auto"})
                 msg = result['choices'][0]['message']
                 calls = msg.get('tool_calls')
                 if not calls:
@@ -12611,14 +12598,10 @@ def api_ai_copilot():
     else:
         return jsonify({"success": False, "message": ("mode không hợp lệ." if lang == 'vi' else "Invalid mode.")}), 400
 
-    is_desktop_mode = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
+    import ai_gateway
     try:
-        result = deepseek_chat_completion(
-            {"model": "deepseek-chat", "messages": messages, "temperature": 0.5, "max_tokens": max_tokens},
-            business_id=business_id,
-            proxy_api_key=os.environ.get('BITPAW_AI_PROXY_KEY') if is_desktop_mode else None,
-            direct_api_key=os.environ.get('DEEPSEEK_API_KEY') if not is_desktop_mode else None,
-        )
+        result = ai_gateway.chat('copilot', business_id,
+                                 {"model": "deepseek-chat", "messages": messages, "temperature": 0.5, "max_tokens": max_tokens})
         text = (result['choices'][0]['message']['content'] or '').strip()
     except Exception as e:
         return jsonify({"success": False, "message": (f"AI đang bận, thử lại sau ít giây. ({str(e)[:120]})" if lang == 'vi' else f"The AI is busy — please try again in a few seconds. ({str(e)[:120]})")}), 502
@@ -12747,9 +12730,18 @@ def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, cu
     câu trả lời như đã xảy ra mà không có gì được ghi vào Database.
 
     Giới hạn tối đa 3 vòng gọi tool liên tiếp để tránh vòng lặp vô hạn nếu model cứ liên tục
-    yêu cầu gọi tool (lỗi model hoặc tool trả lỗi khiến model thử lại vô hạn)."""
+    yêu cầu gọi tool (lỗi model hoặc tool trả lỗi khiến model thử lại vô hạn).
+
+    Mỗi vòng đi qua ai_gateway.chat(None, ...): ghi ĐÚNG 1 dòng db.ai_usage token thật theo phạm vi caller đã mở
+    (inbox_reply / sms_reply / booking_chat / sales_bot), timeout + thử lại 1 lần lỗi tạm thời. api_key giữ trong chữ ký cho
+    caller cũ — gateway tự đọc DEEPSEEK_API_KEY (Web) / BITPAW_AI_PROXY_KEY (Desktop).
+    Webhook SMS (phạm vi 'sms_reply', trả TwiML ngay trong request): Twilio chỉ chờ ~15 giây -> cả vòng lặp có hạn chót
+    10 giây, mỗi lệnh tối đa 8 giây; hết giờ thì ném AIUnavailable để caller chuyển chủ tiệm trả lời."""
+    import ai_gateway
     working_messages = list(messages)
-    proxy_api_key = os.environ.get('BITPAW_AI_PROXY_KEY')  # set bởi desktop_app/launcher.py sau khi verify license
+    sms_webhook = ai_gateway.current_feature() == 'sms_reply'
+    deadline = time.monotonic() + 10.0 if sms_webhook else None
+    call_timeout = 8 if sms_webhook else 45
 
     tools = tools if tools is not None else TOOL_SCHEMAS
     allowed = {t['function']['name'] for t in tools}
@@ -12764,12 +12756,9 @@ def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, cu
             "tools": tools,
             "tool_choice": "auto",
         }
-        # deepseek_chat_completion() tự chọn: gọi thẳng DeepSeek (Web/SaaS) hay qua AI Proxy
-        # ẩn danh (Desktop App) — xem ai_deepseek_client.py. Ở Desktop mode, api_key truyền
-        # vào route này KHÔNG phải DEEPSEEK_API_KEY thật (file .exe không chứa key thật).
-        result = deepseek_chat_completion(
-            payload, business_id=business_id, proxy_api_key=proxy_api_key, direct_api_key=api_key
-        )
+        # gateway -> ai_deepseek_client tự chọn: gọi thẳng DeepSeek (Web/SaaS) hay qua AI Proxy ẩn danh (Desktop App,
+        # file .exe không chứa key thật); business_id vẫn gửi cho Proxy, sổ chi phí theo phạm vi caller.
+        result = ai_gateway.chat(None, business_id, payload, timeout=call_timeout, retries=1, deadline=deadline)
 
         message = result["choices"][0]["message"]
         tool_calls = message.get("tool_calls")

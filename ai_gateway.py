@@ -6,6 +6,8 @@ AI Core gateway (Phase 1, 26/10/2026) — 1 cổng cho các lệnh gọi AI ch�
                                         từ trường `usage` THẬT DeepSeek trả về:
                                         {business_id, feature, kind 'text', model, prompt_tokens, completion_tokens,
                                          cache_hit_tokens, units, cost_usd, usage_missing, created_at}
+                                        feature=None = ghi theo phạm vi caller đã mở; require= cổng gói; deadline= hạn chót
+                                        của cả lượt (webhook SMS: Twilio chỉ chờ ~15 giây).
   text(feature, business_id, system, user, ...)   = chat() rồi trả chữ.
   allowed(business_id, feature)         cổng gói LÚC CHẠY: plans.FEATURE_MIN_PLAN + tiệm cũ chưa có gói = Empire
                                         (plans.business_plan, cache 60 giây) -> hạ gói thì AI trả phí dừng trong <= 60 giây.
@@ -37,6 +39,7 @@ DEEPSEEK_PRICES_USD_PER_M = {
 }
 DEFAULT_MODEL = 'deepseek-chat'
 CACHE_TTL = 60   # giây — gói của tiệm đọc lại tối đa mỗi 60 giây (plans.business_plan)
+MIN_CALL_SECONDS = 2.0   # chat(deadline=...): còn ít hơn chừng này giây thì không bắt đầu lệnh mới / không thử lại
 
 # Tính năng ghi sổ -> (tính năng của gói trong plans.FEATURE_MIN_PLAN hoặc None = không khoá, nhãn vi, nhãn en)
 USAGE_FEATURES = {
@@ -52,9 +55,14 @@ USAGE_FEATURES = {
     'social_review': ('marketing_pro', 'Mạng xã hội: nhận xét hiệu quả', 'Social: performance review'),
     'copilot': ('ai_copilot', 'AI Copilot', 'AI Copilot'),
     'ad_assistant': ('marketing_pro', 'Trợ lý quảng cáo: viết mẫu quảng cáo', 'Ad Assistant: ad copy'),
+    'restock_reason': ('inventory', 'Cảnh báo tồn kho: AI viết lý do nhập hàng', 'Stock alerts: AI restock notes'),
+    'nurture': ('crm_ai', 'CRM: AI viết tin mời khách quay lại', 'CRM: AI win-back messages'),
+    'chat_memory': ('ai_inbox', 'Trí nhớ hội thoại AI', 'AI chat memory'),
     'sales_bot': (None, 'Bot tư vấn BitPaw', 'BitPaw sales assistant'),
     'other': (None, 'AI khác', 'Other AI'),
 }
+# Chi phí của chính BitPaw (bot bán phần mềm: business_id có thể do trình duyệt tự khai) -> không bao giờ vào sổ của tiệm nào
+BITPAW_COST_FEATURES = {'sales_bot'}
 MEDIA_LABELS = {'image': ('Ảnh AI', 'AI images', 'images'), 'video': ('Video AI', 'AI video', 'seconds')}
 # Lệnh DeepSeek không được gắn tính năng nhưng chạy trong 1 route đã biết (theo request.endpoint)
 _ENDPOINT_FEATURES = {
@@ -218,6 +226,13 @@ def _current():
     return None
 
 
+def current_feature():
+    """Tính năng ghi sổ của phạm vi đang mở (begin/scope/tag_request), hoặc None. Vd vòng Function Calling biết mình đang
+    chạy trong webhook SMS ('sms_reply': Twilio chỉ chờ ~15 giây) để rút ngắn thời gian chờ."""
+    s = _current()
+    return s.feature if s is not None else None
+
+
 def run_totals():
     """Tổng của phạm vi hiện tại (để _log_ai_run ghi kèm chi phí vào db.ai_runs); không có phạm vi -> {}."""
     s = _current()
@@ -328,13 +343,35 @@ def _transient(exc):
     return False
 
 
-def chat(feature, business_id, payload, timeout=45, retries=1, require=None):
+def _ledger(feature, business_id):
+    """(tính năng, tiệm) ghi sổ cho 1 lệnh của chat(). feature=None -> theo phạm vi caller đã mở (begin/scope/tag_request:
+    cả tính năng lẫn tiệm của phạm vi, kể cả tiệm None của bot bán BitPaw), không có phạm vi thì theo route + business_id
+    truyền vào (hoặc tiệm trong phiên). feature cụ thể -> business_id truyền vào, không có thì của phạm vi, rồi của phiên."""
+    if feature in BITPAW_COST_FEATURES:
+        return feature, None
+    s = _current()
+    if feature is None and s is not None:
+        return s.feature, s.business_id
+    route_feature, _ep, session_bid = _request_info()
+    if business_id is not None:
+        return feature or route_feature, business_id
+    if s is not None:
+        return feature, s.business_id
+    return feature or route_feature, session_bid
+
+
+def chat(feature, business_id, payload, timeout=45, retries=1, require=None, deadline=None):
     """1 lệnh DeepSeek qua gateway -> dict kết quả như deepseek_chat_completion (result['choices'][0]['message']...).
-    require='ai_inbox'... -> kiểm gói trước (AIPlanBlocked). Lỗi cuối cùng được ném lại NGUYÊN loại (caller bắt như cũ)."""
-    if require and not allowed(business_id, require):
+    feature=None: ghi sổ theo phạm vi đang mở (xem _ledger); business_id vẫn được gửi cho client (AI Proxy Desktop cần).
+    require='ai_inbox'... -> kiểm gói của tiệm ghi sổ trước (AIPlanBlocked, không gọi AI).
+    deadline (time.monotonic()): hạn chót của CẢ lượt (vd webhook Twilio ~15 giây) — mỗi lần gọi chỉ chờ phần còn lại, không
+    thử lại khi không còn đủ MIN_CALL_SECONDS; hết giờ trước khi gọi -> AIUnavailable('timeout').
+    Lỗi cuối cùng được ném lại NGUYÊN loại (caller bắt như cũ)."""
+    feature, ledger_bid = _ledger(feature, business_id)
+    if require and not allowed(ledger_bid, require):
         raise AIPlanBlocked('plan', f"The shop's plan does not include {plan_feature(require)}.")
     desktop = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
-    kwargs = {'business_id': business_id,
+    kwargs = {'business_id': business_id if business_id is not None else ledger_bid,
               'proxy_api_key': os.environ.get('BITPAW_AI_PROXY_KEY') if desktop else None,
               'direct_api_key': None if desktop else os.environ.get('DEEPSEEK_API_KEY'),
               'timeout': timeout}
@@ -343,21 +380,25 @@ def chat(feature, business_id, payload, timeout=45, retries=1, require=None):
     t0 = time.monotonic()
     attempt = 0
     while True:
+        if deadline is not None:
+            left = deadline - time.monotonic()
+            if left < MIN_CALL_SECONDS:
+                raise AIUnavailable('timeout', 'No time left for another AI call before the reply deadline.')
+            kwargs['timeout'] = min(timeout, left)
         tok = _IN_CHAT.set(True)
         try:
             with (no_sdk_retry(0) if no_sdk_retry else contextlib.nullcontext()):
                 result = client.deepseek_chat_completion(payload, **kwargs)
             break
         except Exception as e:
-            if attempt >= retries or not _transient(e) or time.monotonic() - t0 > timeout / 2.0:
+            if attempt >= retries or not _transient(e) or time.monotonic() - t0 > timeout / 2.0 or (
+                    deadline is not None and deadline - time.monotonic() < MIN_CALL_SECONDS + min(0.5 * (attempt + 1), 2.0)):
                 raise
             attempt += 1
             time.sleep(min(0.5 * attempt, 2.0))
         finally:
             _IN_CHAT.reset(tok)
-    s = _current()
-    bid = business_id if business_id is not None else (s.business_id if s is not None else None)
-    record(feature, bid, result, payload)
+    record(feature, ledger_bid, result, payload)
     return result
 
 

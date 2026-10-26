@@ -802,10 +802,12 @@ def prompt_from_text(business_id, text, kind, lang='en', preset=None):
     ctx = brand_context(business_id)
     user = (ctx + '\n\n' if ctx else '') + f'Message ({lang}): "{text}"'
     try:
-        out = deepseek_text(system, user, 0.8, 300, business_id)
+        # ai_gateway ghi ĐÚNG 1 dòng db.ai_usage với token THẬT (tính năng 'studio_image_prompt'); bộ ghi cũ log_text_usage
+        # (chỉ ghi 300 = max_tokens xin, chi phí 0) đã bỏ — nó tạo thêm 1 dòng "untracked" cho mỗi lần viết prompt.
+        import ai_gateway
+        out = ai_gateway.text('studio_image_prompt', business_id, system, user, 0.8, 300)
     except Exception as e:
         raise MediaError('ai_unavailable', 'The AI writer is busy — try again or type the prompt yourself.', status=502) from e
-    log_text_usage(business_id, 300)
     out = re.sub(r'\s+', ' ', (out or '')).strip().strip('"').strip()
     if not out:
         raise MediaError('ai_unavailable', 'The AI writer returned nothing — type the prompt yourself.', status=502)

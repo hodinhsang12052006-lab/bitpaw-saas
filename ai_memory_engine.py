@@ -17,7 +17,6 @@ app.py. A real task queue is the natural production-grade upgrade once this is p
 import os
 import threading
 from mongo_client import db, MONGO_STATUS
-from ai_deepseek_client import deepseek_chat_completion
 
 DISTILL_EVERY_N_CUSTOMER_TURNS = 4  # throttle: don't re-summarize on every single message
 MAX_MEMORY_CHARS = 800  # keep the distilled memory itself lean — it gets injected into every prompt
@@ -38,7 +37,7 @@ def _distill_now(customer_id, existing_memory, recent_turns):
     """Gọi DeepSeek để hợp nhất existing_memory + recent_turns thành 1 bản tóm tắt mới,
     ngắn gọn (giữ dưới MAX_MEMORY_CHARS). Chạy trong background thread — best-effort,
     lỗi/timeout gì cũng chỉ bỏ qua, KHÔNG được văng exception ra thread chính.
-    Gọi qua ai_deepseek_client (điểm gọi DeepSeek duy nhất: Web gọi thẳng bằng DEEPSEEK_API_KEY, Desktop qua AI Proxy) —
+    Gọi qua ai_gateway -> ai_deepseek_client (điểm gọi DeepSeek duy nhất: Web gọi thẳng bằng DEEPSEEK_API_KEY, Desktop qua AI Proxy) —
     trước đây module này tự gọi HTTP thẳng tới DeepSeek, không qua proxy Desktop, không thống nhất lỗi/timeout."""
     is_desktop = os.environ.get('BITPAW_DESKTOP_MODE') == '1'
     api_key = os.environ.get('DEEPSEEK_API_KEY')
@@ -63,17 +62,19 @@ def _distill_now(customer_id, existing_memory, recent_turns):
     )
 
     try:
-        result = deepseek_chat_completion(
+        # ai_gateway: 1 dòng sổ db.ai_usage token thật ('chat_memory', theo tiệm) + cổng gói lúc chạy — tiệm có gói không gồm
+        # AI trả lời tin nhắn (Essential / vừa hạ gói) thì không tóm tắt (AIPlanBlocked, bỏ qua như mọi lỗi khác ở đây).
+        # Tiệm cũ chưa có gói = Empire (giữ nguyên).
+        import ai_gateway
+        result = ai_gateway.chat(
+            'chat_memory', business_id,
             {
                 "model": "deepseek-chat",
                 "messages": [{"role": "user", "content": distill_prompt}],
                 "temperature": 0.2,
                 "max_tokens": 300,
             },
-            business_id=business_id,
-            proxy_api_key=proxy_key if is_desktop else None,
-            direct_api_key=api_key if not is_desktop else None,
-            timeout=20,
+            timeout=20, require='ai_inbox',
         )
         new_memory = (result['choices'][0]['message']['content'] or '').strip()[:MAX_MEMORY_CHARS]
         if new_memory:

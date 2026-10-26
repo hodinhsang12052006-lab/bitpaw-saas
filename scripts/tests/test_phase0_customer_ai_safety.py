@@ -617,9 +617,10 @@ class MemoryCostTests(unittest.TestCase):
             th.assert_called_once()
 
     def test_distill_goes_through_ai_deepseek_client(self):
+        # Phase 1 follow-up: qua ai_gateway (sổ 'chat_memory' + cổng gói) -> ai_deepseek_client (module giả trong sys.modules)
         DB.bot_customers.insert_one({'id': 'b:1'})
         fake = MagicMock(return_value={'choices': [{'message': {'content': 'likes gel'}}]})
-        with patch.object(ai_memory_engine, 'deepseek_chat_completion', fake), patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'k'}):
+        with patch.object(_ds, 'deepseek_chat_completion', fake), patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'k'}):
             ai_memory_engine._distill_now('b:1', '', [{'role': 'user', 'content': 'I love gel'}])
         self.assertEqual(fake.call_args.kwargs['business_id'], 'b')
         self.assertEqual(fake.call_args.kwargs['direct_api_key'], 'k')

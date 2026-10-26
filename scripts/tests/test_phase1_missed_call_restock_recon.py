@@ -360,7 +360,7 @@ class MissedCallTests(_Base):
 with io.open(os.path.join(ROOT, 'app.py'), encoding='utf-8') as _fh:
     APP_SRC = _fh.read()
 _TREE = ast.parse(APP_SRC)
-_FUNCS = ('_shop_lang_currency', '_fmt_num', '_restock_reason_template', '_restock_ai_text_ok', '_log_restock_ai_usage',
+_FUNCS = ('_shop_lang_currency', '_fmt_num', '_restock_reason_template', '_restock_ai_text_ok',
           '_generate_restock_reason_with_ai', '_run_inventory_forecast_for_business', '_reconciliation_threshold',
           '_reconciliation_details', '_run_payment_reconciliation_for_business', '_log_ai_run')
 _ASSIGNS = ('_VI_DIACRITIC_RE', '_RECON_MIN_MISMATCH', '_REVENUE_ORDER_FILTER')
@@ -414,6 +414,7 @@ class RestockTests(_Base):
         super().setUp()
         self.ds = MagicMock(side_effect=AssertionError('DeepSeek must not be called here'))
         NS['deepseek_chat_completion'] = self.ds
+        _ds.deepseek_chat_completion = self.ds   # Phase 1 follow-up: app gọi qua ai_gateway -> module ai_deepseek_client (giả)
 
     def _us_retail(self, bid='us-retail', plan=None):
         _shop(bid, 'US', 'retail', 'Corner Store', currency='USD', plan=plan)
@@ -532,7 +533,10 @@ class RestockTests(_Base):
         src = ast.get_source_segment(APP_SRC, fn)
         self.assertNotIn('api.deepseek.com', src)
         self.assertNotIn('requests.post', src)
-        self.assertIn('deepseek_chat_completion(', src)
+        self.assertIn('ai_gateway.chat(', src)            # 1 cổng: sổ token thật + cổng gói 'inventory' lúc chạy
+        self.assertIn("require='inventory'", src)
+        self.assertNotIn('deepseek_chat_completion(', src)
+        self.assertNotIn('_log_restock_ai_usage', APP_SRC)   # bộ ghi sổ riêng cũ đã bỏ (gateway ghi đúng 1 dòng)
 
     def test_fmt_num(self):
         f = NS['_fmt_num']
