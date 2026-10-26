@@ -157,8 +157,9 @@ def forget(business_id):
 
 # ---- Nội dung thẻ giá theo ngành (vi, en) ---------------------------------------------------------
 _CORE = {  # 2–3 dòng "đúng nghề" cho Essential
-    # Bỏ "xoay tua thợ công bằng" (26/10/2026): tính năng CHƯA có cho nail — thẻ giá chỉ ghi điều đã chạy thật.
-    'nail': [('fa-hand-holding-dollar', 'Chia tip & hoa hồng thợ tự động', 'Automatic tip & commission split'),
+    # Bảng xoay tua thợ đã có thật (Phase 1, nail_turns.py: /nail/turns) — tua đủ/nửa tua theo giá vé, khách request.
+    'nail': [('fa-arrows-rotate', 'Bảng xoay tua thợ: tua đủ / nửa tua theo giá vé', 'Technician turn board: full & half turns by ticket price'),
+             ('fa-hand-holding-dollar', 'Chia tip & hoa hồng thợ tự động', 'Automatic tip & commission split'),
              ('fa-calendar-check', 'Trang đặt lịch online + mã QR cho tiệm', 'Online booking page + QR code for your salon')],
     'spa': [('fa-spa', 'Menu liệu trình, hoa hồng kỹ thuật viên', 'Treatment menu, therapist commission'),
             ('fa-calendar-check', 'Trang đặt lịch online + mã QR', 'Online booking page + QR code')],

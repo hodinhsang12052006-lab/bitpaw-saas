@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% set vi = default_lang == 'vi' %}
+    <title>{{ 'Bảng xoay tua' if vi else 'Turn board' }} - BitPaw Software</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Bảng xoay tua thợ Nails (nail_turns.py). Máy quầy (tablet) là màn hình chính: nút >= 48px, chữ to ở "tới lượt". */
+        :root {
+            --bg: #0b0d10; --surface: #13161b; --surface2: #191d23; --line: #262b33; --line2: #333a44;
+            --ink: #eef0f3; --muted: #a3acb8; --dim: #7d8794;
+            --accent: #fb7185; --accent-ink: #2a0710; --accent-soft: rgba(251,113,133,.14);
+            --busy: #fbbf24; --busy-soft: rgba(251,191,36,.13); --ok: #34d399; --ok-soft: rgba(52,211,153,.12); --err: #fca5a5; --err-soft: rgba(248,113,113,.12);
+        }
+        html { color-scheme: dark; }
+        [hidden] { display: none !important; }   /* .btn đặt display: inline-flex sẽ đè thuộc tính hidden */
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--ink); margin: 0; font-size: 15px; }
+        ::selection { background: rgba(251,113,133,.35); color: #fff; }
+        main.tb { flex: 1; min-width: 0; padding: 24px 28px 96px; max-width: 1320px; box-sizing: border-box; }
+        .num { font-variant-numeric: tabular-nums; }
+        h1 { font-size: 24px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+        h2 { font-size: 15px; font-weight: 700; margin: 0; }
+        .head { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .head .meta { color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+        .live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 6px; vertical-align: 1px; }
+        .live-dot.off { background: var(--dim); }
+        .tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .btn { min-height: 48px; border: 1px solid var(--line2); border-radius: 12px; padding: 0 16px; font: inherit; font-weight: 600; font-size: 14.5px; cursor: pointer;
+               background: var(--surface2); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; gap: 8px; touch-action: manipulation; transition: transform .12s ease-out, background .15s; }
+        .btn:active { transform: scale(.97); }
+        .btn:focus-visible, .seg button:focus-visible, .pick:focus-within, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+        .btn.quiet { background: transparent; }
+        .btn.sm { min-height: 44px; padding: 0 13px; font-size: 13.5px; }
+        .btn[disabled] { opacity: .5; cursor: not-allowed; }
+        .btn.strong { border-color: #4a525e; font-weight: 700; min-width: 88px; }
+        .btn.busy-btn { background: var(--busy-soft); border-color: rgba(251,191,36,.45); color: #fde68a; }
+        @media (hover: hover) { .btn:hover { background: #20252d; } .btn.primary:hover { background: #fd8a9b; } .btn.quiet:hover { background: var(--surface2); } }
+        select.in, input.in { min-height: 48px; box-sizing: border-box; background: #0f1216; border: 1px solid var(--line2); color: var(--ink); border-radius: 12px; padding: 0 12px; font: inherit; font-size: 15px; }
+        select.in option { background: #12151a; }
+        .msg { border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; font-size: 14px; line-height: 1.5; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+        .msg.err { background: var(--err-soft); border-color: rgba(248,113,113,.35); color: var(--err); }
+        .msg.ok { background: var(--ok-soft); border-color: rgba(52,211,153,.35); color: #a7f3d0; }
+        .grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+        .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+        .box { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-width: 0; }
+        .box > .bh { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .box > .bh small { color: var(--muted); font-size: 13px; }
+        .empty { color: var(--muted); font-size: 14px; line-height: 1.55; padding: 6px 0; }
+
+        /* Tới lượt: khối lớn nhất màn hình — câu hỏi của màn hình là "khách walk-in tiếp theo cho ai?" */
+        .next { border-color: rgba(251,113,133,.45); padding: 20px; }
+        .next .lbl { color: var(--muted); font-size: 14px; font-weight: 600; }
+        .next .who { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin: 4px 0 2px; line-height: 1.15; overflow-wrap: anywhere; }
+        .next .sub { color: var(--muted); font-size: 14px; }
+        .next .acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+        .next .acts .primary { min-height: 60px; font-size: 17px; padding: 0 22px; flex: 1 1 260px; }
+        .next.none .who { font-size: 22px; font-weight: 700; color: var(--muted); }
+
+        /* hàng chờ + thẻ thợ */
+        .row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+        .row:first-of-type { border-top: 0; }
+        .pos { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--muted); background: var(--surface2); border: 1px solid var(--line); }
+        .row.is-next .pos { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+        .nm { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
+        .nm small { display: block; font-weight: 500; color: var(--muted); font-size: 13px; margin-top: 2px; }
+        .acts-r { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+        .turns { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .turns b { font-size: 15px; font-weight: 700; }
+        .pip { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 1.5px solid var(--accent); box-sizing: border-box; }
+        .pip.f { background: var(--accent); }
+        .pip.h { background: linear-gradient(90deg, var(--accent) 50%, transparent 50%); }
+        .pip.z { border-color: var(--dim); border-style: dashed; }
+        .pip-more { color: var(--muted); font-size: 12px; }
+        .card { border-top: 1px solid var(--line); padding: 12px 0; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; align-items: center; }
+        .card:first-of-type { border-top: 0; }
+        .pill { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--surface2); color: var(--muted); border: 1px solid var(--line); margin-right: 4px; }
+        .pill.busy { background: var(--busy-soft); color: #fde68a; border-color: rgba(251,191,36,.35); }
+        .pill.acc { background: var(--accent-soft); color: #fecdd3; border-color: rgba(251,113,133,.35); }
+        .pill.warn { background: var(--busy-soft); color: #fde68a; border-color: rgba(251,191,36,.35); }
+        table.log .ln { display: none; font-weight: 700; }
+        .sugg { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
+        .tabs { display: flex; gap: 6px; margin: 4px 0 12px; flex-wrap: wrap; }
+        .tabs button { min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: 0 14px; cursor: pointer; }
+        .tabs button[aria-selected="true"] { background: var(--surface2); color: var(--ink); border-color: var(--line2); }
+        .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
+        table.t th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12.5px; padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+        table.t td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+        table.t .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        table.t tfoot td { font-weight: 700; border-bottom: 0; }
+        tr.voided td { color: var(--dim); text-decoration: line-through; }
+        tr.voided td.keep { text-decoration: none; }
+        details.rules { margin-top: 16px; }
+        details.rules summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+        details.rules ul { margin: 6px 0 0; padding-left: 20px; color: var(--muted); line-height: 1.65; font-size: 14px; }
+        .note { color: var(--muted); font-size: 13px; line-height: 1.55; margin-top: 10px; }
+
+        dialog { border: 1px solid var(--line2); border-radius: 18px; background: #12151a; color: var(--ink); padding: 20px; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-sizing: border-box; }
+        dialog::backdrop { background: rgba(0,0,0,.62); }
+        dialog[open] { animation: dlg .18s ease-out; }
+        @keyframes dlg { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+        dialog h3 { margin: 0 0 14px; font-size: 18px; font-weight: 700; }
+        .f { margin-bottom: 14px; }
+        .f > label, .f > .lab { display: block; font-size: 13.5px; font-weight: 600; color: #cfd5dd; margin-bottom: 6px; }
+        .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+        .seg button { min-height: 48px; border-radius: 12px; border: 1px solid var(--line2); background: transparent; color: var(--muted); font: inherit; font-weight: 600; font-size: 13.5px; padding: 4px 6px; cursor: pointer; }
+        .seg button[aria-pressed="true"] { background: var(--accent-soft); color: #fecdd3; border-color: rgba(251,113,133,.55); }
+        .picks { display: flex; flex-wrap: wrap; gap: 6px; }
+        .pick { position: relative; }
+        .pick input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+        .pick span { display: inline-flex; align-items: center; gap: 6px; min-height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line2); color: var(--ink); font-weight: 600; font-size: 14.5px; }
+        .pick span small { color: var(--muted); font-weight: 500; font-size: 12px; }
+        .pick input:checked + span { background: var(--accent-soft); border-color: var(--accent); }
+        .g2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 10px; }
+        .counts { font-size: 14px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; line-height: 1.5; }
+        .counts b { color: var(--ink); }
+        .dlg-acts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+        .chk { display: flex; gap: 10px; align-items: flex-start; min-height: 44px; font-size: 14px; line-height: 1.45; cursor: pointer; }
+        .chk input { width: 22px; height: 22px; margin-top: 1px; accent-color: var(--accent); flex: none; }
+        .staff-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
+        .money { position: relative; }
+        .money span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+        .money input { padding-left: 26px; width: 100%; }
+        .money.suffix span { left: auto; right: 12px; }
+        .money.suffix input { padding-left: 12px; padding-right: 26px; }
+
+        @media (max-width: 1099px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+        @media (max-width: 767px) {
+            main.tb { padding: 72px 16px 96px; }
+            .next .who { font-size: 28px; }
+            .row { grid-template-columns: 40px minmax(0, 1fr); }
+            .row .acts-r { grid-column: 1 / -1; justify-content: flex-start; padding-left: 52px; }
+            .card { grid-template-columns: minmax(0, 1fr); }
+            .card .acts-r { justify-content: flex-start; }
+            .g2 { grid-template-columns: minmax(0, 1fr); }
+            .seg { grid-template-columns: minmax(0, 1fr); }
+            .tools { width: 100%; }
+            .tools > * { flex: 1 1 auto; }
+            table.log thead, table.log td.c2 { display: none; }
+            table.log td .ln { display: inline; }
+        }
+        /* bảng nằm cạnh sidebar trên tablet dọc: xếp theo bề rộng THẬT của khung, không theo màn hình */
+        .box { container-type: inline-size; }
+        @container (max-width: 600px) {
+            .row { grid-template-columns: 40px minmax(0, 1fr); }
+            .row .acts-r { grid-column: 1 / -1; justify-content: flex-start; padding-left: 52px; }
+        }
+        @container (max-width: 380px) {
+            .card { grid-template-columns: minmax(0, 1fr); }
+            .card .acts-r { justify-content: flex-start; }
+        }
+        @media (prefers-reduced-motion: reduce) { dialog[open] { animation: none; } .btn { transition: none; } .btn:active { transform: none; } }
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
+{% include 'components/app_sidebar.html' %}
+<main class="tb">
+    <div class="head">
+        <div>
+            <h1>{{ 'Bảng xoay tua' if vi else 'Turn board' }}</h1>
+            <div class="meta num" id="meta"><span class="live-dot off" id="liveDot"></span><span id="metaTxt">{{ 'Đang tải…' if vi else 'Loading…' }}</span></div>
+        </div>
+        <div class="tools">
+            <label class="sr-only" for="daySel">{{ 'Ngày' if vi else 'Day' }}</label>
+            <select class="in" id="daySel" aria-label="{{ 'Chọn ngày' if vi else 'Choose a day' }}"></select>
+            <button class="btn" id="undoBtn" hidden><i class="fas fa-rotate-left" aria-hidden="true"></i> <span class="lbl" id="undoLbl">{{ 'Hoàn tác' if vi else 'Undo' }}</span></button>
+            <button class="btn" id="setBtn" hidden><i class="fas fa-sliders" aria-hidden="true"></i> <span class="lbl">{{ 'Cài đặt tua' if vi else 'Turn settings' }}</span></button>
+        </div>
+    </div>
+    <div class="msg" id="msg" role="status" aria-live="polite" hidden></div>
+    <div class="msg" id="roBanner" hidden></div>
+
+    <div class="grid">
+        <div class="col">
+            <section class="box next" id="nextBox" aria-live="polite">
+                <div class="lbl">{{ 'Khách walk-in tiếp theo cho' if vi else 'Next walk-in goes to' }}</div>
+                <div class="who" id="nextName">—</div>
+                <div class="sub num" id="nextSub"></div>
+                <div class="acts" id="nextActs"></div>
+            </section>
+
+            <section class="box">
+                <div class="bh"><h2>{{ 'Hàng chờ' if vi else 'The line' }}</h2><small id="lineCount"></small></div>
+                <div id="line"></div>
+            </section>
+
+            <section class="box">
+                <div class="bh"><h2>{{ 'Đang làm khách' if vi else 'With a client' }}</h2><small id="busyCount"></small></div>
+                <div id="busy"></div>
+            </section>
+        </div>
+
+        <div class="col">
+            <section class="box">
+                <div class="bh"><h2>{{ 'Đang nghỉ' if vi else 'On a break' }}</h2></div>
+                <div id="brk"></div>
+            </section>
+            <section class="box">
+                <div class="bh"><h2>{{ 'Chưa có trên bảng' if vi else 'Not on the board' }}</h2></div>
+                <div id="notOn"></div>
+                <p class="note">{{ 'Thợ check-in trên app nhân viên hoặc máy chấm công là tự vào bảng theo giờ check-in. Thợ không dùng app thì bấm "Vào bảng".' if vi else 'Technicians who clock in on the staff app or the clock-in screen join the board by their clock-in time. For anyone not using the app, tap "Add to board".' }}</p>
+            </section>
+            <section class="box">
+                <div class="bh"><h2>{{ 'Đã về' if vi else 'Gone home' }}</h2></div>
+                <div id="gone"></div>
+            </section>
+        </div>
+    </div>
+
+    <section class="box" style="margin-top: 16px">
+        <div class="tabs" role="tablist">
+            <button role="tab" id="tabLog" aria-selected="true" aria-controls="panelLog">{{ "Nhật ký hôm nay" if vi else "Today's log" }}</button>
+            <button role="tab" id="tabSum" aria-selected="false" aria-controls="panelSum">{{ 'Tổng kết cuối ngày' if vi else 'End of day' }}</button>
+        </div>
+        <div id="panelLog" role="tabpanel" aria-labelledby="tabLog"><div class="scroll"><table class="t log" id="logTbl"></table></div></div>
+        <div id="panelSum" role="tabpanel" aria-labelledby="tabSum" hidden>
+            <div class="scroll"><table class="t" id="sumTbl"></table></div>
+            <p class="note" id="sumNote"></p>
+        </div>
+    </section>
+
+    <details class="rules" id="rules">
+        <summary>{{ 'Thứ tự tua được tính thế nào' if vi else 'How the turn order works' }}</summary>
+        <ul id="rulesList"></ul>
+    </details>
+</main>
+
+<dialog id="dlgAssign" aria-labelledby="aTitle">
+    <form method="dialog" id="fAssign">
+        <h3 id="aTitle">{{ 'Giao khách' if vi else 'Give a client' }}</h3>
+        <div class="f"><div class="lab" id="kLab">{{ 'Khách' if vi else 'Client' }}</div>
+            <div class="seg" role="group" aria-labelledby="kLab">
+                <button type="button" data-kind="walk_in">{{ 'Walk-in (theo lượt)' if vi else 'Walk-in (by turn)' }}</button>
+                <button type="button" data-kind="request">{{ 'Khách request thợ' if vi else 'Asked for this tech' }}</button>
+                <button type="button" data-kind="appointment">{{ 'Lịch hẹn' if vi else 'Appointment' }}</button>
+            </div>
+        </div>
+        <div class="f" id="apptField" hidden><label for="aAppt">{{ "Lịch hẹn hôm nay" if vi else "Today's appointment" }}</label>
+            <select class="in" id="aAppt" style="width:100%"></select></div>
+        <div class="f"><div class="lab" id="tLab">{{ 'Thợ' if vi else 'Technician' }}</div><div class="picks" id="aTechs" role="radiogroup" aria-labelledby="tLab"></div></div>
+        <div class="g2 f">
+            <div><label for="aSvc">{{ 'Dịch vụ (không bắt buộc)' if vi else 'Service (optional)' }}</label><select class="in" id="aSvc" style="width:100%"></select></div>
+            <div><label for="aAmt">{{ 'Giá vé' if vi else 'Ticket price' }}</label><div class="money" id="aAmtWrap"><span class="cur"></span><input class="in num" id="aAmt" inputmode="decimal" autocomplete="off" placeholder="{{ 'Chưa biết' if vi else 'Not known yet' }}"></div></div>
+        </div>
+        <div class="counts" id="aCounts"></div>
+        <div class="dlg-acts">
+            <button type="button" class="btn quiet" data-close>{{ 'Huỷ' if vi else 'Cancel' }}</button>
+            <button type="submit" class="btn primary" id="aGo">{{ 'Giao khách' if vi else 'Give client' }}</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlgDone" aria-labelledby="dTitle">
+    <form method="dialog" id="fDone">
+        <h3 id="dTitle"></h3>
+        <div class="f" id="dTickets" hidden><div class="lab" id="dtLab">{{ 'Vé POS đã thu của thợ này' if vi else 'POS tickets paid for this technician' }}</div><div class="picks" id="dTicketList" role="radiogroup" aria-labelledby="dtLab"></div></div>
+        <div class="f"><label for="dAmt">{{ 'Giá vé' if vi else 'Ticket price' }}</label><div class="money" id="dAmtWrap"><span class="cur"></span><input class="in num" id="dAmt" inputmode="decimal" autocomplete="off"></div></div>
+        <div class="f" id="dKindF"><label for="dKind">{{ 'Loại khách' if vi else 'Client type' }}</label>
+            <select class="in" id="dKind" style="width:100%">
+                <option value="walk_in">{{ 'Walk-in (theo lượt)' if vi else 'Walk-in (by turn)' }}</option>
+                <option value="request">{{ 'Khách request thợ' if vi else 'Asked for this tech' }}</option>
+                <option value="appointment">{{ 'Lịch hẹn' if vi else 'Appointment' }}</option>
+            </select></div>
+        <div class="counts" id="dCounts"></div>
+        <div class="dlg-acts">
+            <button type="button" class="btn quiet" data-close>{{ 'Huỷ' if vi else 'Cancel' }}</button>
+            <button type="button" class="btn" id="dNoPrice" hidden>{{ 'Xong, nhập giá sau' if vi else 'Done, price later' }}</button>
+            <button type="submit" class="btn primary" id="dGo">{{ 'Xong' if vi else 'Done' }}</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlgConfirm" aria-labelledby="cTitle">
+    <form method="dialog">
+        <h3 id="cTitle"></h3>
+        <p id="cBody" style="color: var(--muted); line-height: 1.55; margin: 0 0 16px"></p>
+        <div class="dlg-acts">
+            <button type="button" class="btn quiet" data-close>{{ 'Không' if vi else 'No' }}</button>
+            <button type="button" class="btn primary" id="cGo"></button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlgSet" aria-labelledby="sTitle">
+    <form method="dialog" id="fSet">
+        <h3 id="sTitle">{{ 'Cài đặt tua' if vi else 'Turn settings' }}</h3>
+        <div class="f"><label for="sMin">{{ 'Vé từ mức này trở lên = 1 tua đủ (dưới mức = nửa tua)' if vi else 'Tickets at or above this price count as a full turn (below = half turn)' }}</label>
+            <div class="money" id="sMinWrap"><span class="cur"></span><input class="in num" id="sMin" inputmode="decimal" autocomplete="off" required></div></div>
+        <div class="f"><label for="sReq">{{ 'Khách request (chỉ định thợ) tính là' if vi else 'A client who asks for a technician counts as' }}</label>
+            <select class="in" id="sReq" style="width:100%">
+                <option value="none">{{ 'Không tính tua (thợ giữ chỗ)' if vi else 'No turn (tech keeps their place)' }}</option>
+                <option value="half">{{ 'Nửa tua' if vi else 'Half turn' }}</option>
+                <option value="full">{{ 'Tua đủ' if vi else 'Full turn' }}</option>
+            </select></div>
+        <div class="f"><label for="sAppt">{{ 'Lịch hẹn "thợ nào cũng được" tính là' if vi else 'An appointment booked for any technician counts as' }}</label>
+            <select class="in" id="sAppt" style="width:100%">
+                <option value="amount">{{ 'Như walk-in (theo giá vé)' if vi else 'Same as a walk-in (by ticket price)' }}</option>
+                <option value="full">{{ 'Tua đủ' if vi else 'Full turn' }}</option>
+                <option value="half">{{ 'Nửa tua' if vi else 'Half turn' }}</option>
+                <option value="none">{{ 'Không tính tua' if vi else 'No turn' }}</option>
+            </select></div>
+        <div class="f"><label for="sSkip">{{ 'Thợ bỏ lượt (pass) thì' if vi else 'When a technician passes on a client' }}</label>
+            <select class="in" id="sSkip" style="width:100%">
+                <option value="none">{{ 'Xuống cuối nhóm cùng số tua, không phạt' if vi else 'Moves behind others with the same turns, no penalty' }}</option>
+                <option value="half">{{ 'Xuống cuối nhóm + tính nửa tua' if vi else 'Moves back and counts a half turn' }}</option>
+                <option value="full">{{ 'Xuống cuối nhóm + tính 1 tua' if vi else 'Moves back and counts a full turn' }}</option>
+            </select></div>
+        <div class="f"><label class="chk"><input type="checkbox" id="sStaff"><span>{{ 'Máy quầy đăng nhập bằng tài khoản nhân viên được giao khách, bấm xong, hoàn tác (mặc định chỉ chủ tiệm)' if vi else 'Front-desk devices signed in with a staff account can give clients, finish and undo (otherwise owner accounts only)' }}</span></label></div>
+        <div class="f"><div class="lab">{{ 'Không xếp tua cho (lễ tân, chủ tiệm…)' if vi else 'Leave off the turn board (front desk, owner…)' }}</div><div class="staff-list" id="sExcl"></div></div>
+        <p class="note" style="margin-top:0">{{ 'Đổi cài đặt chỉ áp cho tua ghi từ bây giờ; tua đã ghi giữ nguyên. Tua cũ sửa được bằng "Sửa giá" trong nhật ký.' if vi else 'Changes apply to turns recorded from now on; turns already recorded keep their value. Fix an old one with "Fix price" in the log.' }}</p>
+        <div class="dlg-acts">
+            <button type="button" class="btn quiet" data-close>{{ 'Huỷ' if vi else 'Cancel' }}</button>
+            <button type="submit" class="btn primary" id="sGo">{{ 'Lưu' if vi else 'Save' }}</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+(function () {
+    'use strict';
+    const VI = {{ 'true' if vi else 'false' }};
+    const RULE_VI = { req: { none: 'không tính tua', half: 'nửa tua', full: 'tua đủ' },
+                      appt: { amount: 'như walk-in theo giá vé', full: 'tua đủ', half: 'nửa tua', none: 'không tính tua' },
+                      skip: { half: 'nửa tua', full: '1 tua' } };
+    const RULE_EN = { req: { none: 'no turn', half: 'half turn', full: 'full turn' },
+                      appt: { amount: 'same as a walk-in, by ticket price', full: 'full turn', half: 'half turn', none: 'no turn' },
+                      skip: { half: 'a half turn', full: 'a full turn' } };
+    const T = VI ? {
+        loading: 'Đang tải…', updated: 'cập nhật', offline: 'Mất kết nối — đang thử lại', today: 'Hôm nay',
+        giveTo: (n) => `Giao khách walk-in cho ${n}`, requestBtn: 'Khách request thợ', apptBtn: 'Lịch hẹn',
+        nobody: 'Chưa có thợ nào rảnh', nobodySub: (b, k) => `${b} thợ đang làm khách · ${k} thợ đang nghỉ`, emptyBoard: 'Chưa có thợ nào trên bảng hôm nay',
+        emptySub: 'Thợ check-in trên app là tự vào bảng; hoặc bấm "Vào bảng" ở cột bên.',
+        turnsWord: (x) => `${x} tua`, waitingIn: (t) => `vào bảng ${t}`, checkedIn: (t) => `check-in ${t}`, manual: 'quầy thêm tay',
+        giveClient: 'Giao khách', skip: 'Bỏ lượt', brk: 'Nghỉ', leave: 'Về', back: 'Quay lại', rejoin: 'Vào lại bảng', join: 'Vào bảng',
+        done: 'Xong', fixPrice: 'Sửa giá', lineCount: (n) => `${n} thợ chờ`, busyCount: (n) => `${n} thợ`,
+        noLine: 'Không ai đang chờ.', noBusy: 'Chưa ai đang làm khách.', noBreak: 'Không ai đang nghỉ.', noGone: 'Chưa ai về.',
+        allOn: 'Mọi thợ Nails đã có trên bảng.', noTechs: 'Tiệm chưa có thợ Nails. Thêm thợ ở trang Nhân sự (lĩnh vực "Nails").',
+        since: (t) => `từ ${t}`, kinds: { walk_in: 'Walk-in', request: 'Khách request', appointment: 'Lịch hẹn' },
+        val: (v, p) => p ? 'tạm tính 1 tua (chưa có giá)' : (v >= 1 ? (v > 1 ? `${fmtT(v)} tua` : 'tua đủ') : (v > 0 ? 'nửa tua' : 'không tính tua')),
+        ticket: (o, a) => `Vé #${o} · ${a}`, useTicket: 'Dùng vé này', suggTitle: 'Vé POS mới của thợ:',
+        roStaff: 'Bạn đang xem bảng tua (chỉ xem). Chủ tiệm cho phép máy quầy thao tác trong "Cài đặt tua".',
+        roPast: (d) => `Đang xem ngày ${d} — chỉ xem. Chọn "Hôm nay" để thao tác.`,
+        undo: (n) => `Hoàn tác: ${n}`, undoConfirmT: 'Hoàn tác thao tác cuối?', undone: 'Đã hoàn tác.',
+        ev: { join: 'vào bảng', turn: 'nhận khách', done: 'xong khách', skip: 'bỏ lượt', break: 'nghỉ', back: 'quay lại', leave: 'về' },
+        evShort: { join: 'Vào bảng', turn: 'Giao khách', done: 'Xong', skip: 'Bỏ lượt', break: 'Nghỉ', back: 'Quay lại', leave: 'Về' },
+        logCols: ['Giờ', 'Thợ', 'Việc', ''], noLog: 'Chưa có thao tác nào hôm nay.', undoneTag: 'đã hoàn tác', outTurn: (n) => `ngoài lượt (tới lượt ${n})`,
+        fromAttendance: (t) => `từ chấm công ${t || ''}`.trim(), byLbl: 'bởi',
+        sumCols: ['Thợ', 'Check-in', 'Khách', 'Tua', 'Đủ', 'Nửa', 'Không tính', 'Bỏ lượt', 'Tiền vé trên bảng', 'Doanh số POS'],
+        total: 'Tổng', noSum: 'Ngày này chưa có thợ nào trên bảng.',
+        sumNote: (p, off) => `Tua = tua đủ + nửa tua + phạt bỏ lượt. "Tiền vé trên bảng" = giá quầy ghi lúc giao/xong khách. "Doanh số POS" = tiền dịch vụ của thợ trên vé POS Nails đã thu trong ngày (chưa trừ hoàn tiền một phần).` + (p ? ` ${p} tua chưa có giá (đang tạm tính 1 tua).` : '') + (off ? ` Doanh số POS của thợ không có trên bảng: ${off}.` : ''),
+        aTitleTo: (n) => `Giao khách cho ${n}`, aTitle: 'Giao khách', noAvail: 'Không có thợ nào nhận được loại khách này lúc này.',
+        apptNone: '— Không gắn lịch hẹn —', apptOpt: (a) => `${a.time} · ${a.customer || 'Khách'}${a.service ? ' · ' + a.service : ''}${a.staff_name ? ' · hẹn ' + a.staff_name : ' · thợ nào cũng được'}`,
+        svcNone: '— Chọn dịch vụ —', nextTag: 'tới lượt', breakTag: 'đang nghỉ',
+        counts: (k, v, p, amt, min, fixed) => `Tính: <b>${T.val(v, p)}</b>` + (fixed ? (k === 'request' ? ' — theo cài đặt của tiệm cho khách request.' : ' — theo cài đặt của tiệm cho lịch hẹn.') : (p ? `. Bấm "Xong" và gắn vé POS hoặc nhập giá để chốt (từ ${min} = tua đủ).` : ` (vé ${amt}, mức tua đủ ${min}).`)),
+        dTitle: (n) => `${n} làm xong khách`, dTitleEdit: (n) => `Sửa tua của ${n}`, needPrice: 'Nhập giá vé hoặc chọn vé POS.',
+        outT: 'Giao ngoài lượt?', outB: (n, m) => `Tới lượt ${n}. Giao khách này cho ${m} sẽ được ghi "ngoài lượt" trong nhật ký.`, outGo: (m) => `Giao cho ${m}`,
+        leaveT: (n) => `${n} về?`, leaveB: 'Thợ rời bảng hôm nay. Bấm "Vào lại bảng" nếu thợ quay lại.', leaveGo: 'Cho về',
+        skipT: (n) => `${n} bỏ lượt?`, skipB: (pen) => `Thợ xuống cuối nhóm cùng số tua${pen ? ' và bị tính ' + pen : ''}.`, skipGo: 'Bỏ lượt',
+        saved: 'Đã lưu cài đặt.', err: 'Có lỗi, thử lại.',
+        rules: (s, min) => [
+            'Thợ vào bảng theo giờ check-in. Khách walk-in giao cho thợ đứng đầu hàng: <b>ít tua nhất trước</b>; bằng tua thì <b>ai chờ lâu hơn trước</b>.',
+            `Vé từ <b>${min}</b> trở lên = 1 tua đủ; dưới mức = nửa tua (2 nửa tua = 1 tua). Chưa biết giá thì tạm tính 1 tua, chốt lúc "Xong".`,
+            `Khách request: <b>${RULE_VI.req[s.request_counts]}</b>${s.request_counts === 'none' ? ', thợ giữ nguyên chỗ trong hàng' : ''}.`,
+            `Lịch hẹn "thợ nào cũng được": <b>${RULE_VI.appt[s.appointment_counts]}</b>. Lịch hẹn có chỉ định thợ = khách request.`,
+            `Bỏ lượt: xuống cuối nhóm cùng số tua${s.skip_counts === 'none' ? '' : ' và tính ' + RULE_VI.skip[s.skip_counts]}. Nghỉ: giữ chỗ, không nhận khách.`,
+            'Thợ vào muộn bắt đầu bằng số tua thấp nhất của người đang làm, nên đứng cuối hàng — không nhận liền nhiều khách để "đuổi kịp".',
+            'Mọi thao tác đều ghi nhật ký có giờ; hoàn tác không xoá mà gạch dòng đó.',
+        ],
+    } : {
+        loading: 'Loading…', updated: 'updated', offline: 'Connection lost — retrying', today: 'Today',
+        giveTo: (n) => `Give walk-in to ${n}`, requestBtn: 'Asked for a tech', apptBtn: 'Appointment',
+        nobody: 'No technician is free', nobodySub: (b, k) => `${b} with a client · ${k} on a break`, emptyBoard: 'Nobody is on the board yet today',
+        emptySub: 'Technicians who clock in on the app join automatically, or tap "Add to board" on the side.',
+        turnsWord: (x) => `${x} ${x === '1' || x === '½' ? 'turn' : 'turns'}`, waitingIn: (t) => `on the board ${t}`, checkedIn: (t) => `clocked in ${t}`, manual: 'added by the desk',
+        giveClient: 'Give client', skip: 'Skip', brk: 'Break', leave: 'Gone home', back: 'Back', rejoin: 'Back on the board', join: 'Add to board',
+        done: 'Done', fixPrice: 'Fix price', lineCount: (n) => `${n} waiting`, busyCount: (n) => `${n} busy`,
+        noLine: 'Nobody is waiting.', noBusy: 'Nobody is with a client.', noBreak: 'Nobody is on a break.', noGone: 'Nobody has gone home.',
+        allOn: 'Every nail technician is on the board.', noTechs: 'No nail technicians yet. Add them on the Staff page (department "Nails").',
+        since: (t) => `since ${t}`, kinds: { walk_in: 'Walk-in', request: 'Requested', appointment: 'Appointment' },
+        val: (v, p) => p ? 'full turn for now (no price yet)' : (v >= 1 ? (v > 1 ? `${fmtT(v)} turns` : 'full turn') : (v > 0 ? 'half turn' : 'no turn')),
+        ticket: (o, a) => `Ticket #${o} · ${a}`, useTicket: 'Use this ticket', suggTitle: 'New POS ticket for this tech:',
+        roStaff: 'You are viewing the turn board (view only). The owner can let front-desk devices use it in "Turn settings".',
+        roPast: (d) => `Viewing ${d} — view only. Choose "Today" to make changes.`,
+        undo: (n) => `Undo: ${n}`, undoConfirmT: 'Undo the last action?', undone: 'Undone.',
+        ev: { join: 'joined the board', turn: 'took a client', done: 'finished a client', skip: 'skipped', break: 'went on a break', back: 'came back', leave: 'went home' },
+        evShort: { join: 'Joined', turn: 'Client', done: 'Done', skip: 'Skip', break: 'Break', back: 'Back', leave: 'Gone home' },
+        logCols: ['Time', 'Technician', 'What happened', ''], noLog: 'Nothing recorded today yet.', undoneTag: 'undone', outTurn: (n) => `out of turn (${n} was next)`,
+        fromAttendance: (t) => `from clock-in ${t || ''}`.trim(), byLbl: 'by',
+        sumCols: ['Technician', 'Clocked in', 'Clients', 'Turns', 'Full', 'Half', 'No turn', 'Skips', 'Tickets on board', 'POS sales'],
+        total: 'Total', noSum: 'Nobody was on the board that day.',
+        sumNote: (p, off) => `Turns = full + half turns + skip penalties. "Tickets on board" = prices the desk entered when giving or finishing clients. "POS sales" = the technician's service lines on paid nail POS tickets that day (partial refunds not subtracted).` + (p ? ` ${p} turn(s) still have no price (counted as a full turn for now).` : '') + (off ? ` POS sales for technicians not on the board: ${off}.` : ''),
+        aTitleTo: (n) => `Give a client to ${n}`, aTitle: 'Give a client', noAvail: 'No technician can take this kind of client right now.',
+        apptNone: '— No appointment —', apptOpt: (a) => `${a.time} · ${a.customer || 'Client'}${a.service ? ' · ' + a.service : ''}${a.staff_name ? ' · with ' + a.staff_name : ' · any tech'}`,
+        svcNone: '— Choose a service —', nextTag: 'next', breakTag: 'on break',
+        counts: (k, v, p, amt, min, fixed) => `Counts as: <b>${T.val(v, p)}</b>` + (fixed ? (k === 'request' ? ' — your shop setting for requested clients.' : ' — your shop setting for appointments.') : (p ? `. Tap "Done" and pick the POS ticket or type the price to settle it (${min} or more = full turn).` : ` (ticket ${amt}, full turn from ${min}).`)),
+        dTitle: (n) => `${n} finished a client`, dTitleEdit: (n) => `Fix ${n}'s turn`, needPrice: 'Type the ticket price or pick a POS ticket.',
+        outT: 'Give out of turn?', outB: (n, m) => `${n} is next. Giving this client to ${m} is logged as out of turn.`, outGo: (m) => `Give to ${m}`,
+        leaveT: (n) => `${n} going home?`, leaveB: 'They leave today\'s board. Tap "Back on the board" if they return.', leaveGo: 'Gone home',
+        skipT: (n) => `${n} skips this client?`, skipB: (pen) => `They move behind others with the same number of turns${pen ? ' and are charged ' + pen : ''}.`, skipGo: 'Skip',
+        saved: 'Settings saved.', err: 'Something went wrong. Please try again.',
+        rules: (s, min) => [
+            'Technicians join the board in clock-in order. A walk-in goes to the top of the line: <b>fewest turns first</b>; on a tie, <b>whoever has waited longer</b>.',
+            `A ticket of <b>${min}</b> or more is a full turn; below that is a half turn (two halves make a turn). With no price yet it counts as a full turn until "Done".`,
+            `A client who asks for a technician: <b>${RULE_EN.req[s.request_counts]}</b>${s.request_counts === 'none' ? ', and the technician keeps their place in line' : ''}.`,
+            `An appointment for any technician: <b>${RULE_EN.appt[s.appointment_counts]}</b>. An appointment with a named technician counts as a request.`,
+            `Skip: moves behind others with the same turns${s.skip_counts === 'none' ? '' : ' and counts ' + RULE_EN.skip[s.skip_counts]}. Break: keeps their place, takes no clients.`,
+            'Late arrivals start at the lowest turn count of whoever is working, so they join the end of the line instead of taking several clients in a row to catch up.',
+            'Every action is logged with its time; undo strikes the entry through instead of deleting it.',
+        ],
+    };
+
+    const $ = (id) => document.getElementById(id);
+    let B = null, SUM = null, tab = 'log', day = '', inflight = false, lastOk = 0, svc = [], dlgCtx = {}, fails = 0;
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+    function fmtT(x) {
+        x = Number(x) || 0; const w = Math.floor(x + 1e-9), f = Math.round((x - w) * 100) / 100;
+        if (f === 0) return String(w);
+        if (f === 0.5) return (w ? w : '') + '½';
+        return x.toFixed(2).replace(/0+$/, '');
+    }
+    function cur() { return (B && B.currency) || 'USD'; }
+    function money(v) {
+        if (v == null || v === '') return '—';
+        const n = Number(v) || 0, c = cur();
+        if (c === 'VND') return Math.round(n).toLocaleString('vi-VN') + 'đ';
+        return (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function setCur() { document.querySelectorAll('.money').forEach((w) => { const vnd = cur() === 'VND'; w.classList.toggle('suffix', vnd); w.querySelector('.cur').textContent = vnd ? 'đ' : '$'; }); }
+    function parseAmt(s) { s = String(s || '').trim(); if (!s) return null; const n = Number(cur() === 'VND' ? s.replace(/[.,\s]/g, '') : s.replace(/,/g, '')); return isFinite(n) && n > 0 ? n : NaN; }
+    function show(text, kind) { const m = $('msg'); m.hidden = !text; m.className = 'msg' + (kind ? ' ' + kind : ''); m.textContent = text || ''; if (text) { clearTimeout(show._t); show._t = setTimeout(() => { m.hidden = true; }, kind === 'err' ? 9000 : 4500); } }
+
+    async function api(path, opts) {
+        const res = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, credentials: 'same-origin' }, opts || {}));
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || body.success === false) { const e = new Error(body.message || T.err); e.body = body; e.status = res.status; throw e; }
+        return body;
+    }
+    async function post(path, data) {
+        if (inflight) return null;
+        inflight = true;
+        try { const b = await api(path, { method: 'POST', body: JSON.stringify(data || {}) }); if (b.line) take(b); return b; }
+        catch (e) { if (e.body && e.body.board) take(e.body.board); show(e.message, 'err'); throw e; }
+        finally { inflight = false; }
+    }
+
+    // ---------------- vẽ bảng
+    function pips(list) {
+        const max = 14, extra = Math.max(0, list.length - max);
+        const h = list.slice(-max).map((v) => `<span class="pip ${v >= 1 ? 'f' : v > 0 ? 'h' : 'z'}" aria-hidden="true"></span>`).join('');
+        return h + (extra ? `<span class="pip-more">+${extra}</span>` : '');
+    }
+    function turnsCell(m) { return `<span class="turns"><b class="num">${esc(T.turnsWord(fmtT(m.turns)))}</b>${pips(m.pips)}</span>`; }
+    function joinedTxt(m) { return m.source === 'attendance' && m.checkin ? T.checkedIn(m.checkin) : (m.source === 'manual' ? T.waitingIn(m.joined_at) + ' · ' + T.manual : T.waitingIn(m.joined_at)); }
+    function btn(label, act, ma, cls, extra) { return `<button type="button" class="btn sm ${cls || ''}" data-act="${act}" data-ma="${esc(ma)}" ${extra || ''}>${esc(label)}</button>`; }
+
+    function take(b) {
+        B = b; lastOk = Date.now(); fails = 0;
+        if (b.services) svc = b.services;
+        render();
+    }
+
+    function render() {
+        if (!B) return;
+        setCur();
+        const may = B.can_assign;
+        $('liveDot').className = 'live-dot' + (B.is_today ? '' : ' off');
+        $('metaTxt').textContent = `${fmtDay(B.day)} · ${T.updated} ${B.now}`;
+        $('setBtn').hidden = !B.can_admin;
+        const ro = $('roBanner');
+        ro.hidden = may; ro.textContent = !B.is_today ? T.roPast(fmtDay(B.day)) : (may ? '' : T.roStaff);
+        $('undoBtn').hidden = !(may && B.undo);
+        if (B.undo) $('undoLbl').textContent = T.undo(`${T.evShort[B.undo.type] || ''} · ${B.undo.name || ''}`);
+
+        // tới lượt
+        const nx = B.line.find((m) => m.ma_nv === B.next_up);
+        const box = $('nextBox');
+        box.classList.toggle('none', !nx);
+        if (nx) {
+            $('nextName').textContent = nx.name;
+            $('nextSub').textContent = `${T.turnsWord(fmtT(nx.turns))} · ${joinedTxt(nx)}`;
+        } else {
+            const any = B.line.length + B.busy.length + B.on_break.length;
+            $('nextName').textContent = any ? T.nobody : T.emptyBoard;
+            $('nextSub').textContent = any ? T.nobodySub(B.busy.length, B.on_break.length) : T.emptySub;
+        }
+        $('nextActs').innerHTML = may ? [
+            nx ? `<button type="button" class="btn primary" data-act="walkin" data-ma="${esc(nx.ma_nv)}"><i class="fas fa-user-plus" aria-hidden="true"></i> ${esc(T.giveTo(nx.name))}</button>` : '',
+            (B.line.length + B.on_break.length) ? `<button type="button" class="btn" data-act="open" data-kind="request">${esc(T.requestBtn)}</button>` : '',
+            (B.line.length && (B.appointments || []).length) ? `<button type="button" class="btn" data-act="open" data-kind="appointment">${esc(T.apptBtn)}</button>` : '',
+        ].join('') : '';
+
+        // hàng chờ
+        $('lineCount').textContent = B.line.length ? T.lineCount(B.line.length) : '';
+        $('line').innerHTML = B.line.length ? B.line.map((m, i) => `
+            <div class="row${m.ma_nv === B.next_up ? ' is-next' : ''}">
+                <div class="pos num">${i + 1}</div>
+                <div class="nm">${esc(m.name)}<small class="num">${turnsCell(m)} · ${esc(joinedTxt(m))}</small></div>
+                <div class="acts-r">${may ? btn(T.giveClient, 'give', m.ma_nv) + btn(T.skip, 'skip', m.ma_nv, 'quiet') + btn(T.brk, 'break', m.ma_nv, 'quiet') + btn(T.leave, 'leave', m.ma_nv, 'quiet') : ''}</div>
+            </div>`).join('') : `<div class="empty">${esc(T.noLine)}</div>`;
+
+        // đang làm khách
+        $('busyCount').textContent = B.busy.length ? T.busyCount(B.busy.length) : '';
+        $('busy').innerHTML = B.busy.length ? B.busy.map((m) => {
+            const c = m.current || {};
+            const meta = [T.kinds[c.kind] || '', c.service || '', c.amount != null ? money(c.amount) : '', T.since(c.at || '')].filter(Boolean).join(' · ');
+            const sugg = (may && m.pos_suggestions.length) ? `<div class="sugg"><span>${esc(T.suggTitle)}</span>${m.pos_suggestions.map((s) => `<button type="button" class="btn sm busy-btn" data-act="doneTicket" data-ma="${esc(m.ma_nv)}" data-order="${esc(s.order_id)}">${esc(T.ticket(s.order_id, money(s.amount)))} · ${esc(T.done)}</button>`).join('')}</div>` : '';
+            return `<div class="card">
+                <div class="nm">${esc(m.name)} <span class="pill busy">${esc(T.val(c.value, c.provisional))}</span><small class="num">${esc(meta)} · ${turnsCell(m)}</small></div>
+                <div class="acts-r">${may ? btn(T.done, 'done', m.ma_nv, 'strong') : ''}</div>${sugg}
+            </div>`;
+        }).join('') : `<div class="empty">${esc(T.noBusy)}</div>`;
+
+        $('brk').innerHTML = B.on_break.length ? B.on_break.map((m) => `<div class="card"><div class="nm">${esc(m.name)}<small class="num">${turnsCell(m)}</small></div><div class="acts-r">${may ? btn(T.back, 'back', m.ma_nv) + btn(T.leave, 'leave', m.ma_nv, 'quiet') : ''}</div></div>`).join('') : `<div class="empty">${esc(T.noBreak)}</div>`;
+        $('notOn').innerHTML = B.not_on_board.length ? B.not_on_board.map((m) => `<div class="card"><div class="nm">${esc(m.name)}${m.checkin ? `<small>${esc(T.checkedIn(m.checkin))}</small>` : ''}</div><div class="acts-r">${may ? btn(T.join, 'join', m.ma_nv) : ''}</div></div>`).join('') : `<div class="empty">${esc(B.tech_count ? T.allOn : T.noTechs)}</div>`;
+        $('gone').innerHTML = B.gone.length ? B.gone.map((m) => `<div class="card"><div class="nm">${esc(m.name)}<small class="num">${turnsCell(m)}</small></div><div class="acts-r">${may ? btn(T.rejoin, 'join', m.ma_nv) : ''}</div></div>`).join('') : `<div class="empty">${esc(T.noGone)}</div>`;
+
+        renderLog();
+        const min = money(B.settings.full_turn_min);
+        $('rulesList').innerHTML = T.rules(B.settings, esc(min)).map((x) => `<li>${x}</li>`).join('');
+        if (tab === 'sum') renderSum();
+    }
+
+    function logText(e) {
+        if (e.type === 'turn') {
+            const bits = [T.kinds[e.kind] || '', e.service || '', e.amount != null ? money(e.amount) : '', T.val(Number(e.value) || 0, e.provisional)];
+            if (e.order_id) bits.push(`#${e.order_id}`);
+            if (e.out_of_turn) bits.push(T.outTurn(e.next_up_name || '?'));
+            return `${T.ev.turn}: ${bits.filter(Boolean).join(' · ')}`;
+        }
+        if (e.type === 'join') return T.ev.join + (e.source === 'attendance' ? ` (${T.fromAttendance(e.checkin)})` : '');
+        if (e.type === 'skip' && Number(e.value) > 0) return `${T.ev.skip} (+${T.val(Number(e.value), false)})`;
+        return T.ev[e.type] || e.type;
+    }
+    function renderLog() {
+        const rows = B.log || [];
+        const may = B.can_assign || B.can_admin;
+        if (!rows.length) { $('logTbl').innerHTML = `<tbody><tr><td class="empty">${esc(T.noLog)}</td></tr></tbody>`; return; }
+        $('logTbl').innerHTML = `<thead><tr>${T.logCols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>` + rows.map((e) => {
+            const fix = (may && e.type === 'turn' && !e.voided && (B.is_today ? B.can_assign : B.can_admin)) ? btn(T.fixPrice, 'fix', e.ma_nv, 'quiet', `data-turn="${esc(e.id)}"`) : '';
+            const by = e.by && B.can_admin && e.source !== 'attendance' ? `<br><small style="color:var(--dim)">${esc(T.byLbl)} ${esc(e.by)}</small>` : '';
+            return `<tr class="${e.voided ? 'voided' : ''}"><td class="num">${esc(e.time)}</td><td class="c2">${esc(e.name)}</td><td><span class="ln">${esc(e.name)} </span>${esc(logText(e))}${by}</td><td class="r keep">${e.voided ? `<span class="pill">${esc(T.undoneTag)}</span>` : fix}</td></tr>`;
+        }).join('') + '</tbody>';
+    }
+
+    async function loadSum() {
+        try { SUM = await api(`/api/nail_turns/summary?day=${encodeURIComponent(day)}`); renderSum(); }
+        catch (e) { show(e.message, 'err'); }
+    }
+    function renderSum() {
+        if (!SUM || SUM.day !== (B && B.day)) return;
+        if (!SUM.rows.length) { $('sumTbl').innerHTML = `<tbody><tr><td class="empty">${esc(T.noSum)}</td></tr></tbody>`; $('sumNote').textContent = ''; return; }
+        const C = T.sumCols, r = (v) => `<td class="r">${v}</td>`;
+        const line = (x, name, ci) => `<td>${name}</td><td class="num">${ci}</td>` + r(x.clients) + r(esc(fmtT(x.turns))) + r(x.full) + r(x.half) + r(x.not_counted) + r(x.skips) + r(esc(money(x.ticket_total))) + r(esc(money(x.pos_sales)));
+        $('sumTbl').innerHTML = `<thead><tr>${C.map((c, i) => `<th class="${i > 1 ? 'r' : ''}">${esc(c)}</th>`).join('')}</tr></thead><tbody>` +
+            SUM.rows.map((x) => `<tr>${line(x, esc(x.name), esc(x.checkin || '—'))}</tr>`).join('') + `</tbody><tfoot><tr>${line(SUM.total, esc(T.total), '')}</tr></tfoot>`;
+        $('sumNote').textContent = T.sumNote(SUM.total.pending_price, SUM.pos_sales_not_on_board ? money(SUM.pos_sales_not_on_board) : '');
+    }
+
+    function fmtDay(d) {
+        try { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd).toLocaleDateString(VI ? 'vi-VN' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' }); }
+        catch (e) { return d; }
+    }
+    function fillDays() {
+        const sel = $('daySel'); if (!B || sel.dataset.today === B.today) return;
+        sel.dataset.today = B.today;
+        const [y, m, d] = B.today.split('-').map(Number), base = new Date(y, m - 1, d), opts = [];
+        for (let i = 0; i < 14; i++) {
+            const x = new Date(base); x.setDate(base.getDate() - i);
+            const v = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+            opts.push(`<option value="${v}">${i === 0 ? esc(T.today) : esc(fmtDay(v))}</option>`);
+        }
+        sel.innerHTML = opts.join(''); sel.value = day || B.today;
+    }
+
+    async function load(lite) {
+        if (inflight) return;
+        try {
+            const q = `/api/nail_turns/board?day=${encodeURIComponent(day)}${lite && svc.length ? '&lite=1' : ''}`;
+            const b = await api(q);
+            if (inflight) return;               // 1 thao tác vừa bắt đầu: để kết quả của nó vẽ bảng
+            take(b); fillDays();
+            if (!day) day = b.day;
+        } catch (e) {
+            fails++;
+            $('liveDot').className = 'live-dot off';
+            if (fails >= 2) $('metaTxt').textContent = T.offline;
+            if (e.status === 401 || e.status === 403) show(e.message, 'err');
+        }
+    }
+
+    // ---------------- giao khách
+    function eligible(kind) {
+        const list = B.line.map((m) => ({ m, tag: m.ma_nv === B.next_up ? T.nextTag : '' }));
+        if (kind === 'request') B.on_break.forEach((m) => list.push({ m, tag: T.breakTag }));
+        return list;
+    }
+    function openAssign(kind, ma) {
+        dlgCtx = { kind: kind || 'walk_in', ma: ma || null };
+        $('aSvc').innerHTML = `<option value="">${esc(T.svcNone)}</option>` + svc.map((s) => `<option value="${esc(s.id)}" data-price="${esc(s.price)}">${esc(s.name)}${s.price ? ' · ' + esc(money(s.price)) : ''}</option>`).join('');
+        $('aAmt').value = '';
+        const ap = B.appointments || [];
+        $('aAppt').innerHTML = `<option value="">${esc(T.apptNone)}</option>` + ap.map((a) => `<option value="${esc(a.id)}">${esc(T.apptOpt(a))}</option>`).join('');
+        syncAssign(true);
+        $('dlgAssign').showModal();
+    }
+    function syncAssign(redraw) {
+        const k = dlgCtx.kind;
+        document.querySelectorAll('#fAssign .seg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.kind === k)));
+        $('apptField').hidden = k === 'walk_in' || !(B.appointments || []).length;
+        const list = eligible(k);
+        if (!dlgCtx.ma || !list.some((x) => x.m.ma_nv === dlgCtx.ma)) dlgCtx.ma = k === 'request' ? null : B.next_up;
+        if (redraw !== false) {
+            $('aTechs').innerHTML = list.length ? list.map((x) => `<label class="pick"><input type="radio" name="aTech" value="${esc(x.m.ma_nv)}" ${x.m.ma_nv === dlgCtx.ma ? 'checked' : ''}><span>${esc(x.m.name)} <small class="num">${esc(fmtT(x.m.turns))}${x.tag ? ' · ' + esc(x.tag) : ''}</small></span></label>`).join('') : `<div class="empty">${esc(T.noAvail)}</div>`;
+        }
+        const nm = (list.find((x) => x.m.ma_nv === dlgCtx.ma) || {}).m;
+        $('aTitle').textContent = nm ? T.aTitleTo(nm.name) : T.aTitle;
+        const amt = parseAmt($('aAmt').value);
+        const ok = !!nm && !Number.isNaN(amt);
+        $('aGo').disabled = !ok;
+        $('aCounts').innerHTML = nm ? previewCounts(k, Number.isNaN(amt) ? null : amt) : '';
+        $('aCounts').hidden = !nm;
+    }
+    function previewCounts(kind, amt) {
+        const s = B.settings, min = Number(s.full_turn_min) || 0;
+        const RV = { none: 0, half: 0.5, full: 1 };
+        let v, p = false, fixed = false;
+        if (kind === 'request') { v = RV[s.request_counts]; fixed = true; }
+        else if (kind === 'appointment' && s.appointment_counts !== 'amount') { v = RV[s.appointment_counts]; fixed = true; }
+        else if (amt == null) { v = 1; p = true; }
+        else v = amt >= min - 1e-9 ? 1 : 0.5;
+        return T.counts(kind, v, p, amt != null ? esc(money(amt)) : '', esc(money(min)), fixed);
+    }
+    document.querySelectorAll('#fAssign .seg button').forEach((b) => b.addEventListener('click', () => { dlgCtx.kind = b.dataset.kind; syncAssign(true); }));
+    $('aTechs').addEventListener('change', (e) => { if (e.target.name === 'aTech') { dlgCtx.ma = e.target.value; syncAssign(false); } });
+    $('aSvc').addEventListener('change', () => { const o = $('aSvc').selectedOptions[0]; const p = o && Number(o.dataset.price); if (p > 0) $('aAmt').value = cur() === 'VND' ? String(Math.round(p)) : p.toFixed(2); syncAssign(false); });
+    $('aAmt').addEventListener('input', () => syncAssign(false));
+    $('aAppt').addEventListener('change', () => {
+        const a = (B.appointments || []).find((x) => String(x.id) === $('aAppt').value);
+        if (a) {
+            if (a.staff_id && (B.line.concat(B.on_break)).some((m) => m.ma_nv === a.staff_id)) { dlgCtx.kind = 'request'; dlgCtx.ma = a.staff_id; }
+            else if (!a.staff_id) dlgCtx.kind = 'appointment';
+            if (a.price && !$('aAmt').value) $('aAmt').value = cur() === 'VND' ? String(Math.round(a.price)) : Number(a.price).toFixed(2);
+        }
+        syncAssign(true);
+    });
+    $('fAssign').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        await doAssign(false);
+    });
+    async function doAssign(override) {
+        const amt = parseAmt($('aAmt').value);
+        const data = { ma_nv: dlgCtx.ma, kind: dlgCtx.kind, amount: amt, service_id: $('aSvc').value || null, appointment_id: (!$('apptField').hidden && $('aAppt').value) || null, override: !!override };
+        try {
+            const r = await post('/api/nail_turns/assign', data);
+            if (r) $('dlgAssign').close();
+        } catch (e) {
+            if (e.body && e.body.code === 'not_next') {
+                $('msg').hidden = true;
+                const who = (eligible(dlgCtx.kind).find((x) => x.m.ma_nv === dlgCtx.ma) || {}).m;
+                confirmBox(T.outT, T.outB(e.body.next_up_name, who ? who.name : ''), T.outGo(who ? who.name : ''), () => doAssign(true));
+            } else if ($('dlgAssign').open) { syncAssign(true); }
+        }
+    }
+    async function quickWalkin(ma) {
+        try { await post('/api/nail_turns/assign', { ma_nv: ma, kind: 'walk_in' }); }
+        catch (e) { /* show() đã báo lỗi; bảng đã cập nhật */ }
+    }
+
+    // ---------------- xong khách / sửa giá
+    function openDone(ma, turnId, edit) {
+        const all = B.busy.concat(B.line, B.on_break, B.gone);
+        const m = all.find((x) => x.ma_nv === ma) || { name: '', pos_suggestions: [] };
+        const logRow = (B.log || []).find((e) => e.id === turnId) || {};
+        const c = edit ? logRow : (m.current || {});
+        dlgCtx = { ma, turnId: edit ? turnId : c.id, edit: !!edit, kind: c.kind || 'walk_in', order: c.order_id || null };
+        $('dTitle').textContent = edit ? T.dTitleEdit(m.name || logRow.name || '') : T.dTitle(m.name);
+        const tickets = edit ? [] : (m.pos_suggestions || []);
+        $('dTickets').hidden = !tickets.length;
+        $('dTicketList').innerHTML = tickets.map((s, i) => `<label class="pick"><input type="radio" name="dTk" value="${esc(s.order_id)}" data-amt="${esc(s.amount)}"><span>${esc(T.ticket(s.order_id, money(s.amount)))}</span></label>`).join('');
+        $('dAmt').value = c.amount != null ? (cur() === 'VND' ? String(Math.round(c.amount)) : Number(c.amount).toFixed(2)) : '';
+        $('dKind').value = dlgCtx.kind;
+        dlgCtx.order = null;
+        if (tickets.length === 1) {          // đúng 1 vé POS mới của thợ từ lúc nhận khách: chọn sẵn (bấm giá khác là bỏ chọn)
+            const r = $('dTicketList').querySelector('input');
+            r.checked = true; dlgCtx.order = r.value;
+            $('dAmt').value = cur() === 'VND' ? String(Math.round(Number(r.dataset.amt))) : Number(r.dataset.amt).toFixed(2);
+        }
+        syncDone();
+        $('dlgDone').showModal();
+    }
+    function syncDone() {
+        const amt = parseAmt($('dAmt').value), k = $('dKind').value;
+        const dependsOnPrice = k === 'walk_in' || (k === 'appointment' && B.settings.appointment_counts === 'amount');
+        $('dCounts').innerHTML = previewCounts(k, Number.isNaN(amt) ? null : amt);
+        const has = dlgCtx.order || (amt != null && !Number.isNaN(amt));
+        $('dGo').disabled = Number.isNaN(amt) || (dependsOnPrice && !has && !dlgCtx.edit);
+        $('dNoPrice').hidden = dlgCtx.edit || !dependsOnPrice || !!has;
+    }
+    $('dTicketList').addEventListener('change', (e) => { if (e.target.name === 'dTk') { dlgCtx.order = e.target.value; $('dAmt').value = cur() === 'VND' ? String(Math.round(Number(e.target.dataset.amt))) : Number(e.target.dataset.amt).toFixed(2); syncDone(); } });
+    $('dAmt').addEventListener('input', () => { dlgCtx.order = null; document.querySelectorAll('input[name="dTk"]').forEach((x) => { x.checked = false; }); syncDone(); });
+    $('dKind').addEventListener('change', syncDone);
+    async function doDone(noPrice) {
+        const amt = parseAmt($('dAmt').value);
+        const data = { kind: $('dKind').value, amount: noPrice ? null : amt, order_id: noPrice ? null : dlgCtx.order };
+        try {
+            let b;
+            if (dlgCtx.edit) {
+                b = await post(`/api/nail_turns/turn/${dlgCtx.turnId}`, data);
+                if (b && !b.line) load(false);
+            } else {
+                b = await post('/api/nail_turns/done', Object.assign({ turn_id: dlgCtx.turnId }, data));
+            }
+            if (b) $('dlgDone').close();
+        } catch (e) { /* đã báo */ }
+    }
+    $('fDone').addEventListener('submit', (ev) => { ev.preventDefault(); doDone(false); });
+    $('dNoPrice').addEventListener('click', () => doDone(true));
+
+    // ---------------- xác nhận chung
+    function confirmBox(title, body, goLabel, fn) {
+        $('cTitle').textContent = title; $('cBody').textContent = body; $('cGo').textContent = goLabel;
+        $('cGo').onclick = async () => { $('dlgConfirm').close(); await fn(); };
+        $('dlgConfirm').showModal();
+    }
+
+    // ---------------- nút trên bảng
+    document.querySelector('main.tb').addEventListener('click', async (ev) => {
+        const b = ev.target.closest('[data-act]'); if (!b || !B) return;
+        const act = b.dataset.act, ma = b.dataset.ma;
+        const m = B.line.concat(B.busy, B.on_break, B.gone).find((x) => x.ma_nv === ma) || { name: (B.not_on_board.find((x) => x.ma_nv === ma) || {}).name || '' };
+        try {
+            if (act === 'walkin') await quickWalkin(ma);
+            else if (act === 'open') openAssign(b.dataset.kind, null);
+            else if (act === 'give') openAssign('walk_in', ma);
+            else if (act === 'done') openDone(ma);
+            else if (act === 'doneTicket') await post('/api/nail_turns/done', { turn_id: (m.current || {}).id, order_id: b.dataset.order });
+            else if (act === 'fix') openDone(ma, Number(b.dataset.turn), true);
+            else if (act === 'skip') {
+                const pen = B.settings.skip_counts === 'none' ? '' : T.val({ half: 0.5, full: 1 }[B.settings.skip_counts], false);
+                confirmBox(T.skipT(m.name), T.skipB(pen), T.skipGo, () => post('/api/nail_turns/action', { action: 'skip', ma_nv: ma }).catch(() => {}));
+            } else if (act === 'leave') confirmBox(T.leaveT(m.name), T.leaveB, T.leaveGo, () => post('/api/nail_turns/action', { action: 'leave', ma_nv: ma }).catch(() => {}));
+            else if (['join', 'break', 'back'].includes(act)) await post('/api/nail_turns/action', { action: act, ma_nv: ma });
+        } catch (e) { /* đã báo */ }
+    });
+    $('undoBtn').addEventListener('click', () => {
+        if (!B || !B.undo) return;
+        confirmBox(T.undoConfirmT, `${T.evShort[B.undo.type] || ''} · ${B.undo.name || ''}`, T.undo('').replace(/:\s*$/, ''), async () => {
+            try { await post('/api/nail_turns/undo', {}); show(T.undone, 'ok'); } catch (e) { /* đã báo */ }
+        });
+    });
+    $('daySel').addEventListener('change', () => { day = $('daySel').value; SUM = null; load(false); if (tab === 'sum') loadSum(); });
+    document.querySelectorAll('dialog [data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
+
+    // ---------------- tab nhật ký / tổng kết
+    function setTab(t) {
+        tab = t;
+        $('tabLog').setAttribute('aria-selected', String(t === 'log')); $('tabSum').setAttribute('aria-selected', String(t === 'sum'));
+        $('panelLog').hidden = t !== 'log'; $('panelSum').hidden = t !== 'sum';
+        if (t === 'sum') loadSum();
+    }
+    $('tabLog').addEventListener('click', () => setTab('log'));
+    $('tabSum').addEventListener('click', () => setTab('sum'));
+
+    // ---------------- cài đặt (chủ tiệm)
+    $('setBtn').addEventListener('click', async () => {
+        try {
+            const r = await api('/api/nail_turns/settings');
+            const s = r.settings;
+            $('sMin').value = cur() === 'VND' ? String(Math.round(s.full_turn_min)) : Number(s.full_turn_min).toFixed(2);
+            $('sReq').value = s.request_counts; $('sAppt').value = s.appointment_counts; $('sSkip').value = s.skip_counts;
+            $('sStaff').checked = !!s.staff_can_assign;
+            const ex = new Set(s.exclude || []);
+            $('sExcl').innerHTML = (r.staff || []).map((p) => `<label class="chk"><input type="checkbox" value="${esc(p.ma_nv)}" ${ex.has(p.ma_nv) ? 'checked' : ''}><span>${esc(p.name)} <small style="color:var(--muted)">${esc(p.dept || '')}</small></span></label>`).join('') || `<div class="empty">—</div>`;
+            $('dlgSet').showModal();
+        } catch (e) { show(e.message, 'err'); }
+    });
+    $('fSet').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const min = parseAmt($('sMin').value);
+        if (!min) { show(T.err, 'err'); return; }
+        const data = { full_turn_min: min, request_counts: $('sReq').value, appointment_counts: $('sAppt').value, skip_counts: $('sSkip').value,
+                       staff_can_assign: $('sStaff').checked, exclude: Array.from(document.querySelectorAll('#sExcl input:checked')).map((x) => x.value) };
+        try { await api('/api/nail_turns/settings', { method: 'POST', body: JSON.stringify(data) }); $('dlgSet').close(); show(T.saved, 'ok'); load(false); }
+        catch (e) { show(e.message, 'err'); }
+    });
+
+    // ---------------- cập nhật gần như tức thì: hỏi lại mỗi 8 giây khi trang đang mở (dừng khi ẩn tab)
+    load(false);
+    setInterval(() => { if (document.visibilityState === 'visible' && !document.querySelector('dialog[open]')) load(true); }, 8000);
+    setInterval(() => { if (document.visibilityState === 'visible' && tab === 'sum') loadSum(); }, 30000);
+    setInterval(() => { if (document.visibilityState === 'visible') load(false); }, 300000);   // làm mới danh sách dịch vụ
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(true); });
+})();
+</script>
+</body>
+</html>
