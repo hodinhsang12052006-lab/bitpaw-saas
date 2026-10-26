@@ -12,7 +12,13 @@ from mongo_client import db
 from currency_utils import format_money
 import booking_rules
 
-REVENUE_STATUSES = ['completed', 'paid', 'partially_refunded', 'refunded']
+# Đơn được tính doanh thu — ĐỊNH NGHĨA DUY NHẤT, dùng chung cho công cụ sales_report, stock_status và bảng tóm tắt
+# business_snapshot (ai_copilot.py). Trước đây bảng tóm tắt cộng MỌI đơn (cả đơn Square bị từ chối 'failed' / còn chờ quẹt
+# 'pending') nên số "30 ngày" lệch số sales_report. 'PAID' (viết hoa) là trạng thái webhook Square ghi cho đơn bán lẻ đã quẹt
+# thẻ (app.py, nhánh không phải nail_pos_square) — $in phân biệt hoa thường nên trước đây Copilot bỏ sót các đơn đó, trong khi
+# báo cáo doanh thu của app (app._REVENUE_ORDER_FILTER) vẫn tính. Đơn hoàn tiền là 1 dòng 'refunded' số âm -> doanh thu ròng.
+REVENUE_STATUSES = ['completed', 'paid', 'PAID', 'partially_refunded', 'refunded']
+REVENUE_ORDER_FILTER = {'status': {'$in': REVENUE_STATUSES}}
 
 
 def _fn(name, desc, props, required=()):
@@ -76,25 +82,74 @@ def _range(bid, period):
     return today, today + timedelta(days=1), str(today)
 
 
-def _server_iso(bid, d):
+def _offset(bid):
+    """Chênh lệch giờ máy chủ - giờ tiệm (created_at của đơn lưu theo giờ máy chủ, lịch/ngày lưu theo giờ tiệm)."""
+    return datetime.now() - _tz_now(bid)
+
+
+def _server_iso(bid, d, offset=None):
     """Mốc ngày giờ địa phương của tiệm -> chuỗi giờ máy chủ (created_at của đơn lưu theo giờ máy chủ)."""
-    from zoneinfo import ZoneInfo
-    local_now = _tz_now(bid)
-    offset = datetime.now() - local_now  # chênh lệch giờ máy chủ - giờ tiệm
-    return (datetime.combine(d, datetime.min.time()) + offset).isoformat()
+    off = _offset(bid) if offset is None else offset
+    return (datetime.combine(d, datetime.min.time()) + off).isoformat()
+
+
+def business_currency(bid, biz=None):
+    """Tiền tệ của tiệm: trường currency; thiếu thì theo quốc gia (VN -> VND, AU -> AUD); không có gì thì USD.
+    KHÔNG BAO GIỜ mặc định VND cho tiệm không ở Việt Nam (trước đây bảng tóm tắt rơi về VND -> tiệm Mỹ/Úc thấy 'đ')."""
+    if biz is None:
+        biz = db.businesses.find_one({'id': bid}, {'_id': 0, 'currency': 1, 'country': 1}) or {}
+    cur = str(biz.get('currency') or '').strip().upper()
+    if cur:
+        return cur
+    return {'VN': 'VND', 'AU': 'AUD'}.get(str(biz.get('country') or '').strip().upper(), 'USD')
+
+
+def money_formatter(cur):
+    cur = (cur or 'USD').upper()
+    if cur in ('VND', 'USD', 'AUD'):
+        return lambda v: format_money(v or 0, cur)
+
+    def fmt(v):  # currency_utils.format_money chỉ biết VND/USD/AUD (tiền khác sẽ bị in kiểu VND 'đ')
+        try:
+            x = float(v or 0)
+        except (TypeError, ValueError):
+            x = 0.0
+        return f"{x:,.2f} {cur}"
+    return fmt
 
 
 def _money(bid):
-    cur = (db.businesses.find_one({'id': bid}, {'_id': 0, 'currency': 1}) or {}).get('currency') or 'USD'
-    return lambda v: format_money(v or 0, cur)
+    return money_formatter(business_currency(bid))
+
+
+def revenue_orders(bid, a, b, projection=None, offset=None):
+    """Đơn tính doanh thu (REVENUE_ORDER_FILTER) có created_at trong [ngày a, ngày b) theo giờ tiệm."""
+    q = {'business_id': bid, **REVENUE_ORDER_FILTER,
+         'created_at': {'$gte': _server_iso(bid, a, offset), '$lt': _server_iso(bid, b, offset)}}
+    return list(db.orders.find(q, projection or {'_id': 0, 'id': 1, 'total_amount': 1, 'payment_method': 1, 'created_at': 1,
+                                                 'metadata.payment_bucket': 1}))
+
+
+def revenue_totals(orders):
+    """(doanh thu ròng đã trừ dòng hoàn tiền âm, số bill dương) — cùng cách tính ở sales_report và business_snapshot."""
+    total = sum(float(o.get('total_amount') or 0) for o in orders)
+    return total, sum(1 for o in orders if float(o.get('total_amount') or 0) > 0)
+
+
+def critical_stock(bid):
+    """Ngưỡng "nguy cấp" của trang Cảnh báo tồn kho (cùng khoá với messaging.low_stock), mặc định 5."""
+    doc = db.system_settings.find_one({'key': 'inventory_thresholds', 'business_id': bid}, {'value': 1, '_id': 0})
+    try:
+        return float(json.loads(doc['value']).get('critical', 5)) if doc else 5.0
+    except (ValueError, TypeError, AttributeError, KeyError):
+        return 5.0
 
 
 def sales_report(bid, period='today', group_by='none'):
     a, b, label = _range(bid, period)
     money = _money(bid)
-    q = {'business_id': bid, 'status': {'$in': REVENUE_STATUSES}, 'created_at': {'$gte': _server_iso(bid, a), '$lt': _server_iso(bid, b)}}
-    orders = list(db.orders.find(q, {'_id': 0, 'id': 1, 'total_amount': 1, 'payment_method': 1, 'created_at': 1, 'metadata.payment_bucket': 1}))
-    total = sum(float(o.get('total_amount') or 0) for o in orders)
+    orders = revenue_orders(bid, a, b)
+    total, _n = revenue_totals(orders)
     bills = [o for o in orders if float(o.get('total_amount') or 0) > 0]
     out = {"period": label, "net_revenue": money(total), "bills": len(bills), "avg_bill": money(total / len(bills) if bills else 0)}
     g = (group_by or 'none').lower()
@@ -230,7 +285,8 @@ def stock_status(bid):
     low = messaging.low_stock(bid)
     sold30 = set()
     since = (datetime.now() - timedelta(days=30)).isoformat()
-    ids = [o['id'] for o in db.orders.find({'business_id': bid, 'created_at': {'$gte': since}}, {'_id': 0, 'id': 1}).limit(5000)]
+    ids = [o['id'] for o in db.orders.find({'business_id': bid, **REVENUE_ORDER_FILTER, 'created_at': {'$gte': since}},
+                                           {'_id': 0, 'id': 1}).limit(5000)]
     ids_any = ids + [int(i) for i in ids if str(i).isdigit()] + [str(i) for i in ids]
     for it in db.order_items.find({'order_id': {'$in': ids_any}}, {'_id': 0, 'product_id': 1}):
         sold30.add(str(it.get('product_id')))

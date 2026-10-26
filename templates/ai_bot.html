@@ -473,23 +473,53 @@
                 </div>
 
 
-                <div
+                {# Nút hỏi Copilot THEO NGÀNH (trước đây 4 nút kiểu tiệm nail cho mọi ngành, chỉ tiếng Anh). Khoá chủ đề phải có trong
+                   ai_copilot.INSIGHT_TOPICS; byIndustry khớp ai_copilot.INDUSTRY_TOPICS — test scripts/tests/test_phase1_copilot_industry.py.
+                   Copilot chỉ dành cho chủ tiệm/admin: tài khoản nhân viên không thấy thanh này. #}
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                <div id="cpTopicBar"
                     class="p-3 border-b border-white/5 bg-black/40 flex gap-3 overflow-x-auto custom-scrollbar shrink-0 items-center">
                     <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider whitespace-nowrap" data-cp="privateHint"><i class="fas fa-lock mr-1"></i>Ask Copilot (private):</span>
-                    <button onclick="askCopilot('revenue')"
-                        class="whitespace-nowrap bg-cyan-500/10 hover:bg-cyan-500/30 border border-cyan-500/30 text-cyan-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
-                            class="fas fa-chart-line mr-1"></i> Revenue Tips</button>
-                    <button onclick="askCopilot('retention')"
-                        class="whitespace-nowrap bg-emerald-500/10 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
-                            class="fas fa-heart mr-1"></i> Customer Care Tips</button>
-                    <button onclick="askCopilot('inventory')"
-                        class="whitespace-nowrap bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
-                            class="fas fa-boxes mr-1"></i> Inventory Tips</button>
-                    <button
-                        onclick="askCopilot('staffing')"
-                        class="whitespace-nowrap bg-purple-500/10 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 px-4 py-2 rounded-full text-xs font-bold transition-colors"><i
-                            class="fas fa-users mr-1"></i> Staffing Tips</button>
+                    <div id="cpTopics" class="flex gap-3 items-center" role="toolbar" aria-label="Copilot topics"></div>
                 </div>
+                {% endif %}
+                <script type="application/json" id="cpTopicsData">
+                {"byIndustry": {
+                    "nail": ["revenue", "retention", "nail_week", "inventory", "staffing"],
+                    "spa": ["revenue", "retention", "spa_packages", "staffing"],
+                    "fnb": ["fnb_menu", "fnb_tables", "revenue_general", "retention"],
+                    "karaoke": ["karaoke_rooms", "karaoke_fnb", "revenue_general", "retention"],
+                    "hotel": ["hotel_occupancy", "hotel_rate", "revenue_general", "retention"],
+                    "retail": ["retail_stock", "retail_top", "revenue_general", "retention"],
+                    "production": ["production_output", "production_materials", "staffing_general"],
+                    "technical": ["technical_jobs", "technical_techs", "technical_parts", "revenue_general"],
+                    "office": ["office_attendance", "office_leave", "staffing_general"],
+                    "_default": ["revenue_general", "retention", "inventory", "staffing_general"]},
+                 "topics": {
+                    "revenue": {"icon": "fa-chart-line", "tone": "cyan", "en": "Revenue Tips", "vi": "Gợi ý tăng doanh thu"},
+                    "revenue_general": {"icon": "fa-chart-line", "tone": "cyan", "en": "Revenue trend", "vi": "Xu hướng doanh thu"},
+                    "retention": {"icon": "fa-heart", "tone": "emerald", "en": "Customer Care Tips", "vi": "Kéo khách quay lại"},
+                    "inventory": {"icon": "fa-boxes", "tone": "rose", "en": "Inventory Tips", "vi": "Gợi ý về kho"},
+                    "staffing": {"icon": "fa-users", "tone": "purple", "en": "Staffing Tips", "vi": "Gợi ý xếp thợ"},
+                    "staffing_general": {"icon": "fa-users", "tone": "purple", "en": "Plan my team", "vi": "Sắp xếp nhân sự"},
+                    "nail_week": {"icon": "fa-calendar-alt", "tone": "amber", "en": "Next 7 days bookings", "vi": "Lịch hẹn 7 ngày tới"},
+                    "spa_packages": {"icon": "fa-box-open", "tone": "amber", "en": "Packages owed", "vi": "Gói liệu trình còn treo"},
+                    "fnb_menu": {"icon": "fa-utensils", "tone": "rose", "en": "Best & slow dishes", "vi": "Món bán chạy & chậm"},
+                    "fnb_tables": {"icon": "fa-chair", "tone": "amber", "en": "Tables & reservations", "vi": "Bàn & đặt bàn"},
+                    "karaoke_rooms": {"icon": "fa-door-open", "tone": "amber", "en": "Room hours & usage", "vi": "Giờ phòng & công suất"},
+                    "karaoke_fnb": {"icon": "fa-glass-cheers", "tone": "rose", "en": "Food & drinks per room", "vi": "Đồ ăn uống mỗi phòng"},
+                    "hotel_occupancy": {"icon": "fa-bed", "tone": "amber", "en": "Occupancy & arrivals", "vi": "Công suất & khách đến"},
+                    "hotel_rate": {"icon": "fa-tags", "tone": "rose", "en": "Average nightly rate", "vi": "Giá phòng trung bình"},
+                    "retail_stock": {"icon": "fa-boxes", "tone": "rose", "en": "Stock-outs & reorder", "vi": "Hết hàng & nhập thêm"},
+                    "retail_top": {"icon": "fa-trophy", "tone": "amber", "en": "Top sellers & margins", "vi": "Bán chạy & lãi cao"},
+                    "production_output": {"icon": "fa-industry", "tone": "amber", "en": "Output by product & worker", "vi": "Sản lượng theo SP & công nhân"},
+                    "production_materials": {"icon": "fa-cubes", "tone": "rose", "en": "Materials running out", "vi": "Nguyên liệu sắp hết"},
+                    "technical_jobs": {"icon": "fa-clipboard-list", "tone": "amber", "en": "Jobs today", "vi": "Việc hôm nay"},
+                    "technical_techs": {"icon": "fa-user-cog", "tone": "purple", "en": "Technician workload", "vi": "Khối lượng việc của thợ"},
+                    "technical_parts": {"icon": "fa-toolbox", "tone": "rose", "en": "Parts stock", "vi": "Kho phụ tùng"},
+                    "office_attendance": {"icon": "fa-user-clock", "tone": "amber", "en": "Attendance & hours", "vi": "Chấm công & giờ làm"},
+                    "office_leave": {"icon": "fa-calendar-times", "tone": "rose", "en": "Leave & expense claims", "vi": "Nghỉ phép & hoàn ứng"}}}
+                </script>
 
                 <div id="chatBox"
                     class="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-gradient-to-b from-transparent to-[#0a0f25]/50">
@@ -516,6 +546,7 @@
                         <button type="button" onclick="closeCopilot()" class="text-gray-400 hover:text-white text-sm"><i class="fas fa-times"></i></button>
                     </div>
                     <div id="copilotAnswer" class="px-5 py-3 text-sm text-gray-200 leading-relaxed"></div>
+                    <div id="cpPanelTopics" class="flex flex-wrap gap-2 px-5 pb-3" role="toolbar" aria-label="Copilot topics"></div>
                     <form id="copilotForm" class="flex gap-2 px-5 pb-4" onsubmit="askCopilotQuestion(event)">
                         <input id="copilotQuestion" type="text" autocomplete="off" maxlength="600"
                             class="flex-1 bg-black/50 border border-purple-500/30 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-purple-400"
@@ -699,6 +730,7 @@
                   thinking: 'Copilot đang đọc số liệu của tiệm...', drafting: 'Copilot đang soạn câu trả lời...',
                   aiOn: 'AI tự trả lời khách này', aiOff: 'Bạn đang trả lời khách này — AI đã dừng', pickFirst: 'Chọn 1 khách ở danh sách bên trái trước',
                   failed: 'Copilot đang bận, thử lại sau ít giây.',
+                  intro: 'Hỏi về số liệu của tiệm — chọn 1 chủ đề bên dưới hoặc gõ câu hỏi. Copilot chỉ đọc dữ liệu thật của tiệm, không thay đổi gì.',
                   connectChannels: 'Nối kênh nhắn tin', connectNow: 'Nối kênh', all: 'Tất cả', via: 'qua',
                   replyOn: 'Trả lời qua {ch}...', replyWeb: 'Nhắn cho khách...', sent: 'Đã gửi', sending: 'Đang gửi',
                   notSent: 'Chưa gửi được', notConnected: '{ch} chưa được nối — tin trả lời chỉ lưu ở đây, khách chưa nhận được.',
@@ -708,6 +740,7 @@
                   thinking: 'Copilot is reading your shop data...', drafting: 'Copilot is drafting a reply...',
                   aiOn: 'AI is answering this customer', aiOff: 'You are handling this customer — AI paused', pickFirst: 'Select a customer on the left first',
                   failed: 'Copilot is busy, try again in a few seconds.',
+                  intro: 'Ask about your numbers — pick a topic below or type a question. Copilot only reads your real data and never changes anything.',
                   connectChannels: 'Connect channels', connectNow: 'Connect', all: 'All', via: 'via',
                   replyOn: 'Reply on {ch}...', replyWeb: 'Message the customer...', sent: 'Sent', sending: 'Sending',
                   notSent: 'Not delivered', notConnected: '{ch} is not connected — replies are saved here but the customer will not get them.',
@@ -1040,15 +1073,79 @@
         }
 
         // ====== Copilot riêng của chủ tiệm (khách không thấy) ======
+        // Chỉ chủ tiệm / admin (API cũng chặn nhân viên: owner_only). Nút hỏi nhanh theo ngành lấy từ khối #cpTopicsData.
+        const CP_OWNER = {{ 'true' if session.get('role') in ('admin', 'super_admin') else 'false' }};
+        const CP_INDUSTRY = {{ (active_industry_code or '') | tojson }};
+        let CP_TOPICS = { byIndustry: {}, topics: {} };
+        try { CP_TOPICS = JSON.parse(document.getElementById('cpTopicsData').textContent); } catch (e) { /* giữ rỗng */ }
+        const CP_TONE = {
+            cyan: 'bg-cyan-500/10 hover:bg-cyan-500/30 border-cyan-500/30 text-cyan-300',
+            emerald: 'bg-emerald-500/10 hover:bg-emerald-500/30 border-emerald-500/30 text-emerald-300',
+            rose: 'bg-rose-500/10 hover:bg-rose-500/30 border-rose-500/30 text-rose-300',
+            purple: 'bg-purple-500/10 hover:bg-purple-500/30 border-purple-500/30 text-purple-300',
+            amber: 'bg-amber-500/10 hover:bg-amber-500/30 border-amber-500/30 text-amber-300',
+        };
+        let cpTopicsLang = null;
+        function cpTopicButtons(lang) {
+            const keys = (CP_TOPICS.byIndustry || {})[CP_INDUSTRY] || (CP_TOPICS.byIndustry || {})._default || [];
+            return keys.filter(k => (CP_TOPICS.topics || {})[k]).map(k => {
+                const d = CP_TOPICS.topics[k];
+                return `<button type="button" data-cp-topic="${escapeHtml(k)}" class="whitespace-nowrap border ${CP_TONE[d.tone] || CP_TONE.cyan} px-4 py-2 rounded-full text-xs font-bold transition-colors"><i class="fas ${escapeHtml(d.icon)} mr-1"></i> ${escapeHtml(d[lang] || d.en)}</button>`;
+            }).join('');
+        }
+        function renderCopilotTopics(force) {
+            const lang = cpLang();
+            if (!force && lang === cpTopicsLang) return;   // chỉ vẽ lại khi đổi ngôn ngữ
+            cpTopicsLang = lang;
+            const html = cpTopicButtons(lang);
+            const bar = document.getElementById('cpTopics');
+            if (bar) bar.innerHTML = html;
+            // Bản sao trong khung Copilot chỉ có khi mở từ sidebar (#copilot) — tránh 2 nút trùng tên trên trang
+            const inPanel = document.getElementById('cpPanelTopics');
+            if (inPanel && inPanel.dataset.on === '1') inPanel.innerHTML = html;
+        }
+        renderCopilotTopics(true);
+        document.addEventListener('click', (e) => {
+            const b = e.target && e.target.closest ? e.target.closest('[data-cp-topic]') : null;
+            if (b && CP_OWNER) askCopilot(b.dataset.cpTopic);
+        });
+        document.addEventListener('click', () => setTimeout(renderCopilotTopics, 90), true);   // nút EN/VI ở sidebar
+        function copilotLockedHtml() {
+            return `<i class="fas fa-lock text-amber-300 mr-2"></i>${escapeHtml(cpLang() === 'vi'
+                ? 'Copilot riêng của chủ tiệm (hỏi số liệu, gợi ý trả lời) có trong gói Empire Scale.'
+                : 'The owner Copilot (ask your numbers, suggested replies) is included in Empire Scale.')} <a href="/plan?feature=ai_copilot" class="underline text-cyan-300">${cpLang() === 'vi' ? 'Xem gói' : 'See plans'}</a>`;
+        }
         function openCopilot() { document.getElementById('copilotPanel').classList.remove('hidden'); }
-        window.closeCopilot = function () { document.getElementById('copilotPanel').classList.add('hidden'); }
+        window.closeCopilot = function () {
+            document.getElementById('copilotPanel').classList.add('hidden');
+            if (location.hash === '#copilot') {   // bấm lại mục "AI Copilot" ở sidebar phải mở lại được
+                try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* bỏ qua */ }
+            }
+        }
+        // Mục "AI Copilot" ở sidebar mở /ai_bot#copilot -> mở sẵn khung Copilot (hộp thư vẫn ở nguyên phía trên)
+        function openCopilotFromHash() {
+            if (location.hash !== '#copilot' || !CP_OWNER) return;
+            openCopilot();
+            const box = document.getElementById('copilotAnswer');
+            if (!COPILOT_ON) box.innerHTML = copilotLockedHtml();
+            else {
+                if (!box.textContent.trim()) box.innerHTML = `<span class="text-gray-300">${escapeHtml(cpt('intro'))}</span>`;
+                const inPanel = document.getElementById('cpPanelTopics');
+                if (inPanel && inPanel.dataset.on !== '1') { inPanel.dataset.on = '1'; inPanel.innerHTML = cpTopicButtons(cpLang()); }
+            }
+            const panel = document.getElementById('copilotPanel');
+            try { panel.scrollIntoView({ block: 'end', behavior: 'smooth' }); } catch (e) { /* trình duyệt cũ */ }
+            const q = document.getElementById('copilotQuestion');
+            if (q && COPILOT_ON) { try { q.focus({ preventScroll: true }); } catch (e) { q.focus(); } }
+        }
+        window.addEventListener('hashchange', openCopilotFromHash);
+        openCopilotFromHash();
         async function runCopilot(payload) {
+            if (!CP_OWNER) return;
             openCopilot();
             const box = document.getElementById('copilotAnswer');
             if (!COPILOT_ON) {
-                box.innerHTML = `<i class="fas fa-lock text-amber-300 mr-2"></i>${escapeHtml(cpLang() === 'vi'
-                    ? 'Copilot riêng của chủ tiệm (hỏi số liệu, gợi ý trả lời) có trong gói Empire Scale.'
-                    : 'The owner Copilot (ask your numbers, suggested replies) is included in Empire Scale.')} <a href="/plan?feature=ai_copilot" class="underline text-cyan-300">${cpLang() === 'vi' ? 'Xem gói' : 'See plans'}</a>`;
+                box.innerHTML = copilotLockedHtml();
                 return;
             }
             box.innerHTML = `<i class="fas fa-circle-notch fa-spin text-purple-400 mr-2"></i>${escapeHtml(cpt('thinking'))}`;
