@@ -288,6 +288,7 @@
                             <button type="button" class="btn sm" data-act="cmp-reset"><i class="fas fa-rotate-left"></i> <span data-t="cmpReset">Start over</span></button>
                         </div>
                         <div class="info" id="cmpPendingNote" hidden></div>
+                        <div class="info" id="cmpStaffNote" data-t="staffCompose" hidden>Posts you send go to the shop owner or an admin for approval.</div>
                         <label class="lbl" for="cmpCaption" data-t="lblCaption">Main caption</label>
                         <textarea id="cmpCaption" class="f" rows="6" data-tp="phCaption" placeholder="What do you want to tell your customers?"></textarea>
                         <div class="row between">
@@ -366,12 +367,14 @@
                 <h3 class="h3"><span data-t="pendTitle">Waiting for approval</span> <span class="hint" id="pendCount"></span></h3>
                 <button type="button" class="btn btn-ok" data-act="approve-all" id="btnApproveAll" hidden><i class="fas fa-check-double"></i> <span data-t="approveAll">Approve all</span></button>
             </div>
+            <div class="info" id="pendStaffNote" data-t="staffApprovals" style="margin:0 0 12px" hidden>Only the shop owner or an admin can approve posts.</div>
             <div id="pendList" class="grid2"></div>
         </section>
 
         <!-- ============ TÀI KHOẢN ============ -->
         <section id="pane-accounts" role="tabpanel" aria-labelledby="tab-accounts" hidden>
             <p class="hint" style="margin:0 0 14px" data-t="accLead">Connect the accounts BitPaw may post to. BitPaw checks each connection with the platform before saving it.</p>
+            <div class="info" id="accStaffNote" data-t="staffAccounts" style="margin:0 0 14px" hidden>Only the shop owner or an admin can connect, change or disconnect accounts.</div>
             <div class="grid2" id="accCards"></div>
         </section>
 
@@ -417,18 +420,29 @@
         // ---------------------------------------------------------------- cấu hình từ server
         const CURRENCY = {{ (tenant_currency or 'USD')|tojson }};
         const SERVER_TZ = {{ (shop_timezone or '')|tojson }};
+        // Quyền: nhân viên soạn bài -> chủ tiệm/admin duyệt. Nút chỉ admin dùng được (duyệt, huỷ, đăng ngay, nối/ngắt tài khoản)
+        // thì ẩn với nhân viên thay vì để bấm rồi nhận 403 (server vẫn tự chặn). Thiếu biến -> coi như nhân viên (ít quyền nhất).
+        const IS_ADMIN = {{ (is_admin|default(false))|tojson }};
+        const USER_ID = {{ ((session.get('user_id') if session is defined and session else '') or '')|string|tojson }};
         const PLATFORMS = ['facebook', 'instagram', 'tiktok', 'youtube', 'google_business'];
         // Kế hoạch tuần của AI chỉ có chữ/ảnh -> YouTube/TikTok (chỉ nhận video, TikTok không bao giờ tự động) không nằm trong kế hoạch
         const PLAN_PLATFORMS = ['facebook', 'instagram', 'google_business'];
-        const CHUNK = 3000000, MAX_IMAGE = 8000000, MAX_VIDEO = 30000000;   // khớp media_store (Vercel chặn body > 4.5 MB)
+        // Cỡ lát tải lên lấy từ /api/media/upload/init (chunk_size, chunks) — CHUNK_FALLBACK chỉ dùng khi server không trả
+        // (= media_store.SLICE; tự chia khác số lát của server -> 400 bad_index). Trần ảnh/video khớp media_store.
+        const CHUNK_FALLBACK = 3500000, MAX_IMAGE = 8000000, MAX_VIDEO = 30000000;
+        const LEARN_MIN = 10;              // social_planner.LEARN_MIN_POSTS: số bài có số liệu để chuyển sang "học từ bài của bạn"
+        const MAIN_CAPTION_MAX = 5000;     // social_publisher._norm cắt nội dung chính ở 5000 ký tự -> chặn trước, không cắt ngầm
         const MUSIC_URL = 'https://www.tiktok.com/legal/page/global/music-usage-confirmation/en';
         const BC_URL = 'https://www.tiktok.com/legal/page/global/bc-policy/en';
-        const TT_PRIVACY_DEFAULT = ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'];
+        // Các mức quyền riêng tư backend nhận (social_publisher.TIKTOK_PRIVACY). Lựa chọn THẬT hiện cho chủ tiệm lấy từ
+        // GET /api/social/tiktok/creator_info — danh sách này chỉ để lọc giá trị lạ, KHÔNG BAO GIỜ dùng làm mặc định.
+        const TT_PRIVACY = ['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'];
+        // limit / titleLimit = đúng giới hạn backend lưu và đăng (CAPTION_MAX, YouTube cắt tiêu đề ở 90) — vượt thì chặn, không cắt ngầm
         const PLAT = {
-            facebook: { name: 'Facebook', bg: '#0866ff', icon: 'fa-brands fa-facebook-f', limit: 63206, media: ['text', 'image', 'video'] },
+            facebook: { name: 'Facebook', bg: '#0866ff', icon: 'fa-brands fa-facebook-f', limit: 5000, media: ['text', 'image', 'video'] },
             instagram: { name: 'Instagram', bg: 'linear-gradient(45deg,#f58529,#dd2a7b,#8134af)', icon: 'fa-brands fa-instagram', limit: 2200, media: ['image', 'video'] },
             tiktok: { name: 'TikTok', bg: '#111827', icon: 'fa-brands fa-tiktok', limit: 2200, media: ['video'], utf16: true, provider: 'TikTok' },
-            youtube: { name: 'YouTube', bg: '#ff0000', icon: 'fa-brands fa-youtube', limit: 5000, titleLimit: 100, media: ['video'], provider: 'Google' },
+            youtube: { name: 'YouTube', bg: '#ff0000', icon: 'fa-brands fa-youtube', limit: 5000, titleLimit: 90, media: ['video'], provider: 'Google' },
             google_business: { name: 'Google Business Profile', short: 'Google', bg: '#1a73e8', icon: 'fa-brands fa-google', limit: 1500, media: ['text', 'image'], provider: 'Google' },
         };
 
@@ -483,7 +497,7 @@
                 w_igJpeg: 'Instagram only takes JPEG photos — this one is {type}. Upload it again so BitPaw saves it as JPEG.',
                 w_igMp4: 'Instagram needs an MP4 video.', w_tooLong: '{p}: {n} characters — the limit is {max}.',
                 w_hashtags: 'Instagram allows up to 30 hashtags — this caption has {n}.', w_ytTitle: 'YouTube needs a title.',
-                w_ytTitleLong: 'The YouTube title is over 100 characters.', w_ytAngle: 'YouTube doesn’t accept < or > in the title or description.',
+                w_ytTitleLong: 'The YouTube title is over {max} characters.', w_ytAngle: 'YouTube doesn’t accept < or > in the title or description.',
                 w_gbpHash: 'Google Business Profile posts look better without hashtags.', w_ttPrivacy: 'TikTok: choose who can see the video.',
                 w_ttBrand: 'TikTok: say whether the promotion is for your own brand or a paid partnership.',
                 w_ttBrandPrivate: 'TikTok: branded content can’t be private — choose another audience.',
@@ -528,6 +542,30 @@
                 statsAsOf: 'Stats as of {time}', btTitle: 'Best times to post',
                 btLead: 'Learned from your own posts once a platform has 10 or more published posts with stats. Until then BitPaw uses industry defaults.',
                 btPlatform: 'Platform', btSource: 'Based on', btSlots: 'Best slots', windowLbl: 'Period: {w}', colPost: 'Post', colStats: 'Stats',
+                btNoteDefault: 'Industry default from published research — switches to your own results once {p} has {min} posts with real stats (you have {n}).',
+                btNoteLearned: 'Learned from {n} of your {p} posts with real stats, blended with the industry default so a few lucky posts don’t decide alone.',
+                withStats: '{n} with stats', noStatsYet: 'No stats reported yet.', tryAgain: 'Try again',
+                w_mainTooLong: 'The main caption has {n} characters — the limit is {max}.',
+                staffCompose: 'You’re signed in as staff: posts you send go to the shop owner or an admin, who approves them before anything is published.',
+                staffApprovals: 'Only the shop owner or an admin can approve posts. You can still edit these drafts and save your changes.',
+                staffAccounts: 'Only the shop owner or an admin can connect, change or disconnect accounts.',
+                btnSendApproval: 'Send for approval', sentApproval: 'Sent for approval — once the owner or an admin approves it, it is scheduled for the next best time to post.',
+                sentApprovalAt: 'Sent for approval — planned for {time}. If it is approved after that, it moves to the next best time to post.',
+                pendingNoteStaff: 'This post is waiting for the shop owner or an admin to approve it. You can still save changes here.',
+                actRetry: 'Retry failed platforms',
+                retryHint: 'Sends again only to the platforms that failed — platforms that already published are not touched. If a platform asked you to reconnect, do that in Accounts first.',
+                retryStaff: 'The shop owner or an admin can retry the platforms that failed.',
+                gbpPostingTo: 'Posts go to', gbpLocation: 'Business location to post to', gbpChoose: 'Choose a location…', gbpUse: 'Use this location',
+                gbpLocHint: 'Google listed {n} locations for this account. Posts and the Book button go to the location you pick.',
+                gbpPickNeeded: 'Google lists several locations for this account — choose the one BitPaw should post to.',
+                gbpPickShort: 'Choose a location', gbpSaved: 'Now posting to {name}',
+                w_gbpLocation: 'Google Business Profile: choose which location to post to (Accounts tab).',
+                ttLoading: 'Checking your TikTok account settings…', ttInfoFail: 'Couldn’t load your TikTok account settings.',
+                ttAuditOnly: 'Until TikTok audits BitPaw’s app, TikTok only allows “Only me” — the video stays private, and you can change who sees it in the TikTok app later.',
+                ttNoOptions: 'TikTok didn’t offer any audience for your account right now — try again later.',
+                w_ttLoading: 'TikTok: wait while BitPaw checks your account settings.',
+                w_ttInfo: 'TikTok: your account settings couldn’t be loaded — press Try again in the TikTok box.',
+                w_ttTooLong: 'TikTok: this video is {s} seconds — your account allows up to {max} seconds.',
             },
             vi: {
                 pageTitle: 'Đăng bài mạng xã hội', lead: 'Lên kế hoạch, viết và hẹn giờ đăng bài lên Facebook, Instagram, TikTok, YouTube và Google — rồi xem kết quả thật.',
@@ -574,7 +612,7 @@
                 w_igJpeg: 'Instagram chỉ nhận ảnh JPEG — ảnh này là {type}. Tải ảnh lên lại để BitPaw lưu thành JPEG.',
                 w_igMp4: 'Instagram cần video MP4.', w_tooLong: '{p}: {n} ký tự — giới hạn {max}.',
                 w_hashtags: 'Instagram cho tối đa 30 hashtag — bài này có {n}.', w_ytTitle: 'YouTube cần tiêu đề.',
-                w_ytTitleLong: 'Tiêu đề YouTube dài quá 100 ký tự.', w_ytAngle: 'YouTube không nhận dấu < hoặc > trong tiêu đề/mô tả.',
+                w_ytTitleLong: 'Tiêu đề YouTube dài quá {max} ký tự.', w_ytAngle: 'YouTube không nhận dấu < hoặc > trong tiêu đề/mô tả.',
                 w_gbpHash: 'Bài trên Google Business Profile nên bỏ hashtag.', w_ttPrivacy: 'TikTok: chọn ai được xem video.',
                 w_ttBrand: 'TikTok: chọn quảng bá cho thương hiệu của bạn hay hợp tác trả phí.',
                 w_ttBrandPrivate: 'TikTok: nội dung có thương hiệu không được để riêng tư — chọn người xem khác.',
@@ -619,6 +657,30 @@
                 statsAsOf: 'Số liệu lúc {time}', btTitle: 'Giờ đăng tốt nhất',
                 btLead: 'Học từ chính bài của bạn khi một nền tảng có từ 10 bài đã đăng có số liệu. Trước đó BitPaw dùng mặc định theo ngành.',
                 btPlatform: 'Nền tảng', btSource: 'Dựa trên', btSlots: 'Khung giờ tốt nhất', windowLbl: 'Giai đoạn: {w}', colPost: 'Bài', colStats: 'Số liệu',
+                btNoteDefault: 'Mặc định theo ngành (từ các báo cáo công khai) — tự chuyển sang kết quả thật của tiệm khi {p} có {min} bài có số liệu (hiện có {n}).',
+                btNoteLearned: 'Học từ {n} bài {p} có số liệu thật của tiệm, pha với mặc định ngành để vài bài may mắn không quyết định một mình.',
+                withStats: '{n} bài có số liệu', noStatsYet: 'Nền tảng chưa báo số liệu.', tryAgain: 'Thử lại',
+                w_mainTooLong: 'Nội dung chính có {n} ký tự — giới hạn {max}.',
+                staffCompose: 'Bạn đang đăng nhập với quyền nhân viên: bài bạn gửi sẽ chờ chủ tiệm hoặc quản trị viên duyệt rồi mới đăng.',
+                staffApprovals: 'Chỉ chủ tiệm hoặc quản trị viên được duyệt bài. Bạn vẫn sửa và lưu được các bài nháp này.',
+                staffAccounts: 'Chỉ chủ tiệm hoặc quản trị viên được nối, đổi hoặc ngắt tài khoản.',
+                btnSendApproval: 'Gửi chờ duyệt', sentApproval: 'Đã gửi chờ duyệt — sau khi chủ tiệm hoặc quản trị viên duyệt, bài được hẹn vào giờ đẹp kế tiếp.',
+                sentApprovalAt: 'Đã gửi chờ duyệt — dự kiến đăng lúc {time}. Nếu được duyệt sau giờ đó, bài chuyển sang giờ đẹp kế tiếp.',
+                pendingNoteStaff: 'Bài này đang chờ chủ tiệm hoặc quản trị viên duyệt. Bạn vẫn lưu thay đổi ở đây được.',
+                actRetry: 'Đăng lại nền tảng bị lỗi',
+                retryHint: 'Chỉ gửi lại tới các nền tảng bị lỗi — nền tảng đã đăng xong không bị đụng tới. Nếu nền tảng báo cần nối lại, hãy nối lại ở tab Tài khoản trước.',
+                retryStaff: 'Chủ tiệm hoặc quản trị viên có thể đăng lại các nền tảng bị lỗi.',
+                gbpPostingTo: 'Bài đăng vào', gbpLocation: 'Địa điểm doanh nghiệp để đăng bài', gbpChoose: 'Chọn địa điểm…', gbpUse: 'Dùng địa điểm này',
+                gbpLocHint: 'Google trả về {n} địa điểm cho tài khoản này. Bài đăng và nút Đặt lịch sẽ vào địa điểm bạn chọn.',
+                gbpPickNeeded: 'Tài khoản Google này có nhiều địa điểm — hãy chọn địa điểm BitPaw sẽ đăng bài.',
+                gbpPickShort: 'Chưa chọn địa điểm', gbpSaved: 'Đã chọn đăng vào {name}',
+                w_gbpLocation: 'Google Business Profile: chọn địa điểm để đăng (tab Tài khoản).',
+                ttLoading: 'Đang kiểm tra cài đặt tài khoản TikTok…', ttInfoFail: 'Không tải được cài đặt tài khoản TikTok.',
+                ttAuditOnly: 'Cho tới khi TikTok duyệt ứng dụng của BitPaw, TikTok chỉ cho chọn “Chỉ mình tôi” — video ở chế độ riêng tư, sau đó bạn có thể đổi người xem trong app TikTok.',
+                ttNoOptions: 'TikTok hiện chưa cho chọn nhóm người xem nào với tài khoản của bạn — thử lại sau.',
+                w_ttLoading: 'TikTok: đợi BitPaw kiểm tra cài đặt tài khoản.',
+                w_ttInfo: 'TikTok: chưa tải được cài đặt tài khoản — bấm Thử lại trong khung TikTok.',
+                w_ttTooLong: 'TikTok: video dài {s} giây — tài khoản của bạn cho tối đa {max} giây.',
             },
         };
         function t(k, vars) {
@@ -652,6 +714,26 @@
                 upload_incomplete: 'The upload was incomplete — please try again.', bad_state: 'The sign-in link expired — try connecting again.',
                 access_denied: 'Sign-in was canceled.', oauth_failed: '{p} sign-in failed: {detail}', ai_unavailable: 'The AI is busy right now — try again in a moment.',
                 test_mode: 'Test mode: this shop is not on the test list, so nothing was sent.', bad_request: 'Some information is missing or invalid.',
+                // Lỗi khi quay về từ trang đăng nhập Google/TikTok (/social?error=<code>&platform=) — chỉ có mã, không có câu chữ
+                oauth_denied: 'The {p} sign-in was canceled or access wasn’t allowed — click Connect again and allow every permission.',
+                scope_missing: 'Not every permission was allowed in the {p} sign-in — connect again and tick every box.',
+                youtube_no_channel: 'This Google account has no YouTube channel yet — create one on YouTube, or sign in with the Google account that owns your channel, then connect again.',
+                gbp_no_location: 'This Google account doesn’t manage any Business Profile location — sign in with the Google account that manages your business on Google, then connect again.',
+                app_misconfigured: 'BitPaw’s {p} app keys were rejected — please contact support@bitpawsoftware.com.',
+                server_error: 'Something went wrong on BitPaw’s side — please try again. If it keeps happening, contact support@bitpawsoftware.com.',
+                provider_busy: '{p} is busy right now — try again in a minute.', google_quota: 'Google’s daily limit for BitPaw was reached — try again tomorrow.',
+                google_permission: 'Google refused access: {detail}', youtube_upload_limit: 'YouTube says this channel reached its upload limit for now — try again later.',
+                token_unreadable: 'The saved {p} connection can’t be read — reconnect {p}.', need_page_token: 'This is a personal token — paste a Page access token.',
+                real_account_exists: 'This shop already has a real {p} account connected — a test run can’t replace it.', use_oauth: 'Connect {p} with the sign-in button.',
+                media_too_large: 'This photo or video is too large to post — use a smaller or shorter file.',
+                needs_location: 'Google Business Profile has several locations — choose which one BitPaw posts to (Accounts tab).',
+                bad_location: 'Pick one of the locations Google listed for your account.',
+                tiktok_privacy_unavailable: 'That TikTok audience isn’t available for your account right now — choose another one.',
+                tiktok_too_long: 'The video is longer than TikTok allows for your account.', tiktok_branded_private: 'TikTok: branded content can’t be private — choose another audience.',
+                tiktok_options_required: 'TikTok: choose who can see the video and the comment, duet, stitch and branded-content settings.',
+                storage_full: 'Your media storage is full — delete old videos in AI Studio first.', upload_not_found: 'The upload expired — please upload the file again.',
+                not_pending: 'This post is no longer waiting for approval.', not_cancelable: 'This post was already sent — delete it on the platform instead.',
+                nothing_to_publish: 'Nothing is left to send for this post.', busy: 'This post is being sent right now — try again in a minute.',
             },
             vi: {
                 network: 'Không kết nối được tới BitPaw — kiểm tra mạng.', session: 'Phiên đăng nhập đã hết — hãy đăng nhập lại.',
@@ -675,6 +757,25 @@
                 upload_incomplete: 'Tải lên chưa xong — vui lòng thử lại.', bad_state: 'Liên kết đăng nhập đã hết hạn — hãy thử nối lại.',
                 access_denied: 'Đã huỷ đăng nhập.', oauth_failed: 'Đăng nhập {p} không thành công: {detail}', ai_unavailable: 'AI đang bận — thử lại sau giây lát.',
                 test_mode: 'Chế độ thử: tiệm này không nằm trong danh sách thử nên không gửi gì cả.', bad_request: 'Thiếu thông tin hoặc thông tin không hợp lệ.',
+                oauth_denied: 'Bạn đã huỷ đăng nhập {p} hoặc chưa cho phép truy cập — bấm Kết nối lại và cho phép tất cả quyền.',
+                scope_missing: 'Lúc đăng nhập {p} chưa cho phép đủ quyền — kết nối lại và đánh dấu tất cả các ô.',
+                youtube_no_channel: 'Tài khoản Google này chưa có kênh YouTube — hãy tạo kênh trên YouTube, hoặc đăng nhập bằng tài khoản Google sở hữu kênh, rồi kết nối lại.',
+                gbp_no_location: 'Tài khoản Google này không quản lý địa điểm Business Profile nào — hãy đăng nhập bằng tài khoản Google quản lý doanh nghiệp của bạn trên Google, rồi kết nối lại.',
+                app_misconfigured: 'Khoá ứng dụng {p} của BitPaw bị từ chối — vui lòng liên hệ support@bitpawsoftware.com.',
+                server_error: 'BitPaw gặp lỗi — vui lòng thử lại. Nếu vẫn lỗi, liên hệ support@bitpawsoftware.com.',
+                provider_busy: '{p} đang bận — thử lại sau một phút.', google_quota: 'BitPaw đã dùng hết hạn mức hôm nay của Google — thử lại vào ngày mai.',
+                google_permission: 'Google từ chối truy cập: {detail}', youtube_upload_limit: 'YouTube báo kênh này đã chạm giới hạn tải lên — thử lại sau.',
+                token_unreadable: 'Không đọc được kết nối {p} đã lưu — hãy nối lại {p}.', need_page_token: 'Đây là token cá nhân — hãy dán Page access token.',
+                real_account_exists: 'Tiệm đã nối tài khoản {p} thật — lần chạy thử không được thay nó.', use_oauth: 'Nối {p} bằng nút đăng nhập.',
+                media_too_large: 'Ảnh/video này quá lớn để đăng — hãy dùng tệp nhỏ hơn hoặc ngắn hơn.',
+                needs_location: 'Google Business Profile có nhiều địa điểm — hãy chọn địa điểm BitPaw sẽ đăng (tab Tài khoản).',
+                bad_location: 'Hãy chọn một trong các địa điểm Google đã liệt kê cho tài khoản của bạn.',
+                tiktok_privacy_unavailable: 'Tài khoản của bạn hiện không chọn được nhóm người xem TikTok này — hãy chọn nhóm khác.',
+                tiktok_too_long: 'Video dài hơn mức TikTok cho phép với tài khoản của bạn.', tiktok_branded_private: 'TikTok: nội dung có thương hiệu không được để riêng tư — chọn người xem khác.',
+                tiktok_options_required: 'TikTok: chọn ai được xem video và cài đặt bình luận, duet, stitch, nội dung thương hiệu.',
+                storage_full: 'Bộ nhớ ảnh/video của tiệm đã đầy — hãy xoá video cũ trong AI Studio trước.', upload_not_found: 'Lượt tải lên đã hết hạn — hãy tải tệp lên lại.',
+                not_pending: 'Bài này không còn chờ duyệt nữa.', not_cancelable: 'Bài này đã được gửi — hãy xoá nó trên nền tảng.',
+                nothing_to_publish: 'Bài này không còn gì để gửi.', busy: 'Bài này đang được gửi — thử lại sau một phút.',
             },
         };
         // Tên mã khác nhau giữa các module -> quy về 1 mã đã dịch
@@ -686,6 +787,8 @@
             oauth_state: 'bad_state', state_mismatch: 'bad_state', ai_error: 'ai_unavailable', ai_failed: 'ai_unavailable', test_mode_blocked: 'test_mode',
             no_inbox_connection: 'inbox_not_connected', inbox_missing: 'inbox_not_connected', rate_limit: 'rate_limited', token_expired: 'token_invalid',
             reconnect: 'needs_reconnect', media_missing: 'media_not_found', forbidden_role: 'forbidden', admin_only: 'forbidden', validation: 'bad_request',
+            oauth_expired: 'bad_state', time_in_past: 'past_time', tiktok_bad_privacy: 'privacy_required', bad_index: 'upload_incomplete',
+            chunk_too_large: 'upload_incomplete', size_mismatch: 'upload_incomplete', location_required: 'needs_location', file_too_large: 'media_too_large',
         };
         function errText(d, status) {
             if (!d) return (E[lang()] || E.en).http.replace('{detail}', 'HTTP ' + (status || '?'));
@@ -841,6 +944,8 @@
         const S = {
             tab: 'calendar', accounts: {}, accLoaded: false, accOpen: {}, view: 'week', weekStart: null, posts: [], pending: [], pendDirty: {},
             bt: {}, gallery: null, galFilter: 'all', perfDays: 30, insights: null, pollN: 0, pollT: null, lastFocus: null,
+            // creator_info của TikTok (tên tài khoản, lựa chọn quyền riêng tư, công tắc bị tắt, độ dài tối đa) — hỏi khi bật TikTok
+            tti: { state: 'idle', data: null, error: '', at: 0 },
         };
         const C = newCompose();
         function newCompose() {
@@ -907,6 +1012,22 @@
             if (a.status === 'needs_reconnect') return `<span class="pill warn">${esc(t('needsReconnectPill'))}</span>`;
             return a.connected ? `<span class="pill on">${esc(t('connected'))}</span>` : `<span class="pill">${esc(t('notConnectedPill'))}</span>`;
         }
+        // Google trả nhiều địa điểm (chủ có 2 tiệm, tài khoản quản lý nhiều doanh nghiệp): backend nối địa điểm đầu tiên
+        // (hoặc đặt needs_location) -> cho chủ tiệm chọn đúng địa điểm, gửi connect_token {location} (social_accounts.select_location)
+        const gbpLocs = (a) => (Array.isArray(a.location_choices) ? a.location_choices : []).filter((c) => c && c.id);
+        function gbpLocationBlock(a) {
+            const locs = gbpLocs(a);
+            if (!(locs.length > 1 || a.needs_location)) return '';
+            const cur = a.needs_location ? '' : String(a.external_id || '');
+            let h = a.needs_location ? `<div class="note">${esc(t('gbpPickNeeded'))}</div>` : '';
+            if (IS_ADMIN && locs.length) {
+                h += `<div class="kv"><label class="lbl" for="gbpLoc">${esc(t('gbpLocation'))}</label>
+                    <select class="f" id="gbpLoc" data-cur="${esc(cur)}">${locs.some((c) => c.id === cur) ? '' : `<option value="" selected disabled>${esc(t('gbpChoose'))}</option>`}${locs.map((c) => `<option value="${esc(c.id)}" ${c.id === cur ? 'selected' : ''}>${esc(c.name || c.id)}</option>`).join('')}</select>
+                    <div class="row"><button type="button" class="btn ${a.needs_location ? 'btn-primary' : ''}" data-act="gbp-loc-save" data-p="google_business" id="gbpLocSave" disabled><i class="fas fa-location-dot"></i> ${esc(t('gbpUse'))}</button></div>
+                    <span class="hint">${esc(t('gbpLocHint', { n: locs.length }))}</span></div>`;
+            }
+            return h;
+        }
         function renderAccounts() {
             const box = $('accCards');
             if (!S.accLoaded) { box.innerHTML = `<div class="card"><div class="hint"><i class="fas fa-circle-notch fa-spin"></i> ${esc(t('loading'))}</div></div>`; return; }
@@ -914,24 +1035,30 @@
                 const a = acc(p), d = PLAT[p], on = !!a.connected, needs = a.status === 'needs_reconnect';
                 let body = '';
                 if (on || needs) {
-                    body += `<div class="row"><i class="fas ${needs ? 'fa-triangle-exclamation' : 'fa-circle-check'}" style="color:${needs ? '#fbbf24' : '#34d399'}"></i><b style="overflow-wrap:anywhere">${esc(a.account_name || d.name)}</b>${a.external_id ? `<span class="hint" style="overflow-wrap:anywhere">· ${esc(a.external_id)}</span>` : ''}${a.connected_via ? `<span class="hint">· ${esc(t('via_' + a.connected_via))}</span>` : ''}</div>`;
+                    // Google Business Profile: account_name = tên địa điểm đang đăng -> ghi rõ "Bài đăng vào"
+                    const gbpPick = p === 'google_business' && a.needs_location;
+                    body += `<div class="row"><i class="fas ${needs || gbpPick ? 'fa-triangle-exclamation' : 'fa-circle-check'}" style="color:${needs || gbpPick ? '#fbbf24' : '#34d399'}"></i>${p === 'google_business' && !gbpPick ? `<span class="hint">${esc(t('gbpPostingTo'))}:</span>` : ''}<b style="overflow-wrap:anywhere">${esc(gbpPick ? t('gbpPickShort') : (a.account_name || d.name))}</b>${a.external_id && !gbpPick ? `<span class="hint" style="overflow-wrap:anywhere">· ${esc(a.external_id)}</span>` : ''}${a.connected_via ? `<span class="hint">· ${esc(t('via_' + a.connected_via))}</span>` : ''}</div>`;
+                    if (p === 'google_business') body += gbpLocationBlock(a);
                 }
                 if (a.last_error && (a.last_error.message || a.last_error.code)) body += `<div class="err"><b>${esc(t('lastErr'))}:</b> ${esc(errText(Object.assign({ platform: p }, a.last_error)))}${a.last_error.at ? ` <span class="hint">(${esc(fmt(a.last_error.at))})</span>` : ''}</div>`;
                 body += `<div class="hint" style="font-size:13px">${esc(t('cap_' + p))}</div>`;
                 const reqs = Array.isArray(a.requirements) ? a.requirements.filter(Boolean) : [];
                 if (reqs.length) body += `<div class="stack" style="gap:4px"><span class="lbl">${esc(t('reqTitle'))}</span><ul class="reqs">${reqs.map((r) => `<li>${esc(typeof r === 'string' ? r : (r.text || r.message || ''))}</li>`).join('')}</ul></div>`;
+                // Nối / nối lại / ngắt là việc của chủ tiệm (route role_required admin) -> nhân viên không thấy nút
                 let acts = '';
-                if (p === 'facebook' || p === 'instagram') {
-                    if (a.inbox_available) acts += `<button type="button" class="btn ${on ? '' : 'btn-primary'}" data-act="acc-inbox" data-p="${p}"><i class="fas fa-inbox"></i> ${esc(t('useInbox'))}</button>`;
-                    acts += `<button type="button" class="btn ${on || a.inbox_available ? '' : 'btn-primary'}" data-act="acc-token-open" data-p="${p}" ${S.accOpen[p] ? 'hidden' : ''}><i class="fas fa-key"></i> ${esc(t('pasteToken'))}</button>`;
-                } else if (a.can_oauth) {
-                    acts += `<a class="btn ${on ? '' : 'btn-primary'}" data-act="oauth-start" data-p="${p}" href="/social/oauth/${encodeURIComponent(p)}/start"><i class="fas fa-right-to-bracket"></i> ${esc(t(on || needs ? 'signInAgain' : 'signIn', { provider: d.provider }))}</a>`;
+                if (IS_ADMIN) {
+                    if (p === 'facebook' || p === 'instagram') {
+                        if (a.inbox_available) acts += `<button type="button" class="btn ${on ? '' : 'btn-primary'}" data-act="acc-inbox" data-p="${p}"><i class="fas fa-inbox"></i> ${esc(t('useInbox'))}</button>`;
+                        acts += `<button type="button" class="btn ${on || a.inbox_available ? '' : 'btn-primary'}" data-act="acc-token-open" data-p="${p}" ${S.accOpen[p] ? 'hidden' : ''}><i class="fas fa-key"></i> ${esc(t('pasteToken'))}</button>`;
+                    } else if (a.can_oauth) {
+                        acts += `<a class="btn ${on ? '' : 'btn-primary'}" data-act="oauth-start" data-p="${p}" href="/social/oauth/${encodeURIComponent(p)}/start"><i class="fas fa-right-to-bracket"></i> ${esc(t(on || needs ? 'signInAgain' : 'signIn', { provider: d.provider }))}</a>`;
+                    }
+                    if (on || needs) acts += `<button type="button" class="btn btn-danger" data-act="acc-off" data-p="${p}"><i class="fas fa-link-slash"></i> ${esc(t('disconnect'))}</button>`;
                 }
-                if (on || needs) acts += `<button type="button" class="btn btn-danger" data-act="acc-off" data-p="${p}"><i class="fas fa-link-slash"></i> ${esc(t('disconnect'))}</button>`;
                 let extra = '';
-                if ((p === 'facebook' || p === 'instagram') && a.inbox_available) extra += `<span class="hint">${esc(t('useInboxHint_' + p))}</span>`;
+                if (IS_ADMIN && (p === 'facebook' || p === 'instagram') && a.inbox_available) extra += `<span class="hint">${esc(t('useInboxHint_' + p))}</span>`;
                 if (!(p === 'facebook' || p === 'instagram') && !a.can_oauth) extra += `<div class="note">${esc(t('notConfigured', { p: d.name, provider: d.provider }))}</div>`;
-                const form = (p === 'facebook' || p === 'instagram') ? `<form class="kv" data-accform="${p}" ${S.accOpen[p] ? '' : 'hidden'} autocomplete="off">
+                const form = IS_ADMIN && (p === 'facebook' || p === 'instagram') ? `<form class="kv" data-accform="${p}" ${S.accOpen[p] ? '' : 'hidden'} autocomplete="off">
                         <div class="kv"><label class="lbl" for="af_${p}_token">${esc(t('fToken'))} <span class="hint">(${esc(t('required'))})</span></label><input class="f" id="af_${p}_token" name="access_token" type="password" required spellcheck="false"></div>
                         <div class="kv"><label class="lbl" for="af_${p}_id">${esc(t(p === 'instagram' ? 'fIgId' : 'fPageId'))} <span class="hint">(${esc(t(p === 'instagram' ? 'required' : 'optional'))})</span></label><input class="f" id="af_${p}_id" name="external_id" type="text" inputmode="numeric" ${p === 'instagram' ? 'required' : ''} spellcheck="false"></div>
                         <div class="row"><button class="btn btn-primary" type="submit"><i class="fas fa-plug"></i> ${esc(t('checkConnect'))}</button><button class="btn" type="button" data-act="acc-token-close" data-p="${p}">${esc(t('cancel'))}</button></div>
@@ -959,6 +1086,16 @@
             if (fields.external_id) { if (p === 'facebook') fields.page_id = fields.external_id; else fields.ig_user_id = fields.external_id; }
             accAction(p, { action: 'connect_token', fields }, f.querySelector('button[type=submit]'), t('connectedOk', { p: pname(p) }));
         });
+        // Chọn địa điểm Google khác địa điểm đang đăng -> mới bật nút "Dùng địa điểm này"
+        $('accCards').addEventListener('change', (ev) => {
+            if (ev.target.id !== 'gbpLoc') return;
+            const b = $('gbpLocSave'); if (b) b.disabled = !ev.target.value || ev.target.value === ev.target.dataset.cur;
+        });
+        function saveGbpLocation(btn) {
+            const sel = $('gbpLoc'); if (!sel || !sel.value) return;
+            const o = sel.options && sel.options[sel.selectedIndex];
+            accAction('google_business', { action: 'connect_token', fields: { location: sel.value } }, btn, t('gbpSaved', { name: (o && o.textContent) || sel.value }));
+        }
 
         // ---------------------------------------------------------------- lịch đăng
         function weekOf(dt) { const p = parts(dt); return civil(p.y, p.m, p.d - p.wd); }
@@ -1070,6 +1207,10 @@
         }
         const findPost = (id) => S.posts.concat(S.pending).find((p) => String(p.id) === String(id));
         const editable = (p) => ['draft', 'pending_approval', 'scheduled'].includes(p.status) && !(p.targets || []).some((x) => ['published', 'processing', 'scheduled_remote'].includes(x.status));
+        // publish_now với bài failed/partial/publishing chỉ gửi lại các đích LỖI (đích đã đăng giữ nguyên) — vd sau khi nối lại tài khoản
+        const retryable = (p) => ['failed', 'partial', 'publishing'].includes(p.status) && !p.busy && (p.targets || []).some((x) => x.status === 'failed');
+        // Nhân viên chỉ xoá được bản nháp / bài chờ duyệt do chính mình soạn (social_bp.posts_delete)
+        const canDelete = (p) => IS_ADMIN || (['draft', 'pending_approval'].includes(p.status) && (!USER_ID || String(p.author_id ?? '') === USER_ID));
         function openModal(id) { S.lastFocus = document.activeElement; $(id).hidden = false; const b = $(id).querySelector('[data-act="close-modal"]'); if (b) b.focus(); }
         function closeModals() { ['sheet', 'picker'].forEach((id) => { $(id).hidden = true; }); if (S.lastFocus && S.lastFocus.focus) { try { S.lastFocus.focus(); } catch (e) { /* bỏ qua */ } } }
         function openPost(id) {
@@ -1091,11 +1232,15 @@
                     ${s.link ? `<a href="${esc(s.link)}" target="_blank" rel="noopener" class="sub" style="color:#67e8f9"><i class="fas fa-arrow-up-right-from-square"></i> ${esc(t('tg_view'))}</a>` : ''}</div>`;
             }).join('');
             let acts = '';
+            const retry = retryable(p);
             if (editable(p)) acts += `<button type="button" class="btn" data-act="edit-post" data-id="${esc(p.id)}"><i class="fas fa-pen"></i> ${esc(t('actEdit'))}</button>`;
-            if (st === 'scheduled') acts += `<button type="button" class="btn btn-primary" data-act="publish-now" data-id="${esc(p.id)}"><i class="fas fa-paper-plane"></i> ${esc(t('actPublishNow'))}</button>`;
-            if (st === 'scheduled') acts += `<button type="button" class="btn btn-danger" data-act="cancel-post" data-id="${esc(p.id)}"><i class="fas fa-ban"></i> ${esc(t('actCancel'))}</button>`;
+            // Đăng ngay / thử lại / huỷ: route chỉ cho admin -> nhân viên không thấy nút (thay vì bấm rồi nhận 403)
+            if (IS_ADMIN && st === 'scheduled') acts += `<button type="button" class="btn btn-primary" data-act="publish-now" data-id="${esc(p.id)}"><i class="fas fa-paper-plane"></i> ${esc(t('actPublishNow'))}</button>`;
+            if (IS_ADMIN && retry) acts += `<button type="button" class="btn btn-primary" data-act="retry-post" data-id="${esc(p.id)}"><i class="fas fa-rotate-right"></i> ${esc(t('actRetry'))}</button>`;
+            if (IS_ADMIN && st === 'scheduled') acts += `<button type="button" class="btn btn-danger" data-act="cancel-post" data-id="${esc(p.id)}"><i class="fas fa-ban"></i> ${esc(t('actCancel'))}</button>`;
             const wasOut = (p.targets || []).some((x) => ['published', 'scheduled_remote'].includes(x.status));
-            if (st !== 'publishing') acts += `<button type="button" class="btn btn-danger" data-act="delete-post" data-id="${esc(p.id)}"><i class="fas fa-trash"></i> ${esc(t(wasOut ? 'actRemove' : 'actDelete'))}</button>`;
+            if (st !== 'publishing' && canDelete(p)) acts += `<button type="button" class="btn btn-danger" data-act="delete-post" data-id="${esc(p.id)}"><i class="fas fa-trash"></i> ${esc(t(wasOut ? 'actRemove' : 'actDelete'))}</button>`;
+            const retryNote = retry ? `<p class="hint" style="margin:0">${esc(t(IS_ADMIN ? 'retryHint' : 'retryStaff'))}</p>` : '';
             $('sheetBody').innerHTML = `
                 ${p.created_by === 'ai' || p.is_ai_generated ? `<div class="row">${p.created_by === 'ai' ? `<span class="pill ai">${esc(t('aiDraft'))}</span>` : ''}${p.is_ai_generated ? `<span class="pill ai">${esc(t('aiMedia'))}</span>` : ''}</div>` : ''}
                 ${media}
@@ -1103,12 +1248,14 @@
                 <div class="cap-full">${esc(p.caption || '')}</div>
                 ${capByP.length ? `<details><summary>${esc(t('perPlatform'))}</summary><div class="stack" style="margin-top:8px">${capByP.map(([k, v]) => `<div class="tgt"><span class="row">${logo(k)}<b style="color:#fff">${esc(pname(k))}</b></span><div class="cap-full" style="font-size:13px">${esc(v)}</div></div>`).join('')}</div></details>` : ''}
                 <div class="stack">${tg}</div>
-                ${wasOut && st !== 'publishing' ? `<p class="hint" style="margin:0">${esc(t('removeNote'))}</p>` : ''}
+                ${wasOut && st !== 'publishing' && canDelete(p) ? `<p class="hint" style="margin:0">${esc(t('removeNote'))}</p>` : ''}
+                ${retryNote}
                 ${acts ? `<div class="actions">${acts}</div>` : ''}`;
         }
         async function postAction(kind, id, btn) {
             try {
-                if (kind === 'publish-now') {
+                if (kind === 'publish-now' || kind === 'retry-post') {
+                    // cùng 1 route: bài đã hẹn -> đăng ngay; bài failed/partial -> chỉ gửi lại các nền tảng bị lỗi
                     busy(btn, true, t('publishing'));
                     const j = await api(`/api/social/posts/${encodeURIComponent(id)}/publish_now`, { body: {} });
                     publishToast(j);
@@ -1161,14 +1308,18 @@
         }
         function renderCompose() {
             $('cmpMode').textContent = C.editingId ? t('cmpEditing', { id: C.editingId }) : t('cmpNew');
-            const pn = $('cmpPendingNote'); pn.hidden = C.editingStatus !== 'pending_approval'; pn.textContent = t('pendingNote');
+            const pend = C.editingStatus === 'pending_approval';
+            const pn = $('cmpPendingNote'); pn.hidden = !pend; pn.textContent = t(IS_ADMIN ? 'pendingNote' : 'pendingNoteStaff');
+            $('cmpStaffNote').hidden = IS_ADMIN || pend;
             renderPlatforms(); renderEditors(); renderMedia(); renderTiktok(); renderWhen(); renderWarn();
         }
+        // Google có nhiều địa điểm mà chưa chọn -> chưa đăng được (backend báo needs_location)
+        const gbpNeedsLoc = () => !!acc('google_business').needs_location;
         function renderPlatforms() {
             const box = $('cmpPlatforms'); if (!box) return;
             box.innerHTML = PLATFORMS.map((p) => {
                 const a = acc(p), on = isOn(p), sel = C.targets.includes(p);
-                const sub = on ? (a.account_name || t('connected')) : (a.status === 'needs_reconnect' ? t('needsReconnect') : t('notConnected'));
+                const sub = on ? ((p === 'google_business' && gbpNeedsLoc()) ? t('gbpPickShort') : (a.account_name || t('connected'))) : (a.status === 'needs_reconnect' ? t('needsReconnect') : t('notConnected'));
                 return `<button type="button" class="ptog" data-act="toggle-plat" data-p="${p}" aria-pressed="${sel ? 'true' : 'false'}" ${!on && !sel ? 'disabled' : ''}>
                     ${logo(p, 'md')}<span style="min-width:0"><b>${esc(PLAT[p].short || PLAT[p].name)}</b><small>${esc(sub)}</small></span>${sel ? '<i class="fas fa-circle-check ck"></i>' : ''}</button>`;
             }).join('') + (S.accLoaded && !PLATFORMS.some(isOn)
@@ -1180,14 +1331,16 @@
             wrap.hidden = !C.targets.length;
             box.innerHTML = C.targets.map((p) => {
                 const d = PLAT[p];
-                const yt = p === 'youtube' ? `<label class="lbl" for="ytTitleIn">${esc(t('ytTitle'))}</label><div class="row" style="flex-wrap:nowrap"><input class="f" id="ytTitleIn" data-yt-title value="${esc(C.title)}" maxlength="140"><span class="cnt" data-tcount></span></div><span class="lbl">${esc(t('ytDesc'))}</span>` : '';
+                // không đặt maxlength: trình duyệt sẽ cắt ngầm khi dán — đếm ký tự + chặn khi vượt PLAT.youtube.titleLimit
+                const yt = p === 'youtube' ? `<label class="lbl" for="ytTitleIn">${esc(t('ytTitle'))}</label><div class="row" style="flex-wrap:nowrap"><input class="f" id="ytTitleIn" data-yt-title value="${esc(C.title)}"><span class="cnt" data-tcount></span></div><span class="lbl">${esc(t('ytDesc'))}</span>` : '';
                 return `<div class="ed"><div class="ed-h">${logo(p)}<span>${esc(d.name)}</span><span class="cnt" data-count="${p}"></span></div>
                     ${yt}<textarea class="f" rows="3" data-cap="${p}" aria-label="${esc(d.name)}" placeholder="${esc(t('phPlat'))}">${esc(C.captions[p] || '')}</textarea></div>`;
             }).join('');
             updateCounts();
         }
         function updateCounts() {
-            const b = $('cmpCapCount'); b.textContent = String(Array.from(C.caption).length);
+            const b = $('cmpCapCount'), nb = Array.from(C.caption).length;
+            b.textContent = `${fmtNum(nb)} / ${fmtNum(MAIN_CAPTION_MAX)}`; b.classList.toggle('over', nb > MAIN_CAPTION_MAX);
             C.targets.forEach((p) => {
                 const el = document.querySelector(`[data-count="${p}"]`); if (!el) return;
                 const n = charLen(p, effCaption(p)), max = PLAT[p].limit;
@@ -1195,7 +1348,7 @@
                 el.classList.toggle('over', n > max || (p === 'instagram' && hashCount(effCaption(p)) > 30));
             });
             const tc = document.querySelector('[data-tcount]');
-            if (tc) { const n = Array.from(C.title).length; tc.textContent = `${n} / 100`; tc.classList.toggle('over', n > 100); }
+            if (tc) { const n = Array.from(C.title).length, max = PLAT.youtube.titleLimit; tc.textContent = `${n} / ${max}`; tc.classList.toggle('over', n > max); }
         }
         function renderMedia() {
             const box = $('cmpMedia');
@@ -1205,27 +1358,64 @@
             $('cmpFileBtn').setAttribute('aria-disabled', C.uploading ? 'true' : 'false');
             $('cmpFile').disabled = C.uploading;
         }
+        // Quy định Direct Post của TikTok: tên tài khoản, lựa chọn quyền riêng tư, công tắc bị tắt và độ dài tối đa phải lấy
+        // từ creator_info lúc soạn bài (GET /api/social/tiktok/creator_info) — không đoán, không có lựa chọn mặc định.
+        async function loadTtInfo(force) {
+            if (!isOn('tiktok') || S.tti.state === 'loading') return;
+            if (!force && S.tti.state === 'ok' && Date.now() - S.tti.at < 5 * 60e3) return;
+            S.tti = { state: 'loading', data: null, error: '', at: 0 };
+            renderTiktok(); renderWarn();
+            try {
+                const j = await api('/api/social/tiktok/creator_info');
+                const d = (j.data && typeof j.data === 'object' && !Array.isArray(j.data)) ? j.data : {};
+                S.tti = { state: 'ok', data: d, error: '', at: Date.now() };
+            } catch (e) {
+                S.tti = { state: 'error', data: null, error: errText(Object.assign({ platform: 'tiktok' }, e.data || {}), e.status) || e.message, at: 0 };
+                // token TikTok hỏng -> backend đã đánh dấu cần nối lại: tải lại trạng thái để cảnh báo "nối lại" hiện đúng
+                if (e.data && ['token_invalid', 'token_expired', 'needs_reconnect', 'invalid_grant'].includes(e.data.code)) loadAccounts();
+            }
+            renderTiktok(); renderWarn();
+        }
         function ttInfo() {
-            const a = acc('tiktok'), ci = a.creator_info || {};
-            const opts = (Array.isArray(ci.privacy_level_options) && ci.privacy_level_options.length) ? ci.privacy_level_options
-                : (Array.isArray(a.privacy_level_options) && a.privacy_level_options.length ? a.privacy_level_options : TT_PRIVACY_DEFAULT);
-            return { a, ci, opts };
+            const a = acc('tiktok'), ready = S.tti.state === 'ok', ci = (ready && S.tti.data) || {};
+            const audit = (Array.isArray(a.requirement_codes) ? a.requirement_codes : []).includes('tiktok_audit');
+            // Chỉ các mức TikTok trả về cho tài khoản này (và backend nhận được)
+            let opts = Array.isArray(ci.privacy_level_options) ? ci.privacy_level_options.filter((o) => TT_PRIVACY.includes(o)) : [];
+            // Trước khi TikTok duyệt ứng dụng BitPaw, TikTok chỉ nhận bài "Chỉ mình tôi" — không cho chọn mức sẽ bị từ chối lúc đăng
+            if (audit) opts = opts.filter((o) => o === 'SELF_ONLY');
+            return { a, ci, opts, audit, ready };
+        }
+        // Lựa chọn cũ không còn hợp lệ (bài mở lại để sửa, tài khoản đổi cài đặt) -> bỏ chọn để chủ tiệm chọn lại
+        function applyTtLimits() {
+            const { ci, opts, ready } = ttInfo();
+            if (!ready) return;
+            if (C.tt.privacy && !opts.includes(C.tt.privacy)) C.tt.privacy = '';
+            if (ci.comment_disabled) C.tt.comment = false;
+            if (ci.duet_disabled) C.tt.duet = false;
+            if (ci.stitch_disabled) C.tt.stitch = false;
         }
         function renderTiktok() {
             const box = $('cmpTiktok');
             const show = C.targets.includes('tiktok');
             box.hidden = !show;
             if (!show) return;
-            const { a, ci, opts } = ttInfo();
+            if (S.tti.state === 'idle' && isOn('tiktok')) { loadTtInfo(); return; }   // loadTtInfo tự vẽ khối (đang tải / kết quả)
+            applyTtLimits();
+            const { a, ci, opts, audit, ready } = ttInfo();
             const name = ci.creator_nickname || ci.creator_username || a.account_name || 'TikTok';
             const tg = (k, key, off) => `<label class="tgl"><span class="switch"><input type="checkbox" data-tt="${k}" ${C.tt[k] && !off ? 'checked' : ''} ${off ? 'disabled' : ''}><span></span></span>${esc(t(key))}${off ? ` <span class="hint">· ${esc(t('ttOffByCreator'))}</span>` : ''}</label>`;
             const reqs = Array.isArray(a.requirements) ? a.requirements.filter(Boolean) : [];
+            const state = S.tti.state === 'loading' ? `<div class="hint"><i class="fas fa-circle-notch fa-spin"></i> ${esc(t('ttLoading'))}</div>`
+                : S.tti.state === 'error' ? `<div class="err">${esc(t('ttInfoFail'))} ${esc(S.tti.error)}</div><div><button type="button" class="btn sm" data-act="tt-retry"><i class="fas fa-rotate-right"></i> ${esc(t('tryAgain'))}</button></div>`
+                : (ready && !opts.length ? `<div class="err">${esc(t('ttNoOptions'))}</div>` : '');
             box.innerHTML = `
                 <div class="row">${logo('tiktok', 'md')}<h3>${esc(t('ttTitle'))}</h3></div>
-                <div class="hint" style="font-size:13px">${esc(t('ttAs', { name }))}</div>
+                ${ready ? `<div class="hint" style="font-size:13px">${esc(t('ttAs', { name }))}</div>` : ''}
+                ${state}
                 <div class="kv"><label class="lbl" for="ttPrivacy">${esc(t('ttWho'))}</label>
-                    <select class="f" id="ttPrivacy" data-tt="privacy"><option value="" ${C.tt.privacy ? '' : 'selected'} disabled>${esc(t('ttChoose'))}</option>
-                    ${opts.map((o) => `<option value="${esc(o)}" ${C.tt.privacy === o ? 'selected' : ''}>${esc(t('priv_' + o) !== 'priv_' + o ? t('priv_' + o) : o)}</option>`).join('')}</select></div>
+                    <select class="f" id="ttPrivacy" data-tt="privacy" ${ready && opts.length ? '' : 'disabled'}><option value="" ${C.tt.privacy ? '' : 'selected'} disabled>${esc(t('ttChoose'))}</option>
+                    ${opts.map((o) => `<option value="${esc(o)}" ${C.tt.privacy === o ? 'selected' : ''}>${esc(t('priv_' + o) !== 'priv_' + o ? t('priv_' + o) : o)}</option>`).join('')}</select>
+                    ${audit ? `<span class="hint">${esc(t('ttAuditOnly'))}</span>` : ''}</div>
                 <div class="stack" style="gap:2px"><span class="lbl">${esc(t('ttAllow'))}</span>
                     ${tg('comment', 'ttComment', !!ci.comment_disabled)}${tg('duet', 'ttDuet', !!ci.duet_disabled)}${tg('stitch', 'ttStitch', !!ci.stitch_disabled)}</div>
                 <div class="stack" style="gap:6px">${tg('disclose', 'ttDisclose', false)}<span class="hint">${esc(t('ttDiscloseHint'))}</span>
@@ -1247,6 +1437,13 @@
             const sel = box.querySelector('[data-tt="privacy"]');
             if (sel) { const o = sel.querySelector('option[value="SELF_ONLY"]'); if (o) o.disabled = C.tt.disclose && C.tt.branded; }
             const ai = box.querySelector('[data-tt-aigc]'); if (ai) ai.hidden = !C.media.some((m) => m.is_ai);
+            // Đo độ dài video (ảnh/video lấy từ thư viện hoặc bài cũ) để so với max_video_post_duration_sec — chặn trước,
+            // không để tới giờ đăng TikTok mới từ chối (tiktok_too_long)
+            const vm = C.media[0];
+            if (vm && mediaKind(vm) === 'video' && vm.duration === undefined && mUrl(vm)) {
+                vm.duration = null;   // đang đo -> không đo lại
+                probeDuration(mUrl(vm)).then((d) => { vm.duration = d; renderWarn(); });
+            }
             const mu = box.querySelector('[data-tt-music]');
             if (mu) {
                 const link = (u, k) => `<a href="${u}" target="_blank" rel="noopener">${esc(t(k))}</a>`;
@@ -1269,9 +1466,17 @@
                 const j = await api(`/api/social/best_times?platform=${encodeURIComponent(p)}`);
                 const d = (j.data && typeof j.data === 'object' && !Array.isArray(j.data)) ? j.data : j;
                 if (d.timezone) adoptTz(d.timezone);
-                S.bt[p] = { source: d.source, slots: Array.isArray(d.slots) ? d.slots : [], sample_size: d.sample_size, note: d.note };
+                // note/note_vi của server giữ lại cho tương thích; câu hiển thị dựng theo 'source' bằng ngôn ngữ giao diện (btNote)
+                S.bt[p] = { source: d.source, slots: Array.isArray(d.slots) ? d.slots : [], sample_size: d.sample_size, note: d.note, note_vi: d.note_vi };
             } catch (e) { S.bt[p] = { error: e.message, slots: [] }; }
             return S.bt[p];
+        }
+        // Chú thích "giờ đẹp" theo ngôn ngữ đang chọn: 'learned' = từ số liệu thật của tiệm, 'default' = mặc định ngành
+        function btNote(b, p) {
+            const n = Number(b && b.sample_size) || 0;
+            if (b && b.source === 'learned') return t('btNoteLearned', { n: fmtNum(n), p: pname(p) });
+            if (b && b.source === 'default') return t('btNoteDefault', { n: fmtNum(n), min: LEARN_MIN, p: pname(p) });
+            return '';
         }
         // Lần tới của (thứ, giờ) theo giờ tiệm, cách hiện tại ít nhất 30 phút
         function nextSlot(wd, hour) {
@@ -1300,7 +1505,7 @@
                 }).join('');
                 return `<div class="stack" style="gap:6px"><div class="row">${logo(p)}<b style="color:#fff;font-size:13px">${esc(pname(p))}</b>${src}</div>
                     ${chips ? `<div class="chips">${chips}</div>` : `<span class="hint">${esc(b.error || t('bestNone', { p: pname(p) }))}</span>`}
-                    ${b.note ? `<span class="hint">${esc(b.note)}</span>` : ''}</div>`;
+                    ${btNote(b, p) ? `<span class="hint">${esc(btNote(b, p))}</span>` : ''}</div>`;
             }).join('');
         }
         // Kiểm tra trước khi gửi: lỗi chặn (b) và lưu ý (s)
@@ -1309,10 +1514,14 @@
             const m = C.media[0], mk = m ? mediaKind(m) : 'text';
             if (C.uploading) add(t('w_uploading'), true);
             if (!C.caption.trim() && !Object.values(C.captions).some((x) => x && x.trim()) && !C.media.length) add(t('w_noContent'), true);
+            // Backend lưu nội dung chính tối đa 5000 ký tự (cả bản nháp) -> chặn thay vì để bị cắt ngầm
+            const nMain = Array.from(C.caption.trim()).length;
+            if (nMain > MAIN_CAPTION_MAX) add(t('w_mainTooLong', { n: fmtNum(nMain), max: fmtNum(MAIN_CAPTION_MAX) }), true);
             if (forDraft) return out;
             if (!C.targets.length) add(t('w_noPlat'), true);
             C.targets.forEach((p) => {
                 if (S.accLoaded && !isOn(p)) add(t('w_reconnect', { p: pname(p) }), true);
+                else if (p === 'google_business' && gbpNeedsLoc()) add(t('w_gbpLocation'), true);
                 if (!PLAT[p].media.includes(mk)) {
                     if (p === 'instagram') add(t('w_needMedia'), true);
                     else if (p === 'google_business') add(t('w_noVideo'), true);
@@ -1328,11 +1537,20 @@
             if (C.targets.includes('instagram') && hashCount(effCaption('instagram')) > 30) add(t('w_hashtags', { n: hashCount(effCaption('instagram')) }), true);
             if (C.targets.includes('youtube')) {
                 if (!C.title.trim()) add(t('w_ytTitle'), true);
-                else if (Array.from(C.title).length > 100) add(t('w_ytTitleLong'), true);
+                else if (Array.from(C.title.trim()).length > PLAT.youtube.titleLimit) add(t('w_ytTitleLong', { max: PLAT.youtube.titleLimit }), true);
                 if (/[<>]/.test(C.title + effCaption('youtube'))) add(t('w_ytAngle'), true);
             }
             if (C.targets.includes('google_business') && hashCount(effCaption('google_business')) > 0) add(t('w_gbpHash'), false);
             if (C.targets.includes('tiktok')) {
+                const ti = ttInfo();
+                if (isOn('tiktok')) {
+                    // chưa có creator_info thì chưa biết lựa chọn hợp lệ -> chưa cho đăng
+                    if (S.tti.state === 'idle' || S.tti.state === 'loading') add(t('w_ttLoading'), true);
+                    else if (S.tti.state === 'error') add(t('w_ttInfo'), true);
+                    else if (!ti.opts.length) add(t('ttNoOptions'), true);
+                }
+                const maxSec = Number(ti.ci.max_video_post_duration_sec) || 0, dur = m && mk === 'video' ? Number(m.duration) || 0 : 0;
+                if (maxSec && dur > maxSec + 0.5) add(t('w_ttTooLong', { s: Math.round(dur), max: maxSec }), true);
                 if (!C.tt.privacy) add(t('w_ttPrivacy'), true);
                 if (C.tt.disclose && !C.tt.yourBrand && !C.tt.branded) add(t('w_ttBrand'), true);
                 if (C.tt.disclose && C.tt.branded && C.tt.privacy === 'SELF_ONLY') add(t('w_ttBrandPrivate'), true);
@@ -1351,7 +1569,10 @@
             const pend = C.editingStatus === 'pending_approval';
             // Đang gửi (nút có vòng quay) thì không vẽ đè nhãn/trạng thái nút
             if (!sub.querySelector('.fa-spin')) {
-                sub.innerHTML = `<i class="fas ${pend ? 'fa-floppy-disk' : (C.when === 'now' ? 'fa-paper-plane' : 'fa-calendar-check')}"></i> <span>${esc(pend ? t('btnSave') : (C.when === 'now' ? t('btnPublish') : t('btnSchedule')))}</span>`;
+                // Nhân viên: bài gửi đi là "chờ duyệt" (server tự đổi scheduled -> pending_approval), không bao giờ "Đăng ngay"
+                const icon = pend ? 'fa-floppy-disk' : (!IS_ADMIN ? 'fa-user-check' : (C.when === 'now' ? 'fa-paper-plane' : 'fa-calendar-check'));
+                const label = pend ? t('btnSave') : (!IS_ADMIN ? t('btnSendApproval') : (C.when === 'now' ? t('btnPublish') : t('btnSchedule')));
+                sub.innerHTML = `<i class="fas ${icon}"></i> <span>${esc(label)}</span>`;
                 sub.disabled = list.some((w) => w.block);
             }
             dr.hidden = pend;
@@ -1377,10 +1598,11 @@
         async function submitCompose(draft, btn) {
             const pend = C.editingStatus === 'pending_approval';
             if (problems(draft).some((w) => w.block)) { renderWarn(); return; }
-            const status = pend ? null : (draft ? 'draft' : 'scheduled');
-            const now = !draft && !pend && C.when === 'now';
+            // Nhân viên gửi bài -> 'pending_approval' (chủ tiệm/admin duyệt); chỉ admin mới gọi publish_now (route admin-only)
+            const status = pend ? null : (draft ? 'draft' : (IS_ADMIN ? 'scheduled' : 'pending_approval'));
+            const now = !draft && !pend && IS_ADMIN && C.when === 'now';
             busy(btn, true, now ? t('publishing') : t('saving'));
-            let post = null;
+            let post = null, sentForApproval = false;
             try {
                 const body = payload(status);
                 const j = C.editingId
@@ -1388,11 +1610,14 @@
                     : await api('/api/social/posts', { body });
                 post = j.post || (j.data && j.data.id ? j.data : null);
                 const id = (post && post.id) || C.editingId;
-                if (now && id) {
+                // server quyết định cuối cùng: bài trả về 'pending_approval' = đang chờ duyệt, KHÔNG đăng ngay / không báo "đã hẹn"
+                sentForApproval = !draft && !pend && (status === 'pending_approval' || (post && post.status === 'pending_approval'));
+                if (now && id && !sentForApproval) {
                     const r = await api(`/api/social/posts/${encodeURIComponent(id)}/publish_now`, { body: {} });
                     publishToast(r);
                 } else if (draft) toast(t('savedDraft'), true);
                 else if (pend) toast(t('savedOk'), true);
+                else if (sentForApproval) toast(C.when === 'later' && parseLocal(C.local) ? t('sentApprovalAt', { time: fmt(parseLocal(C.local)) }) : t('sentApproval'), true);
                 else toast(t('scheduledOk', { time: fmt(parseLocal(C.local)) }), true);
             } catch (e) {
                 busy(btn, false); renderWarn(); toast(e.message, false);
@@ -1404,7 +1629,7 @@
             const when = C.when === 'later' ? parseLocal(C.local) : new Date();
             resetCompose();
             S.view = 'week'; S.weekStart = weekOf(when || new Date());
-            if (pend) { showTab('approvals'); } else showTab('calendar');
+            if (pend || sentForApproval) { showTab('approvals'); } else showTab('calendar');
             loadPending();
         }
         async function aiCaptions(btn) {
@@ -1477,6 +1702,33 @@
             }
             throw mkErr({ code: 'upload_incomplete' }, 0);
         }
+        // Server quyết định cách chia (media_store.upload_init: chunks = ceil(size / chunk_size)); tự chia theo cỡ khác
+        // -> số lát lệch -> 400 bad_index (vd ảnh 3,2 MB: server chờ 1 lát, chia 3 MB thì gửi 2).
+        function chunkPlan(total, init) {
+            const info = (init && init.data && init.data.upload_id) ? init.data : (init || {});
+            const cs = Math.floor(Number(info.chunk_size)), cn = Math.floor(Number(info.chunks));
+            const size = cs > 0 ? cs : CHUNK_FALLBACK;
+            const n = cn > 0 ? cn : Math.max(1, Math.ceil(total / size));
+            return { size, n };
+        }
+        // Độ dài video (giây) đọc từ metadata — null khi không đọc được (WebM quay từ trình duyệt thường không ghi độ dài)
+        function probeDuration(src, revoke) {
+            return new Promise((res) => {
+                const v = document.createElement('video');
+                let done = false, tm = null;
+                const fin = (d) => {
+                    if (done) return; done = true; clearTimeout(tm);
+                    try { v.removeAttribute('src'); v.load(); } catch (e) { /* bỏ qua */ }
+                    if (revoke) { try { URL.revokeObjectURL(src); } catch (e) { /* bỏ qua */ } }
+                    res(Number.isFinite(d) && d > 0 ? d : null);
+                };
+                tm = setTimeout(() => fin(null), 10000);
+                v.preload = 'metadata'; v.muted = true;
+                v.onloadedmetadata = () => fin(v.duration);
+                v.onerror = () => fin(null);
+                v.src = src;
+            });
+        }
         function upProgress(txt, pct) {
             $('upProg').hidden = txt === null;
             if (txt !== null) { $('upTxt').textContent = txt; $('upBar').style.width = (pct || 0) + '%'; }
@@ -1494,20 +1746,22 @@
                     try { blob = await toJpeg(file); ct = 'image/jpeg'; } catch (e) { throw new Error(t('imgReadFail')); }
                 }
                 if (isImg && blob.size > MAX_IMAGE) throw new Error(t('tooBigImg'));
+                // đo độ dài video ngay trên máy (so với giới hạn của TikTok trước khi đăng)
+                const dur = isVid ? await probeDuration(URL.createObjectURL(file), true) : undefined;
                 upProgress(t('uploading', { pct: 0 }), 0);
                 const init = await api('/api/media/upload/init', { body: { kind: 'social_upload', size: blob.size, content_type: ct } });
                 const uid = init.upload_id || (init.data && init.data.upload_id);
                 if (!uid) throw mkErr({ code: 'upload_incomplete' }, 0);
-                const n = Math.max(1, Math.ceil(blob.size / CHUNK));
-                for (let i = 0; i < n; i++) {
-                    await sendChunk(uid, i, blob.slice(i * CHUNK, Math.min(blob.size, (i + 1) * CHUNK)));
-                    const pct = Math.round(((i + 1) / n) * 100);
+                const plan = chunkPlan(blob.size, init);
+                for (let i = 0; i < plan.n; i++) {
+                    await sendChunk(uid, i, blob.slice(i * plan.size, Math.min(blob.size, (i + 1) * plan.size)));
+                    const pct = Math.round(((i + 1) / plan.n) * 100);
                     upProgress(t('uploading', { pct }), pct);
                 }
                 const fin = await api(`/api/media/upload/${encodeURIComponent(uid)}/finish`, { body: {} });
                 const d = (fin.data && fin.data.file_id) ? fin.data : fin;
                 if (!d.file_id) throw mkErr({ code: 'upload_incomplete' }, 0);
-                C.media = [{ file_id: String(d.file_id), content_type: d.content_type || ct, kind: 'social_upload', url: mUrl(d), is_ai: false }];
+                C.media = [{ file_id: String(d.file_id), content_type: d.content_type || ct, kind: 'social_upload', url: mUrl(d), is_ai: false, duration: dur }];
                 S.gallery = null;
                 toast(t('uploadDone'), true);
             } catch (e) { toast(e.message, false); }
@@ -1531,7 +1785,7 @@
             const n = S.pending.length;
             const badge = $('pendBadge'); badge.hidden = !n; badge.textContent = String(n);
             $('pendCount').textContent = n ? `(${n})` : '';
-            $('btnApproveAll').hidden = n < 2;
+            $('btnApproveAll').hidden = n < 2 || !IS_ADMIN;   // duyệt = quyền admin (route role_required)
             const box = $('pendList');
             if (S.pendErr && !n) { box.innerHTML = `<div class="err">${esc(S.pendErr)}</div>`; return; }
             if (!n) { box.innerHTML = `<div class="card" style="grid-column:1/-1"><div class="empty"><i class="fas fa-list-check big"></i>${esc(t('pendEmpty'))}</div></div>`; return; }
@@ -1551,10 +1805,10 @@
                     <textarea class="f" id="pc_${esc(p.id)}" rows="4" data-pcap="${esc(p.id)}">${esc(pendCaption(p))}</textarea>
                     ${plats.length ? `<details><summary>${esc(t('perPlatform'))}</summary><div class="stack" style="margin-top:8px">${plats.map((x) => `<div class="ed"><div class="ed-h">${logo(x)}<span>${esc(pname(x))}</span><span class="cnt" data-pcount="${esc(p.id)}|${x}"></span></div><textarea class="f" rows="3" data-pcp="${esc(p.id)}" data-p="${x}" aria-label="${esc(pname(x))}" placeholder="${esc(t('phPlat'))}">${esc(caps[x] || '')}</textarea></div>`).join('')}</div></details>` : ''}
                     <div class="actions">
-                        <button type="button" class="btn sm btn-danger" data-act="reject" data-id="${esc(p.id)}"><i class="fas fa-xmark"></i> ${esc(t('reject'))}</button>
+                        ${canDelete(p) ? `<button type="button" class="btn sm btn-danger" data-act="reject" data-id="${esc(p.id)}"><i class="fas fa-xmark"></i> ${esc(t('reject'))}</button>` : ''}
                         <button type="button" class="btn sm" data-act="edit-post" data-id="${esc(p.id)}"><i class="fas fa-pen-to-square"></i> ${esc(t('editInCompose'))}</button>
                         <button type="button" class="btn sm" data-act="save-pend" data-id="${esc(p.id)}" ${dirty ? '' : 'disabled'}><i class="far fa-floppy-disk"></i> ${esc(t('btnSave'))}</button>
-                        <button type="button" class="btn sm btn-ok" data-act="approve" data-id="${esc(p.id)}"><i class="fas fa-check"></i> ${esc(t('approve'))}</button>
+                        ${IS_ADMIN ? `<button type="button" class="btn sm btn-ok" data-act="approve" data-id="${esc(p.id)}"><i class="fas fa-check"></i> ${esc(t('approve'))}</button>` : ''}
                     </div></article>`;
             }).join('');
             S.pending.forEach(pendCounts);
@@ -1639,6 +1893,8 @@
         // ---------------------------------------------------------------- hiệu quả
         const METRICS = ['views', 'reach', 'likes', 'comments', 'shares', 'saves', 'saved', 'clicks'];
         const metsHtml = (m) => { const xs = METRICS.filter((k) => typeof (m || {})[k] === 'number'); return xs.length ? `<div class="mets">${xs.map((k) => `<span>${esc(t('m_' + k))} <b>${esc(fmtNum(m[k]))}</b></span>`).join('')}</div>` : ''; };
+        // social_publisher.insights: totals[p] = {posts, posts_with_metrics, metrics: {views, likes, ...}, metric_posts} — số nằm trong .metrics
+        const totMetrics = (v) => ((v && v.metrics && typeof v.metrics === 'object') ? v.metrics : (v || {}));
         async function loadInsights() {
             S.perfDays = parseInt($('perfDays').value, 10) || 30;
             try {
@@ -1661,15 +1917,20 @@
             if (S.perfErr && !S.insights) { box.innerHTML = `<div class="err">${esc(S.perfErr)}</div>`; return; }
             if (!S.insights) return;
             const rows = S.insights.posts.flatMap(insightRows).filter((r) => METRICS.some((k) => typeof r.metrics[k] === 'number'));
-            const tot = Object.entries(S.insights.totals || {}).filter(([k, v]) => PLAT[k] && v && METRICS.concat('posts').some((x) => typeof v[x] === 'number'));
+            const tot = Object.entries(S.insights.totals || {}).filter(([k, v]) => PLAT[k] && v && (typeof v.posts === 'number' || METRICS.some((x) => typeof totMetrics(v)[x] === 'number')));
             if (!rows.length && !tot.length) {
                 box.innerHTML = `<div class="card"><div class="empty"><i class="fas fa-chart-simple big"></i><b style="color:#fff">${esc(t('perfEmpty'))}</b><br>${esc(t('perfEmptyHint'))}</div></div>`;
                 return;
             }
-            const cards = tot.map(([k, v]) => `<div class="card" style="gap:8px"><div class="row">${logo(k, 'md')}<b style="color:#fff">${esc(pname(k))}</b>${typeof v.posts === 'number' ? `<span class="hint">· ${esc(fmtNum(v.posts))} ${esc(t('m_posts').toLowerCase())}</span>` : ''}</div>${metsHtml(v)}</div>`).join('');
+            const cards = tot.map(([k, v]) => {
+                const mh = metsHtml(totMetrics(v));
+                const withStats = typeof v.posts_with_metrics === 'number' ? ` · ${esc(t('withStats', { n: fmtNum(v.posts_with_metrics) }))}` : '';
+                return `<div class="card" style="gap:8px"><div class="row">${logo(k, 'md')}<b style="color:#fff">${esc(pname(k))}</b>${typeof v.posts === 'number' ? `<span class="hint">· ${esc(fmtNum(v.posts))} ${esc(t('m_posts').toLowerCase())}${withStats}</span>` : ''}</div>${mh || `<span class="hint">${esc(t('noStatsYet'))}</span>`}</div>`;
+            }).join('');
             const tbl = rows.length ? `<p class="sec-title">${esc(t('perfPosts'))}</p><div class="tbl-wrap"><table class="tbl"><thead><tr><th>${esc(t('colPost'))}</th><th>${esc(t('colStats'))}</th></tr></thead><tbody>${rows.map((r) => {
+                // insights trả post.permalink (không có targets); bản cũ có targets -> đọc cả hai
                 const tg = (r.post.targets || []).find((x) => x.platform === r.platform) || {};
-                const link = safeUrl(tg.permalink), when = tg.published_at || r.post.scheduled_at;
+                const link = safeUrl(r.post.permalink || tg.permalink), when = r.post.published_at || tg.published_at || r.post.scheduled_at;
                 return `<tr><td style="min-width:180px"><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${logo(r.platform)}<span style="min-width:0"><span style="display:block;overflow-wrap:anywhere">${esc((r.post.caption || r.post.title || '').slice(0, 120))}</span><span class="hint">${when ? esc(fmtShort(when)) : ''}${link ? ` · <a href="${esc(link)}" target="_blank" rel="noopener">${esc(t('tg_view'))}</a>` : ''}</span></span></div></td>
                     <td style="min-width:180px">${metsHtml(r.metrics)}${r.fetched_at ? `<div class="hint" style="margin-top:4px">${esc(t('statsAsOf', { time: fmtShort(r.fetched_at) }))}</div>` : ''}</td></tr>`;
             }).join('')}</tbody></table></div>` : '';
@@ -1688,7 +1949,7 @@
                 const b = S.bt[p] || {};
                 const slots = (b.slots || []).slice(0, 3).map((s) => `<span class="chip" style="cursor:default">${esc(wdName(Number(s.weekday) || 0))} ${esc(hourName(Number(s.hour) || 0))}</span>`).join('');
                 const src = b.source === 'learned' ? `<span class="src learned">${esc(t('learned'))}</span>${b.sample_size ? `<div class="hint">${esc(t('learnedN', { n: b.sample_size }))}</div>` : ''}` : (b.source ? `<span class="src default">${esc(t('industryDefault'))}</span>` : '');
-                return `<tr><td><span class="row" style="flex-wrap:nowrap">${logo(p)}<span>${esc(pname(p))}</span></span></td><td>${slots ? `<div class="chips">${slots}</div>` : `<span class="hint">${esc(b.error || t('bestNone', { p: pname(p) }))}</span>`}${b.note ? `<div class="hint" style="margin-top:4px">${esc(b.note)}</div>` : ''}</td><td>${src}</td></tr>`;
+                return `<tr><td><span class="row" style="flex-wrap:nowrap">${logo(p)}<span>${esc(pname(p))}</span></span></td><td>${slots ? `<div class="chips">${slots}</div>` : `<span class="hint">${esc(b.error || t('bestNone', { p: pname(p) }))}</span>`}${btNote(b, p) ? `<div class="hint" style="margin-top:4px">${esc(btNote(b, p))}</div>` : ''}</td><td>${src}</td></tr>`;
             }).join('')}</tbody></table></div>`;
         }
         async function aiReview(btn) {
@@ -1727,11 +1988,16 @@
                 case 'open-post': openPost(id); break;
                 case 'close-modal': closeModals(); break;
                 case 'edit-post': { const post = findPost(id); if (post) { closeModals(); loadIntoCompose(post); } break; }
-                case 'publish-now': case 'cancel-post': case 'delete-post': postAction(a, id, el); break;
+                case 'publish-now': case 'retry-post': case 'cancel-post': case 'delete-post': postAction(a, id, el); break;
                 case 'cmp-reset': resetCompose(); break;
                 case 'toggle-plat':
                     C.targets = C.targets.includes(p) ? C.targets.filter((x) => x !== p) : PLATFORMS.filter((x) => x === p || C.targets.includes(x));
-                    renderPlatforms(); renderEditors(); renderTiktok(); if (C.when === 'later') loadBest(); renderWarn(); break;
+                    renderPlatforms(); renderEditors(); renderTiktok(); if (C.when === 'later') loadBest(); renderWarn();
+                    // bật TikTok -> hỏi lại creator_info nếu lần trước lỗi hoặc đã cũ (> 5 phút)
+                    if (p === 'tiktok' && C.targets.includes('tiktok')) loadTtInfo();
+                    break;
+                case 'tt-retry': loadTtInfo(true); break;
+                case 'gbp-loc-save': saveGbpLocation(el); break;
                 case 'when': C.when = el.dataset.when; renderWhen(); renderWarn(); break;
                 case 'pick-slot': C.local = el.dataset.v; $('cmpWhen').value = C.local; document.querySelectorAll('[data-act="pick-slot"]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === C.local ? 'true' : 'false')); renderWarn(); break;
                 case 'ai-captions': aiCaptions(el); break;
@@ -1786,6 +2052,7 @@
         // ---------------------------------------------------------------- khởi động
         (async function init() {
             applyStatic();
+            if (!IS_ADMIN) ['pendStaffNote', 'accStaffNote'].forEach((id) => { $(id).hidden = false; });   // cmpStaffNote: renderCompose
             S.weekStart = weekOf(new Date());
             const q = new URLSearchParams(location.search);
             let tab = (location.hash || '').replace('#', '');
