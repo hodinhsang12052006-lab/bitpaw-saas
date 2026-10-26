@@ -460,9 +460,9 @@
             if (Date.now() - last < 180000) return;
             sessionStorage.setItem('bp_pump_at', String(Date.now()));
         } catch (e) { /* bị chặn */ }
-        setTimeout(function () { fetch('/api/messages/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(function () {}); }, 2500);
+        setTimeout(function () { fetch('/api/messages/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(function (r) { return r.text(); }).catch(function () {}); }, 2500);
         // Bài đăng đã tới giờ (Instagram/TikTok/Google không tự hẹn giờ qua API) — chỉ của tiệm đang mở app, máy chủ tự giới hạn 1 lần/2 phút
-        setTimeout(function () { fetch('/api/social/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(function () {}); }, 4000);
+        setTimeout(function () { fetch('/api/social/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(function (r) { return r.text(); }).catch(function () {}); }, 4000);
     })();
     // Bấm hamburger -> mở/đóng sidebar trượt vào (chỉ có tác dụng dưới 768px nhờ CSS ở trên,
     // ở md+ sidebar luôn hiển thị bình thường nên hàm này không ảnh hưởng gì).

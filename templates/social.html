@@ -2072,7 +2072,8 @@
             S.tab = TABS.includes(tab) ? tab : 'calendar';   // trước khi pump trả về, để không tải lịch thừa khi mở tab khác
             // Chạy hàng đợi đăng bài của tiệm 1 lần (server tự giới hạn 2 phút/lần) rồi làm mới lịch
             fetch('/api/social/pump', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
-                .then((r) => { if (r.ok && S.tab === 'calendar') loadCalendar(true); }).catch(() => {});
+                // đọc hết phản hồi: Chrome giữ request "đang chạy" tới khi body được đọc (trang không bao giờ rảnh mạng)
+                .then((r) => r.text().then(() => { if (r.ok && S.tab === 'calendar') loadCalendar(true); })).catch(() => {});
             await loadAccounts();
             showTab(TABS.includes(tab) ? tab : 'calendar', !tab);
             if (S.tab !== 'approvals') loadPending();
