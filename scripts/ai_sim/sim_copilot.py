@@ -17,7 +17,8 @@ from sim_core import BASE, browser_session, csrf_from, db, ds  # noqa: E402
 EMAIL, PW = 'demo.nails.au.006758@bitpawdemo.com', 'DemoNails2026!'
 BIZ = '000b2c16-ab4e-42bd-944a-29c925cad09b'
 OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'audit-results', 'ai_sim')
-STATUSES = ['completed', 'paid', 'partially_refunded', 'refunded']
+# Đơn tính doanh thu: đúng 1 định nghĩa của app (có 'PAID' của Square) — số đúng tự tính vẫn cộng thẳng từ Mongo ở dưới
+from ai_copilot_tools import REVENUE_STATUSES as STATUSES  # noqa: E402
 
 
 def local_now():

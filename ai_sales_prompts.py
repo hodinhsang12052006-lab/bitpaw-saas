@@ -192,19 +192,16 @@ def classify_objection(user_message, history=None):
     )
 
     try:
-        resp = requests.post(
-            "https://api.deepseek.com/chat/completions",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-            json={
-                "model": "deepseek-chat",
-                "messages": [{"role": "user", "content": classifier_prompt}],
-                "temperature": 0,
-                "max_tokens": 8,
-            },
-            timeout=8,  # this is a router call, not the main reply — fail fast, don't stall the UI
-        )
-        resp.raise_for_status()
-        label = resp.json()['choices'][0]['message']['content'].strip().upper()
+        # Qua ai_gateway (1 dòng sổ db.ai_usage token thật, tính năng 'sales_bot' = chi phí của BitPaw, không vào sổ tiệm
+        # nào). Router call, not the main reply — fail fast (8 s, no retry), don't stall the UI.
+        import ai_gateway
+        result = ai_gateway.chat('sales_bot', None, {
+            "model": "deepseek-chat",
+            "messages": [{"role": "user", "content": classifier_prompt}],
+            "temperature": 0,
+            "max_tokens": 8,
+        }, timeout=8, retries=0)
+        label = (result['choices'][0]['message']['content'] or '').strip().upper()
         return label if label in _OBJECTION_LABELS else None
     except Exception:
         return None

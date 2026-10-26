@@ -866,17 +866,3 @@ def handle_inbound_sms(business_id, from_number, body):
         except Exception as e:
             print(f"[sms inbox] {e}")
     return ''
-
-
-def missed_call_reply(business_id, caller, booking_url):
-    settings = get_settings(business_id)
-    if not settings['missed_call_enabled'] or not caller:
-        return None
-    if is_opted_out(business_id, 'sms', caller):
-        return None
-    body = _t(settings,
-              f"Hi, this is {settings['business_name']} — sorry we missed your call! " + (f"Book online anytime: {booking_url} " if booking_url else '') + "or reply here and we'll get back to you shortly.",
-              f"{settings['business_name']} xin lỗi vì chưa nghe máy được! " + (f"Đặt lịch online: {booking_url} " if booking_url else '') + "hoặc trả lời tin này, tiệm sẽ liên hệ lại ngay.")
-    # mỗi số tối đa 1 tin / 30 phút (gọi lại liên tục không bị nhắn liên tục)
-    bucket = datetime.now(timezone.utc).strftime('%Y%m%d%H') + str(datetime.now(timezone.utc).minute // 30)
-    return queue(business_id, 'sms', caller, body, 'missed_call', dedupe_key=f"mc:{business_id}:{caller}:{bucket}")

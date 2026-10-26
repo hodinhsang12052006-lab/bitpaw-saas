@@ -2,11 +2,12 @@
 Cronjob CHẠY NGẦM MỖI NGÀY 1 LẦN (Mã Nurture Part 2 audit) — trước đây AI Nurture hoàn toàn thủ
 công (chủ tiệm phải tự bấm "Generate Campaign" mỗi lần muốn chăm sóc khách). Worker này quét
 db.customers đối chiếu với db.nurture_schedule_rules (cấu hình riêng từng tenant, tạo qua
-app.py:/api/ai/nurture/rules — vd "khách không ghé 30 ngày"). Khách nào khớp điều kiện: gọi
-Claude (qua AINurturingEngine.generate_single_nurture_message, xem ai_nurturing_engine.py) sinh
-1 tin nhắn, rồi đẩy vào db.campaign_messages — APPROVED (gửi thẳng: bộ gửi chung messaging.pump xếp hàng + gửi
+app.py:/api/ai/nurture/rules — vd "khách không ghé 30 ngày"). Khách nào khớp điều kiện: DeepSeek qua ai_gateway
+(AINurturingEngine.generate_sequence_template — 1 lần / rule, sổ chi phí theo tiệm) sinh 1 mẫu tin điền dữ liệu thật
+từng khách, rồi đẩy vào db.campaign_messages — APPROVED (gửi thẳng: bộ gửi chung messaging.pump xếp hàng + gửi
 trong khung giờ của tiệm, bỏ khách đã từ chối nhận tin) nếu rule.auto_send=True, hoặc PENDING (hàng chờ duyệt tay) nếu False.
 Kênh: 1 bộ chữ thường messaging.CHANNELS (sms, email, zalo, messenger) — rule cũ lưu 'zalo_oa'/'facebook' được chuẩn hoá.
+Gói: rule của tiệm có gói không gồm 'crm_ai' (Essential / vừa hạ gói) tạm dừng; tiệm cũ chưa có gói = Empire.
 
 CÁCH CHẠY:
     python nurture_scheduler.py            # quét 1 lần rồi thoát — dùng với cron thật:
@@ -71,6 +72,13 @@ def _mark_triggered(business_id, rule_id, customer_id):
 def _process_rule(rule):
     business_id = rule['business_id']
     rule_id = rule['id']
+    # Cổng gói lúc chạy (ai_gateway.allowed = cổng require= của gateway, cache 60 giây; tiệm cũ chưa có gói = Empire):
+    # "CRM + AI nhắc khách quay lại" (crm_ai) là tính năng Pro. Tiệm Essential / vừa hạ gói: rule tạm dừng — không gọi AI
+    # trả phí, không tự xếp tin; rule vẫn lưu nguyên, nâng gói lại là chạy tiếp.
+    import ai_gateway
+    if not ai_gateway.allowed(business_id, 'crm_ai'):
+        print(f"[nurture_scheduler] business_id={business_id} rule {rule_id}: gói hiện tại không có CRM + AI — bỏ qua.")
+        return
     biz = db.businesses.find_one({'id': business_id}, {'name': 1, '_id': 0})
     business_name = (biz or {}).get('name') or 'BitPaw'
     industry = rule.get('industry') or 'retail'
@@ -97,7 +105,8 @@ def _process_rule(rule):
         if template is None:
             try:
                 template = AINurturingEngine.generate_sequence_template(
-                    business_name, industry, rule.get('goal', 'RECALL'), rule.get('tone', 'friendly'), lang)['7days']
+                    business_name, industry, rule.get('goal', 'RECALL'), rule.get('tone', 'friendly'), lang,
+                    business_id=business_id)['7days']   # sổ chi phí AI + cổng gói theo đúng tiệm của rule
             except Exception as e:
                 print(f"[nurture_scheduler] Lỗi sinh mẫu tin cho rule {rule_id}: {e}")
                 return

@@ -575,8 +575,10 @@ def roster_my():
 
 def _sales_last_7_days(business_id):
     """Doanh thu ròng 7 ngày gần nhất (để tính lương dự kiến = bao nhiêu % doanh thu, như Deputy/7shifts)."""
+    # 1 định nghĩa "đơn tính doanh thu" cho cả app (có 'PAID' của đơn Square bán lẻ — bản chép riêng trước đây bỏ sót)
+    from ai_copilot_tools import REVENUE_STATUSES
     since = (datetime.now() - timedelta(days=7)).isoformat()
-    rows = db.orders.find({'business_id': business_id, 'status': {'$in': ['completed', 'paid', 'partially_refunded', 'refunded']},
+    rows = db.orders.find({'business_id': business_id, 'status': {'$in': REVENUE_STATUSES},
                            'created_at': {'$gte': since}}, {'_id': 0, 'total_amount': 1})
     try:
         return round(sum(float(r.get('total_amount') or 0) for r in rows), 2)
