@@ -14473,6 +14473,12 @@ try:
     # AI quản lý đa nền tảng: Facebook Page, Instagram, YouTube, TikTok, Google Business — xem docs/AI_SUITE_SPEC.md
     from social_bp import social_bp
     app.register_blueprint(social_bp)
+    # Bảng xoay tua thợ Nails (turn board) — nail_turns.py; trang landing Nails quảng bá tính năng này
+    try:
+        from nail_turns import nail_turns_bp
+        app.register_blueprint(nail_turns_bp)
+    except Exception as bp_err:
+        print(f"Error registering nail_turns_bp: {str(bp_err)}")
     # Route tốn tiền thật (Replicate/DeepSeek) hoặc gọi nền tảng ngoài: giới hạn riêng theo IP, ngoài hạn mức theo gói
     for _ep, _lim in {
         'ai_studio.media_create_job': '30 per hour;6 per minute',
