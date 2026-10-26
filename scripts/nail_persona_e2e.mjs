@@ -275,14 +275,22 @@ try {
   const appt = db('appts', BID, `QA Persona Khách ${MA_NV}`);
   check('Khách', 'Khách đặt lịch với thợ mới -> lịch hẹn lưu đúng thợ, đúng giờ', appt.count === 1 && String(appt.items[0]?.staff_id) === String(techVal) && (appt.items[0]?.book_time || '').startsWith(picked || localIso),
     appt.count ? `staff_id=${appt.items[0].staff_id} ${appt.items[0].book_time}` : 'không có lịch hẹn');
-  await owner.goto(`${BASE}/calendar?date=${localIso.slice(0, 10)}`, { waitUntil: 'networkidle' });
+  const first = appt.items[0];   // lịch vừa lưu THẬT trong DB (giờ + thợ) — dùng cho /calendar và bước đặt trùng bên dưới
+  await owner.goto(`${BASE}/calendar?date=${(first?.book_time || picked || localIso).slice(0, 10)}`, { waitUntil: 'networkidle' });
   check('Chủ tiệm', 'Lịch hẹn của khách hiện trên /calendar', (await owner.content()).includes(`QA Persona Khách ${MA_NV}`));
   await safeScreenshot(cust, { path: path.join(OUT, '05_customer_booking.png') });
-  const dupBook = await cust.evaluate(async ({ sid, staffId, t, code }) => {
+  // Đặt trùng ĐÚNG book_time + staff_id đã lưu. Trước đây gửi localIso (giờ hiện tại + 2 ngày) trong khi lịch đầu nằm ở
+  // giờ trống đầu tiên pickSlot chọn (vd 09:30) -> chỉ "trùng"/bị chặn khi tình cờ chạy test lúc ~9h sáng; chạy buổi
+  // chiều thì gửi 1 giờ KHÁC, server nhận đúng (HTTP 200) và test báo FAIL oan.
+  const dupBook = first ? await cust.evaluate(async ({ sid, staffId, t, code }) => {
     const r = await fetch('/create_appointment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: `QA Persona Khách 2 ${code}`, phone: '0411111111', service_id: sid, staff_id: staffId, book_time: t }) });
-    return r.status;
-  }, { sid: svc.id, staffId: techVal, t: localIso, code: MA_NV });
-  check('Khách', 'Khách khác đặt trùng giờ trùng thợ -> bị chặn (409)', dupBook === 409, `HTTP ${dupBook}`);
+    let j = {}; try { j = await r.json(); } catch (e) { /* not json */ }
+    return { status: r.status, message: j.message || '' };
+  }, { sid: svc.id, staffId: first.staff_id, t: first.book_time, code: MA_NV }) : null;
+  const dupStored = first ? db('appts', BID, `QA Persona Khách 2 ${MA_NV}`).count : 0;
+  check('Khách', 'Khách khác đặt trùng giờ trùng thợ -> bị chặn (409)', dupBook?.status === 409 && dupStored === 0,
+    first ? `HTTP ${dupBook.status} · ${first.staff_id} ${first.book_time} · "${dupBook.message}"${dupStored ? ` · ĐÃ LƯU ${dupStored} lịch trùng` : ''}`
+      : 'không có lịch hẹn đầu để thử đặt trùng');
   const badBook = await cust.evaluate(async () => (await fetch('/create_appointment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service_id: { $gt: 0 }, name: 'x', phone: '1', book_time: '2030-01-01T10:00' }) })).status);
   check('Khách', 'Gửi dữ liệu đặt lịch dị dạng (NoSQL injection) -> 400, không lỗi server', badBook === 400, `HTTP ${badBook}`);
 

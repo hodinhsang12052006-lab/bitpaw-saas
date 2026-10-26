@@ -92,9 +92,7 @@ def book_appointment(business_id, customer_info, staff_id, book_time, service_id
             'status': {'$ne': 'cancelled'},
         })
         if clash:
-            raise SlotAlreadyBookedError(
-                f"Nhân viên đã có lịch hẹn khác vào lúc {book_time} — vui lòng chọn giờ khác hoặc thợ khác."
-            )
+            raise _staff_busy_error(book_time)
 
     customer_info = customer_info or {}
     appointment_doc = {
@@ -118,12 +116,22 @@ def book_appointment(business_id, customer_info, staff_id, book_time, service_id
     try:
         db.appointments.insert_one(appointment_doc)
     except DuplicateKeyError:
-        raise SlotAlreadyBookedError(
-            f"Nhân viên đã có lịch hẹn khác vào lúc {book_time} — vui lòng chọn giờ khác hoặc thợ khác."
-        )
+        raise _staff_busy_error(book_time)
     appointment_doc.pop('_id', None)
     _notify_owner_new_appointment(appointment_doc)
     return appointment_doc
+
+
+def _staff_busy_error(book_time):
+    """Thợ đã có lịch đúng giờ này (khách khác vừa giữ chỗ trước, kể cả khi 2 người bấm cùng lúc). Câu 'EN / VI' giống
+    booking_rules.REASON_TEXT -> /create_appointment tách theo ngôn ngữ của tiệm; trước đây chỉ có tiếng Việt nên khách
+    tiệm AU/US đặt trùng đúng lúc người khác vừa đặt thấy thông báo tiếng Việt."""
+    t, d = book_time[11:16], book_time[:10]
+    err = SlotAlreadyBookedError(
+        f"That team member is already booked at {t} on {d} — please pick another time or team member. / "
+        f"Nhân viên đã có lịch hẹn khác lúc {t} ngày {d[8:10]}/{d[5:7]}/{d[:4]} — vui lòng chọn giờ khác hoặc thợ khác.")
+    err.reason = 'staff_busy'
+    return err
 
 
 def slot_key(staff_id, book_time):
