@@ -5,10 +5,12 @@ Kết quả: audit-results/ai_sim/booking_<tag>.jsonl + _summary.json. Dữ li�
 """
 import argparse
 import concurrent.futures as cf
+import hashlib
 import json
 import os
 import random
 import re
+import secrets
 import sys
 import time
 from datetime import datetime, timedelta
@@ -142,13 +144,37 @@ def make_personas(scenarios, n, seed=7):
     return out
 
 
-def seed_appt(biz, phone, svc, when):
+def new_chat_token():
+    """Như widget đặt lịch (cskh_widget.js getChatToken): 32 ký tự hex ngẫu nhiên riêng từng "trình duyệt" khách."""
+    return secrets.token_hex(16)
+
+
+def chat_token_hash(token):
+    """sha256 hex của mã chat — đúng cách ai_function_tools.chat_token_hash lưu trên lịch hẹn do chat web đặt."""
+    return hashlib.sha256(token.encode('ascii')).hexdigest()
+
+
+def seed_appt(biz, phone, svc, when, chat_token=None):
+    """Lịch có sẵn của khách giả lập. Phase 0: chat web chỉ xem/dời/huỷ được lịch gắn mã băm chat_token của CHÍNH trình duyệt
+    đó -> lịch hạt giống mang chat_token_hash của mã khách sẽ gửi (như lịch khách đã đặt trước đó từ cùng trình duyệt)."""
     from mongo_client import next_mongo_id
     aid = next_mongo_id('appointments')
-    db.appointments.insert_one({'id': aid, 'business_id': biz, 'customer_name': 'Sim Customer', 'customer_phone': phone,
-                                'service_id': svc['id'], 'service_name': svc['name'], 'book_time': when.strftime('%Y-%m-%dT%H:%M:%S'),
-                                'status': 'confirmed', 'source': 'sim_seed', 'created_at': datetime.now().isoformat()})
+    doc = {'id': aid, 'business_id': biz, 'customer_name': 'Sim Customer', 'customer_phone': phone,
+           'service_id': svc['id'], 'service_name': svc['name'], 'book_time': when.strftime('%Y-%m-%dT%H:%M:%S'),
+           'status': 'confirmed', 'source': 'sim_seed', 'created_at': datetime.now().isoformat()}
+    if chat_token:
+        doc.update({'chat_token_hash': chat_token_hash(chat_token), 'ai_conversation_id': f"{biz}:{phone}", 'ai_channel': 'web'})
+    db.appointments.insert_one(doc)
     return aid
+
+
+def booking_payload(biz, industry, phone, now, msg, history, chat_token):
+    """Đúng body widget đặt lịch gửi /api/ai/studio/generate (kể cả chat_token)."""
+    return {'business_id': biz, 'industry': industry, 'context': 'customer_booking', 'customer_phone': phone,
+            'client_now': now.strftime('%Y-%m-%dT%H:%M:%S'), 'customer_message': msg, 'history': history[-10:],
+            'chat_token': chat_token,
+            'userPrompt': (f'Khách hàng (SĐT {phone}) vừa nhắn: "{msg}". Giúp khách chọn dịch vụ + thời gian rồi đặt lịch thật '
+                           'qua book_appointment. (Trả lời bằng ĐÚNG ngôn ngữ khách dùng trong tin nhắn, tự nhiên, dưới 350 ký tự).')}
 
 
 def appts(biz, phone):
@@ -277,19 +303,17 @@ def main():
     def one(p):
         sc = p['sc']
         seeded = {}
+        chat_token = new_chat_token()   # 1 "trình duyệt" / khách giả lập, giữ nguyên suốt cuộc chat
         if sc['seed'] == 'appt':
             when = datetime.combine((now + timedelta(days=3)).date(), datetime.min.time()).replace(hour=13)
-            seeded = {'id': seed_appt(a.biz, p['phone'], sv[0], when), 'when': when}
+            seeded = {'id': seed_appt(a.biz, p['phone'], sv[0], when, chat_token=chat_token), 'when': when}
             p = dict(p, goal=p['goal'] + f" (Your existing booking: '{sv[0]['name']}' on {when:%A %d/%m at %H:%M}.)")
         sess = browser_session()
         # Như khách thật: mở trang đặt lịch công khai của tiệm (lấy phiên + mã CSRF mà widget dùng)
         csrf_from(sess, BASE + (f'/booking/nail/qr/{a.biz}' if a.industry == 'nail' else f'/booking/qr/{a.biz}'))
 
         def bot(history, msg):
-            payload = {'business_id': a.biz, 'industry': a.industry, 'context': 'customer_booking', 'customer_phone': p['phone'],
-                       'client_now': now.strftime('%Y-%m-%dT%H:%M:%S'), 'customer_message': msg, 'history': history[-10:],
-                       'userPrompt': (f'Khách hàng (SĐT {p["phone"]}) vừa nhắn: "{msg}". Giúp khách chọn dịch vụ + thời gian rồi đặt lịch thật '
-                                      'qua book_appointment. (Trả lời bằng ĐÚNG ngôn ngữ khách dùng trong tin nhắn, tự nhiên, dưới 350 ký tự).')}
+            payload = booking_payload(a.biz, a.industry, p['phone'], now, msg, history, chat_token)
             pacer.wait()
             t0 = time.time()
             for attempt in range(3):
@@ -302,7 +326,8 @@ def main():
             try:
                 j = r.json()
                 text = (j.get('choices') or [{}])[0].get('message', {}).get('content') or ''
-                meta = {'status': r.status_code, 'fallback': bool(j.get('fallback')), 'paused': bool(j.get('paused'))}
+                meta = {'status': r.status_code, 'fallback': bool(j.get('fallback')), 'paused': bool(j.get('paused')),
+                        'ai_unavailable': bool(j.get('ai_unavailable'))}   # gói của tiệm không có trợ lý AI (Phase 1)
             except ValueError:
                 text, meta = '', {'status': r.status_code, 'error': r.text[:120]}
             if meta.get('paused') and not text:  # giống widget thật: AI đã chuyển cho người, không chen vào nữa

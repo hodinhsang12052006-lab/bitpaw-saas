@@ -155,6 +155,12 @@ def forget(business_id):
     _PLAN_CACHE.pop(business_id, None)
 
 
+def business_allows(db, business_id, feature, ttl=60):
+    """Gói HIỆN TẠI của tiệm (cache ttl giây) có tính năng không — cổng lúc chạy của AI trả phí (ai_gateway.allowed).
+    Hạ gói -> tính năng dừng trong tối đa ttl giây (mỗi tiến trình); tiệm cũ chưa có plan = Empire."""
+    return allows(business_plan(db, business_id, ttl=ttl), feature)
+
+
 # ---- Nội dung thẻ giá theo ngành (vi, en) ---------------------------------------------------------
 _CORE = {  # 2–3 dòng "đúng nghề" cho Essential
     # Bỏ "xoay tua thợ công bằng" (26/10/2026): tính năng CHƯA có cho nail — thẻ giá chỉ ghi điều đã chạy thật.

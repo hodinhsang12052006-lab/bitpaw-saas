@@ -297,7 +297,9 @@ _DEEPSEEK = {'reply': 'a bright nail salon photo', 'calls': []}
 
 def _fake_deepseek(payload, **kw):
     _DEEPSEEK['calls'].append(payload)
-    return {'choices': [{'message': {'content': _DEEPSEEK['reply']}}]}
+    # trường usage như DeepSeek thật trả về — ai_gateway ghi sổ từ đây (Phase 1)
+    return {'choices': [{'message': {'content': _DEEPSEEK['reply']}}], 'model': 'deepseek-chat',
+            'usage': {'prompt_tokens': 1000, 'completion_tokens': 200, 'prompt_cache_hit_tokens': 400}}
 
 
 sys.modules['ai_deepseek_client'] = types.SimpleNamespace(deepseek_chat_completion=_fake_deepseek)
@@ -953,8 +955,14 @@ class StudioRouteTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual((_DEEPSEEK['calls'][-1]['temperature'], _DEEPSEEK['calls'][-1]['max_tokens']), (1.2, 2000))
         self.assertIn('BUSINESS FACTS', _DEEPSEEK['calls'][-1]['messages'][0]['content'])
-        row = FDB.ai_usage.find_one({'kind': 'text'})
-        self.assertEqual((row['units'], row['cost_usd'], row['business_id']), (2000, 0.0, 'biz-test'))
+        # Phase 1: sổ ghi token THẬT DeepSeek trả về (không phải max_tokens xin) + chi phí theo bảng giá ai_gateway, đúng 1 dòng
+        rows = FDB.ai_usage.find({'kind': 'text'})
+        rows = list(rows)
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual((row['units'], row['prompt_tokens'], row['completion_tokens'], row['business_id'], row['feature']),
+                         (1200, 1000, 200, 'biz-test', 'studio_text'))
+        self.assertAlmostEqual(row['cost_usd'], (400 * 0.028 + 600 * 0.28 + 200 * 0.42) / 1e6, places=10)
         self.c.post('/api/ai_studio/generate_text', json={'system_prompt': 's', 'user_prompt': 'u', 'temperature': -3, 'max_tokens': 0})
         self.assertEqual((_DEEPSEEK['calls'][-1]['temperature'], _DEEPSEEK['calls'][-1]['max_tokens']), (0.0, 1))
         for bad in ({'temperature': 'abc'}, {'max_tokens': 'lots'}, {'temperature': 'nan'}, {'max_tokens': [1]}):
@@ -1059,6 +1067,7 @@ class StudioRouteTests(unittest.TestCase):
         self.assertEqual(sc[2]['visual'], 'photo')   # 'video' không hợp lệ -> photo
         self.assertEqual(_DEEPSEEK['calls'][-1]['response_format'], {'type': 'json_object'})
         self.assertIn('BUSINESS FACTS', _DEEPSEEK['calls'][-1]['messages'][1]['content'])
+        self.assertEqual([r['feature'] for r in FDB.ai_usage.find({'kind': 'text'})], ['studio_scene_plan'])
         self.assertEqual(self.c.post('/api/ai_studio/scene_plan', json={'topic': 'x', 'seconds': 'abc'}).status_code, 400)
         self.assertEqual(self.c.post('/api/ai_studio/scene_plan', json={'topic': 'x', 'seconds': 99}).json['seconds'], 30)
         self.assertEqual(self.c.post('/api/ai_studio/scene_plan', json={'seconds': 10}).status_code, 400)

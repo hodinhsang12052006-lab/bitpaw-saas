@@ -12113,6 +12113,12 @@ def _inbox_walkin(business_id):
 def _inbox_ai_reply(business_id, customer_id, latest_text):
     """Trả (câu trả lời, lỗi?) cho 1 tin khách nhắn qua Messenger/Zalo/WhatsApp/Viber/SMS. ('', False) = cố ý im lặng
     (nhân viên đang nhận khách này); ('', True) = AI lỗi -> báo chủ tiệm trả lời."""
+    import ai_gateway
+    # Cổng gói lúc chạy (Pro trở lên; tiệm cũ chưa có gói = Empire; cache 60 giây): hạ gói -> AI trả phí dừng trong <= 60 giây.
+    # Tin của khách đã được lưu; đánh dấu "cần người trả lời" kèm lý do để chủ tiệm biết vì sao AI im.
+    if not ai_gateway.allowed(business_id, 'ai_inbox'):
+        db.bot_customers.update_one({'id': customer_id}, {'$set': {'needs_human': True, 'handoff_reason': ai_gateway.PLAN_PAUSED_REASON}})
+        return '', False
     bc = db.bot_customers.find_one({'id': customer_id}, {'_id': 0, 'ai_paused': 1, 'hold_notice_at': 1, 'handoff_by_ai': 1,
                                                        'handoff_at': 1, 'handoff_reason': 1, 'phone': 1, 'channel': 1}) or {}
     waiting = None
@@ -12127,6 +12133,8 @@ def _inbox_ai_reply(business_id, customer_id, latest_text):
     if not api_key and os.environ.get('BITPAW_DESKTOP_MODE') != '1':
         return '', True
     _t0 = time.time()
+    # Sổ chi phí AI: mọi lệnh DeepSeek của lượt trả lời này (kể cả các vòng gọi công cụ) ghi db.ai_usage theo tiệm + kênh
+    _usage = ai_gateway.begin('sms_reply' if bc.get('channel') == 'sms' else 'inbox_reply', business_id)
     try:
         import ai_function_tools
         # Chỉ Nails/Spa có lịch hẹn thật; ngành khác: hỏi đáp từ dữ liệu công khai + chuyển yêu cầu cho nhân viên
@@ -12169,6 +12177,8 @@ def _inbox_ai_reply(business_id, customer_id, latest_text):
         _log_ai_run('booking', business_id, time.time() - _t0, None, fallback=True, error=e)
         print(f"[inbox ai] {e}")
         return '', True
+    finally:
+        ai_gateway.end(_usage)
 
 
 def _inbox_ai_throttled(customer_id):
@@ -12259,6 +12269,10 @@ def _inbox_sms_inbound(business_id, from_number, body):
                                 default_name=_inbox_walkin(business_id))
     if not inbox_channels.ai_auto_reply_on(business_id, 'sms'):
         db.bot_customers.update_one({'id': cid}, {'$set': {'needs_human': True}})
+        return ''
+    import ai_gateway
+    if not ai_gateway.allowed(business_id, 'ai_inbox'):  # gói không có AI trả lời (Essential / vừa hạ gói): lưu tin, chờ người
+        db.bot_customers.update_one({'id': cid}, {'$set': {'needs_human': True, 'handoff_reason': ai_gateway.PLAN_PAUSED_REASON}})
         return ''
     if _inbox_ai_throttled(cid):
         return ''
@@ -12593,13 +12607,40 @@ def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, cu
 
 
 def _log_ai_run(persona, business_id, seconds, tools=None, fallback=False, error=None):
-    """Nhật ký chất lượng AI (độ trễ, công cụ đã gọi, có rơi vào câu dự phòng không) — best-effort, không làm chậm chat."""
+    """Nhật ký chất lượng AI (độ trễ, công cụ đã gọi, có rơi vào câu dự phòng không) — best-effort, không làm chậm chat.
+    Kèm số lệnh / token / chi phí THẬT của lượt này (ai_gateway.run_totals — phạm vi ghi sổ đang mở), nếu có."""
+    try:
+        import ai_gateway
+        usage = ai_gateway.run_totals()
+    except Exception:
+        usage = {}
     try:
         db.ai_runs.insert_one({'persona': persona, 'business_id': business_id, 'ms': int(seconds * 1000), 'tools': tools or [],
                                'fallback': bool(fallback), 'error': (str(error)[:200] if error else None),
-                               'created_at': datetime.now().isoformat()})
+                               'created_at': datetime.now().isoformat(), **usage})
     except Exception:
         pass
+
+
+@app.route('/api/ai/usage', methods=['GET'])
+@login_required
+def api_ai_usage():
+    """Chi phí AI THẬT của tiệm trong 1 tháng (?month=YYYY-MM, giờ của tiệm; mặc định tháng này): số lệnh, token, chi phí
+    theo từng tính năng — đọc db.ai_usage do ai_gateway ghi từ trường usage DeepSeek trả về. Chỉ chủ tiệm / admin."""
+    _l = request.args.get('lang')
+    if session.get('role', 'staff') not in ('admin', 'super_admin'):
+        _vi_msg, _en_msg = "Chỉ tài khoản chủ tiệm / quản trị xem được chi phí AI.", "Only the owner / admin account can see AI usage."
+        return jsonify({"success": False, "code": "owner_only",
+                        "message": _en_msg if _l == 'en' else (_vi_msg if _l == 'vi' else _vi_en(_vi_msg, _en_msg))}), 403
+    import ai_gateway
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        summary = ai_gateway.usage_summary(business_id, request.args.get('month'))
+    except ValueError:
+        _vi_msg, _en_msg = "Tháng không hợp lệ — dùng dạng 2026-10.", "Invalid month — use the form 2026-10."
+        return jsonify({"success": False, "code": "bad_month",
+                        "message": _en_msg if _l == 'en' else (_vi_msg if _l == 'vi' else _vi_en(_vi_msg, _en_msg))}), 400
+    return jsonify({"success": True, **summary})
 
 
 @app.route('/api/ai/studio/generate', methods=['POST'])
@@ -12630,6 +12671,15 @@ def secure_ai_generate():
         if business_id is not None and not isinstance(business_id, str):
             return jsonify({"error": "Invalid business_id."}), 400
     private_ok = is_authenticated and not public_customer_chat
+    # Cổng gói lúc chạy (ai_gateway.allowed, cache 60 giây; tiệm cũ chưa có gói = Empire): trợ lý chat của trang đặt lịch là
+    # tính năng Pro ('ai_inbox'). Tiệm Essential / vừa hạ gói: trang đặt lịch vẫn chạy (form), chat trả 1 câu "đặt bằng form
+    # hoặc gọi / nhắn cho tiệm" KHÔNG dùng AI, cờ ai_unavailable + contact để widget đổi sang nút gọi/nhắn.
+    import ai_gateway
+    if public_customer_chat and not ai_gateway.allowed(business_id, 'ai_inbox'):
+        return jsonify(ai_gateway.unavailable_reply(business_id, data.get('customer_message') or data.get('userPrompt')))
+    # Sổ chi phí AI (db.ai_usage): mọi lệnh DeepSeek của request này ghi đúng tính năng + tiệm. Bot bán phần mềm BitPaw là
+    # chi phí của BitPaw (business_id có thể do trình duyệt tự khai) -> không ghi vào sổ của tiệm nào.
+    ai_gateway.tag_request('booking_chat' if public_customer_chat else 'sales_bot', business_id if public_customer_chat else None)
     industry = data.get('industry') or session.get('business_mode', 'general')
     # Mã chat riêng từng trình duyệt (widget lưu localStorage 'bp_chat_token') — chỉ lưu mã băm
     import ai_function_tools
