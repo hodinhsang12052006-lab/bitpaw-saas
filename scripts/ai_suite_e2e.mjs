@@ -62,6 +62,10 @@ const mock = http.createServer((req, res) => {
         return send(404, { detail: 'unknown replicate ' + q });
       }
       // ---- Meta Graph
+      if (p.startsWith('/meta/ig-api-upload/')) {   // Reels: byte video tải thẳng lên Instagram (rupload), kèm Authorization: OAuth
+        return (req.headers.authorization === 'OAuth qa-good' && Number(req.headers.file_size) === raw.length)
+          ? send(200, { success: true }) : send(400, { debug_info: { type: 'OAuthException', message: 'bad upload' } });
+      }
       if (p.startsWith('/meta/')) {
         const q = p.replace(/^\/meta\/v[\d.]+/, '');
         const tok = u.searchParams.get('access_token') || (c.text.match(/access_token=([^&\s"]+)/) || [])[1] || (j && j.access_token) || (req.headers.authorization || '').replace('Bearer ', '');
@@ -199,7 +203,7 @@ const imgFile = job.file_id; const imgUrl = (job.public_url || '').startsWith('h
   const rg = await fetch(imgUrl, { headers: { Range: 'bytes=0-99' } });
   const bad = await fetch(imgUrl.replace(/\.(\w+)$/, '') .replace(/[0-9a-f]{6}(?=[^/]*$)/, 'ffffff') + '.jpg');
   rec('Link ảnh công khai: mở không cần đăng nhập, image/jpeg, cache lâu; Range -> 206; link sửa bậy -> 404',
-    anon.status === 200 && /image\/jpeg/.test(anon.headers.get('content-type') || '') && buf.length === JPEG.length && /immutable/.test(anon.headers.get('cache-control') || '') && rg.status === 206 && bad.status === 404,
+    anon.status === 200 && /image\/jpeg/.test(anon.headers.get('content-type') || '') && buf.length === JPEG.length && /max-age=86400/.test(anon.headers.get('cache-control') || '') && rg.status === 206 && bad.status === 404,
     `${anon.status} ${anon.headers.get('cache-control')} · range ${rg.status} · bad ${bad.status}`);
 }
 
@@ -307,6 +311,8 @@ print('ok')`);   // bài đang xử lý (Reels/TikTok) được kiểm lại sau
 for (let i = 0; i < 4; i++) { ffwd(vidPost.id); await cron('Bearer qa-cron'); await sleep(300); }
 post = (await api(p, '/api/social/posts')).data.find((x) => x.id === vidPost.id) || {};
 rec('Sau cron: Instagram Reels + TikTok -> đã đăng', post.status === 'published' && (post.targets || []).every((t) => t.status === 'published'), (post.targets || []).map((t) => `${t.platform}:${t.status}`).join(' '));
+const rup = callsTo(/\/meta\/ig-api-upload\//, 'POST')[0];
+rec('Instagram Reels: tải thẳng đủ byte video lên Instagram (không phụ thuộc link — Vercel giới hạn 4,5 MB/response)', !!rup && rup.size === VIDEO.length && rup.headers.authorization === 'OAuth qa-good', rup ? `${rup.size} byte` : 'không thấy upload');
 
 // hẹn giờ Facebook 2 giờ nữa -> Meta tự đăng đúng giờ (published=false + scheduled_publish_time); huỷ -> gỡ bên Meta
 const at = new Date(Date.now() + 2 * 3600e3).toISOString();

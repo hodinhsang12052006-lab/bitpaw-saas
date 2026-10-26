@@ -1678,16 +1678,22 @@
             renderMedia(); syncTiktok(); renderWarn();
             return true;
         }
-        // Ảnh không phải JPEG / quá 8 MB -> vẽ lại thành JPEG (Instagram chỉ nhận JPEG), cạnh dài tối đa 2160px
+        // Ảnh không phải JPEG / quá 3,1 MB -> vẽ lại thành JPEG (Instagram chỉ nhận JPEG), cạnh dài tối đa 2160px
         async function toJpeg(file) {
             const url = URL.createObjectURL(file);
             try {
                 const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; });
-                const s = Math.min(1, 2160 / Math.max(img.naturalWidth, img.naturalHeight));
-                const w = Math.max(1, Math.round(img.naturalWidth * s)), h = Math.max(1, Math.round(img.naturalHeight * s));
-                const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-                const cx = cv.getContext('2d'); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, w, h); cx.drawImage(img, 0, 0, w, h);
-                return await new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('jpeg'))), 'image/jpeg', 0.9));
+                // ≤ 3,1 MB: Instagram/Google tải ảnh qua link, máy chủ (Vercel) chỉ trả trọn file dưới media_store.FULL_MAX
+                let last = null;
+                for (const [edge, q] of [[2160, 0.9], [2160, 0.8], [1600, 0.8], [1280, 0.75]]) {
+                    const s = Math.min(1, edge / Math.max(img.naturalWidth, img.naturalHeight));
+                    const w = Math.max(1, Math.round(img.naturalWidth * s)), h = Math.max(1, Math.round(img.naturalHeight * s));
+                    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+                    const cx = cv.getContext('2d'); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, w, h); cx.drawImage(img, 0, 0, w, h);
+                    last = await new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('jpeg'))), 'image/jpeg', q));
+                    if (last.size <= 3_100_000) return last;
+                }
+                return last;
             } finally { URL.revokeObjectURL(url); }
         }
         async function sendChunk(uid, i, part) {
@@ -1741,7 +1747,7 @@
             if (isVid && file.size > MAX_VIDEO) { toast(t('tooBigVid'), false); return; }
             C.uploading = true; renderMedia(); renderWarn();
             try {
-                if (isImg && (ct !== 'image/jpeg' || file.size > MAX_IMAGE)) {
+                if (isImg && (ct !== 'image/jpeg' || file.size > 3_100_000)) {   // ảnh chia sẻ ≤ 3,1 MB (media_store.FULL_MAX)
                     upProgress(t('preparing'), 0);
                     try { blob = await toJpeg(file); ct = 'image/jpeg'; } catch (e) { throw new Error(t('imgReadFail')); }
                 }

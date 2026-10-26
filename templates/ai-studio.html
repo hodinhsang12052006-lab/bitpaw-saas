@@ -2005,17 +2005,23 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         return f;
     }
     // Ảnh từ máy: chỉ JPG/PNG/WebP ≤ 8 MB được nhận -> ảnh lớn / HEIC thì vẽ lại thành JPEG ≤ 2048 px
+    // Ảnh tải lên để chia sẻ (social_upload) phải ≤ 3,2 MB: Instagram/Google tải ảnh qua link, máy chủ trên Vercel chỉ trả
+    // trọn file nhỏ hơn ngưỡng đó (media_store.FULL_MAX). Ảnh điện thoại 4-8 MB -> nén JPEG, giảm dần chất lượng/kích thước.
+    const SHARE_IMAGE_MAX = 3_100_000;
     async function normalizePhotoFile(file) {
-        if (/^image\/(jpeg|png|webp)$/.test(file.type) && file.size <= MAX_IMAGE_BYTES * 0.95) return file;
+        if (/^image\/(jpeg|png|webp)$/.test(file.type) && file.size <= SHARE_IMAGE_MAX) return file;
         const url = URL.createObjectURL(file);
         try {
             const img = new Image(); img.src = url; await img.decode();
-            const s = Math.min(1, 2048 / Math.max(img.naturalWidth, img.naturalHeight));
-            const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
-            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-            const out = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
-            if (!out) throw new Error('encode');
-            return out;
+            for (const [edge, q] of [[2048, 0.9], [2048, 0.8], [1600, 0.8], [1280, 0.75]]) {
+                const s = Math.min(1, edge / Math.max(img.naturalWidth, img.naturalHeight));
+                const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+                const cx = c.getContext('2d'); cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(img, 0, 0, c.width, c.height);
+                const out = await new Promise((r) => c.toBlob(r, 'image/jpeg', q));
+                if (!out) throw new Error('encode');
+                if (out.size <= SHARE_IMAGE_MAX) return out;
+            }
+            throw new Error('too_big');
         } catch (e) { const er = new Error(t('pickBadFile')); er.code = 'bad_file'; throw er; }
         finally { URL.revokeObjectURL(url); }
     }
