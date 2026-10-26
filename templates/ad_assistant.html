@@ -7,7 +7,6 @@
     
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -244,6 +243,8 @@
         }
         .aa-note { font-size: 11px; color: #9ca3af; line-height: 1.45; margin-top: 6px; }
         .aa-note.warn { color: #fbbf24; }
+        .aa-estimate { font-size: 1.15rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; line-height: 1.3; }
+        .aa-estimate:empty { display: none; }
         .aa-btn-secondary { background: rgba(255,255,255,0.08); border: 1px solid rgba(6,182,212,0.4); }
         .aa-btn-secondary:disabled, #createCampaignBtn:disabled { opacity: 0.5; cursor: not-allowed; }
         .fb-sponsored { font-size: 10px; color: #9ca3af; }
@@ -304,7 +305,7 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Cột trái: Form + Chart -->
+            <!-- Cột trái: Form + ước tính click -->
             <div class="glass-card p-6">
                 <h2 class="text-xl font-bold mb-4" data-i18n="ad_assistant_campaign_info_title">Thông tin chiến dịch</h2>
                 <div class="space-y-4">
@@ -317,7 +318,7 @@
                         <textarea id="productDesc" rows="2" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" placeholder="Mô tả ngắn về sản phẩm" data-i18n-placeholder="ad_assistant_product_desc_placeholder"></textarea>
                     </div>
                     <div>
-                        <!-- TỔNG ngân sách cho 7 ngày (khớp biểu đồ 7 ngày); server chia ra ngân sách/ngày + đặt ngày dừng. Không điền sẵn số nào. -->
+                        <!-- TỔNG ngân sách cho 7 ngày (khớp ước tính click 7 ngày); server chia ra ngân sách/ngày + đặt ngày dừng. Không điền sẵn số nào. -->
                         <label class="block text-sm font-semibold mb-1"><span data-i18n="ad_assistant_budget_label">Tổng ngân sách 7 ngày</span> (<span id="budgetCurrencyUnit">{{ tenant_currency or 'VND' }}</span>)</label>
                         <input type="number" id="budget" value="" min="0" inputmode="decimal" class="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white" step="{{ 1000 if (tenant_currency or 'VND') == 'VND' else 1 }}" placeholder="{{ '700000' if (tenant_currency or 'VND') == 'VND' else '70' }}">
                         <p class="aa-note" id="budgetDailyNote"></p>
@@ -354,10 +355,13 @@
                     <div id="campaignResult" class="text-sm mt-2 hidden"></div>
                 </div>
 
-                <div class="mt-8">
-                    <h3 class="font-bold text-sm mb-2 text-cyan-400" data-i18n="ad_assistant_forecast_title">Dự phóng hiệu quả (7 ngày)</h3>
-                    <canvas id="roiChart" height="200" style="max-height: 200px;"></canvas>
-                    <p class="text-xs text-gray-400 text-center mt-2" data-i18n="ad_assistant_forecast_note">*Dữ liệu mô phỏng, thay đổi theo ngân sách</p>
+                <!-- Ước tính click: chỉ là 1 KHOẢNG = tổng ngân sách ÷ giá mỗi click tham khảo, ghi rõ giả định + tiền tệ.
+                     Không vẽ đường cong theo ngày (không có dữ liệu nào cho hình dạng đó). -->
+                <div class="mt-8" id="clickEstimateBox">
+                    <h3 class="font-bold text-sm mb-2 text-cyan-400" data-i18n="ad_assistant_forecast_title">Lượt click ước tính (7 ngày)</h3>
+                    <p class="aa-estimate" id="clickEstimate" aria-live="polite"></p>
+                    <p class="aa-note" id="clickEstimateBasis"></p>
+                    <p class="aa-note" data-i18n="ad_assistant_forecast_note">Số click thật tuỳ mẫu quảng cáo, đối tượng và đối thủ — xem kết quả thật trong Ads Manager.</p>
                 </div>
             </div>
 
@@ -432,7 +436,11 @@
                 ad_assistant_create_need_connect: 'Cần kết nối Facebook Ads (nút ở đầu trang) trước khi tạo chiến dịch.',
                 ad_assistant_daily_note: '≈ {daily}/ngày trong {days} ngày — chiến dịch tự dừng sau {days} ngày.',
                 ad_assistant_forecast_title: 'Lượt click ước tính (7 ngày)',
-                ad_assistant_forecast_note: '*Ước tính theo giá mỗi click tham khảo của nền tảng, không phải kết quả thật',
+                ad_assistant_forecast_note: 'Số click thật tuỳ mẫu quảng cáo, đối tượng và đối thủ — xem kết quả thật trong Ads Manager.',
+                ad_assistant_forecast_empty: 'Nhập tổng ngân sách để xem khoảng click ước tính.',
+                ad_assistant_forecast_range: '≈ {lo}–{hi} lượt click trong {days} ngày',
+                ad_assistant_forecast_basis: 'Chỉ là ước tính thô: tổng ngân sách ÷ giá mỗi click tham khảo {cpcLo}–{cpcHi} cho quảng cáo {platform} ({cur}). Đây là khoảng tham khảo chung, không phải số liệu từ tài khoản quảng cáo của bạn.',
+                ad_assistant_forecast_no_ref: 'Chưa có giá mỗi click tham khảo cho {cur} nên không hiện ước tính số click.',
                 ad_assistant_preview_note: 'Bản minh hoạ để hình dung — giao diện thật trên Facebook/TikTok sẽ khác.',
                 ad_assistant_support_title: 'Gửi yêu cầu hỗ trợ',
                 ad_assistant_support_name_placeholder: 'Tên của bạn',
@@ -499,7 +507,11 @@
                 ad_assistant_create_need_connect: 'Connect Facebook Ads (button at the top) before creating a campaign.',
                 ad_assistant_daily_note: '≈ {daily}/day over {days} days — the campaign stops automatically after {days} days.',
                 ad_assistant_forecast_title: 'Estimated clicks (7 days)',
-                ad_assistant_forecast_note: '*Estimate from typical cost per click on the platform, not real results',
+                ad_assistant_forecast_note: 'Real clicks depend on your ad, audience and competition — check Ads Manager for actual results.',
+                ad_assistant_forecast_empty: 'Enter a total budget to see a rough click range.',
+                ad_assistant_forecast_range: '≈ {lo}–{hi} clicks in {days} days',
+                ad_assistant_forecast_basis: 'Rough estimate only: total budget ÷ a reference cost per click of {cpcLo}–{cpcHi} for {platform} ads ({cur}). This is a general reference range, not data from your ad account.',
+                ad_assistant_forecast_no_ref: 'No reference cost per click for {cur}, so no click estimate is shown.',
                 ad_assistant_preview_note: 'Illustration only — the real Facebook/TikTok layout will differ.',
                 ad_assistant_support_title: 'Send a support request',
                 ad_assistant_support_name_placeholder: 'Your name',
@@ -573,7 +585,7 @@
             renderFbBanner();
             refreshCreateState();
             updateDailyNote();
-            updateChart(currentBudget());
+            updateEstimate(currentBudget());
         }
         document.addEventListener('DOMContentLoaded', applyStaticTranslations);
         applyStaticTranslations();
@@ -602,7 +614,7 @@
         const AD_CUR = {{ (tenant_currency or 'VND') | tojson }};
         const SHOP_COUNTRY = {{ (tenant_country or 'VN') | tojson }};
         const SHOP_NAME = {{ shop_header_name() | tojson }};
-        const DURATION_DAYS = 7;   // khớp "Tổng ngân sách 7 ngày" + biểu đồ 7 ngày; server chia ra ngân sách/ngày
+        const DURATION_DAYS = 7;   // khớp "Tổng ngân sách 7 ngày" + ước tính click 7 ngày; server chia ra ngân sách/ngày
         // Tiền tệ của con số đang nhập: mặc định tiền của tiệm; đổi theo tài khoản quảng cáo nếu Meta báo khác (không tự quy đổi)
         let budgetCurrency = AD_CUR;
         const budgetInput = document.getElementById('budget');
@@ -631,48 +643,39 @@
             document.getElementById('budgetCurrencyUnit').textContent = budgetCurrency;
         }
 
-        // ==================== CHART (ước tính client-side) ====================
-        let roiChart = null;
-        // Ước tính click/ngày = (ngân sách ÷ 7) ÷ giá mỗi click tham khảo của nền tảng — CỐ ĐỊNH, không ngẫu nhiên
-        // (trước đây Math.random() và chia theo thang VND: tiệm đô nhập $500 ra 0 click).
-        function refCpc() {
-            const table = budgetCurrency === 'VND' ? { facebook: 4000, tiktok: 3000, google: 8000 } : { facebook: 0.9, tiktok: 0.6, google: 1.8 };
-            return table[platformSelect.value || 'facebook'] || table.facebook;
+        // ==================== ƯỚC TÍNH CLICK (1 khoảng, ghi rõ giả định) ====================
+        // Không vẽ biểu đồ theo ngày: trước đây có "đường học" [0.8 … 1.1] tự bịa ra -> biểu đồ tăng dần không dựa trên dữ liệu nào.
+        // Giờ chỉ 1 KHOẢNG = tổng ngân sách ÷ giá mỗi click tham khảo (thấp–cao), hiện luôn giả định + tiền tệ để chủ tiệm tự đánh giá.
+        // Khoảng giá mỗi click cố ý để RỘNG (mức thường gặp với quảng cáo nhắm khách địa phương), theo từng tiền tệ;
+        // tiền tệ không có trong bảng -> không ước tính (không tự quy đổi tỷ giá, không mượn bảng USD cho AUD).
+        const REF_CPC = {
+            USD: { facebook: [0.5, 2], tiktok: [0.5, 1.5], google: [1, 6] },
+            AUD: { facebook: [0.75, 3], tiktok: [0.75, 2.25], google: [1.5, 9] },
+            VND: { facebook: [1500, 8000], tiktok: [1000, 5000], google: [3000, 15000] },
+        };
+        function clickRange(total, platform, cur) {
+            const tbl = REF_CPC[String(cur || '').toUpperCase()];
+            if (!tbl) return null;
+            const c = tbl[platform] || tbl.facebook;
+            const budget = Math.max(0, Number(total) || 0);
+            return { lo: Math.floor(budget / c[1]), hi: Math.floor(budget / c[0]), cpcLo: c[0], cpcHi: c[1] };
         }
-        function updateChart(budget) {
-            const perDay = Math.max(0, Number(budget) || 0) / DURATION_DAYS / refCpc();
-            const days = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'];
-            const ramp = [0.8, 0.9, 1, 1.05, 1.08, 1.1, 1.1];   // tuần đầu nền tảng còn "học" đối tượng
-            const clicks = ramp.map((r) => Math.round(perDay * r));
-            if (typeof Chart === 'undefined') return;   // CDN chart lỗi -> bỏ biểu đồ, phần còn lại vẫn chạy
-            const ctx = document.getElementById('roiChart').getContext('2d');
-            if (roiChart) roiChart.destroy();
-            roiChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: days,
-                    datasets: [{
-                        label: (currentLang === 'vi' ? 'Lượt click ước tính' : 'Estimated clicks'),
-                        data: clicks,
-                        borderColor: '#06b6d4',
-                        backgroundColor: 'rgba(6,182,212,0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        pointBackgroundColor: '#a855f7'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { labels: { color: '#ccc' } },
-                        tooltip: { callbacks: { label: (ctx) => ctx.raw.toLocaleString() + ' clicks' } }
-                    },
-                    scales: {
-                        y: { ticks: { color: '#aaa' } },
-                        x: { ticks: { color: '#aaa' } }
-                    }
-                }
-            });
+        function updateEstimate(budget) {
+            const out = document.getElementById('clickEstimate');
+            const basis = document.getElementById('clickEstimateBasis');
+            const total = Math.max(0, Number(budget) || 0);
+            const r = clickRange(total, platformSelect.value || 'facebook', budgetCurrency);
+            const platformName = platformSelect.options[platformSelect.selectedIndex] ? platformSelect.options[platformSelect.selectedIndex].text : platformSelect.value;
+            if (!r) {
+                out.textContent = '';
+                basis.textContent = tf('ad_assistant_forecast_no_ref', { cur: budgetCurrency });
+                return;
+            }
+            const nf = (n) => n.toLocaleString(currentLang === 'vi' ? 'vi-VN' : 'en-US');
+            out.textContent = total ? tf('ad_assistant_forecast_range', { lo: nf(r.lo), hi: nf(r.hi), days: DURATION_DAYS }) : '';
+            basis.textContent = total
+                ? tf('ad_assistant_forecast_basis', { cpcLo: fmtMoney(r.cpcLo), cpcHi: fmtMoney(r.cpcHi), platform: platformName, cur: budgetCurrency })
+                : t('ad_assistant_forecast_empty');
         }
 
         // ==================== LIVE PREVIEW (tên tiệm thật thay cho tên BitPaw viết cứng) ====================
@@ -900,7 +903,7 @@
                     setBudgetCurrency(data.account_currency);
                     budgetInput.value = '';
                     updateDailyNote();
-                    updateChart(0);
+                    updateEstimate(0);
                     budgetInput.focus();
                     showToast(tf('ad_assistant_currency_switched', { cur: data.account_currency }), true);
                     return;
@@ -932,13 +935,13 @@
         });
 
         // ==================== FORM THAY ĐỔI ====================
-        budgetInput.addEventListener('input', () => { updateChart(currentBudget()); updateDailyNote(); });
+        budgetInput.addEventListener('input', () => { updateEstimate(currentBudget()); updateDailyNote(); });
         platformSelect.addEventListener('change', () => {
             if (lastSuggestions) {
                 const a = suggestionCards(lastSuggestions)[0];
                 updateLivePreview(platformSelect.value, a.headline, a.desc);
             }
-            updateChart(currentBudget());
+            updateEstimate(currentBudget());
             refreshCreateState();
         });
 
@@ -1013,7 +1016,7 @@
                         setBudgetCurrency(data.account_currency);
                         budgetInput.value = '';
                         updateDailyNote();
-                        updateChart(0);
+                        updateEstimate(0);
                     }
                     checkFacebookStatus();
                 } else {
@@ -1027,7 +1030,7 @@
         });
 
         // ==================== KHỞI TẠO ====================
-        updateChart(currentBudget());
+        updateEstimate(currentBudget());
         updateDailyNote();
         refreshCreateState();
         checkFacebookStatus();
