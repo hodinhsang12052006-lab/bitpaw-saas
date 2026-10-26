@@ -328,38 +328,6 @@ class AINurturingEngine:
                                                                  "Chưa đủ dữ liệu để đề xuất. Thêm khách hàng và ghi bán hàng qua POS — đề xuất sẽ tự xuất hiện.")})
         return recs
 
-    @staticmethod
-    def get_industry_recommendations(industry):
-        """
-        Generates smart AI insights customized per industry.
-        NOTE: still static per-industry text at this phase — not part of Module 3's
-        Task 1-3 scope (database unification / churn logic / message personalization).
-        Left unchanged intentionally; a natural next follow-up once this phase ships.
-        """
-        recs = {
-            "nail": [
-                {"type": "CHURN_ALERT", "text": "Có 12 khách hàng VIP của tiệm Nails chưa quay lại làm móng trong 30 ngày qua. Đề xuất chạy chiến dịch 'Sơn Gel Thu Sáng Tình Cảm' tặng voucher 25%."},
-                {"type": "CAMPAIGN_SUGGESTION", "text": "Dự báo tuần này có 25 lịch hẹn làm móng trống ca sáng. Đề xuất gửi kịch bản 'Giờ vàng dưỡng móng' ưu đãi dọn da miễn phí khung giờ 9h-11h."},
-                {"type": "REVENUE_OPTIMIZE", "text": "Khách hàng mua dịch vụ 'Đắp bột' thường có tỷ lệ quay lại thấp. Gợi ý gửi tin nhắn chăm sóc sau 3 ngày hướng dẫn cách bảo quản móng lâu hỏng."}
-            ],
-            "spa": [
-                {"type": "CHURN_ALERT", "text": "Có 8 khách hàng đang dở dang liệu trình trị mụn 5 buổi chưa quay lại Spa quá 14 ngày. Đề xuất AI tự động gửi tin nhắn nhắc lịch."},
-                {"type": "CAMPAIGN_SUGGESTION", "text": "Nhiệt độ ngoài trời tăng cao tuần này. Khách hàng quan tâm cao dịch vụ thải độc phục hồi da. Đề xuất chạy chiến dịch 'Thải độc detox mát rượi'."},
-                {"type": "REVENUE_OPTIMIZE", "text": "Tỷ lệ mua thêm serum dưỡng sau liệu trình đạt thấp (12%). Đề xuất tích hợp combo tặng mẫu thử serum mini khi đặt liệu trình VIP."}
-            ],
-            "fnb": [
-                {"type": "CHURN_ALERT", "text": "Có 45 khách hàng cũ hay đặt Cafe Muối/Trà Sữa chưa gọi món lại quá 10 ngày. Đề xuất gửi tin nhắn tặng code Freeship ly trà chiều."},
-                {"type": "CAMPAIGN_SUGGESTION", "text": "Thứ 7 tuần này có giải đấu bóng đá lớn. Đề xuất chạy chiến dịch 'Đồng hành túc cầu' tặng đĩa mồi nhắm khoai tây chiên khi đặt Combo bia."},
-                {"type": "REVENUE_OPTIMIZE", "text": "Khách đi nhóm 3-4 người thường gọi nước uống lẻ. Gợi ý cấu hình popup Menu QR giới thiệu thẳng Combo Gia Đình tiết kiệm 15%."}
-            ]
-        }
-
-        return recs.get((industry or '').lower(), [
-            {"type": "CHURN_ALERT", "text": "Có 18 khách hàng tiềm năng đã lâu chưa phát sinh tương tác. Đề xuất gửi tin nhắn thăm hỏi kèm mã ưu đãi tri ân thành viên."},
-            {"type": "CAMPAIGN_SUGGESTION", "text": "Cuối tháng là thời điểm nhu cầu mua sắm và chi tiêu tăng cao. Đề xuất chạy chiến dịch 'Flash Sale tri ân khách cũ' kéo tương tác."},
-            {"type": "REVENUE_OPTIMIZE", "text": "AI phát hiện 24% đơn hàng có thể upsell bằng cách đính kèm phụ kiện liên quan. Đề xuất tối ưu hóa gợi ý sản phẩm tự động."}
-        ])
-
 
 def recompute_customer_segments(business_id):
     """Tính lại last_purchase_at/nurturing_status/potential_score/ai_notes cho MỌI khách của 1

@@ -547,6 +547,30 @@ document.addEventListener("DOMContentLoaded", () => {
     // thật của tenant đó. Trên các trang landing marketing chung (không đăng nhập), giá trị này
     // là null và backend tự dùng persona chung theo ngành như cũ.
     const BUSINESS_ID = window.BITPAW_BUSINESS_ID || null;
+    // Lead bán phần mềm của BitPaw (/api/cskh/request) CHỈ ghi từ trang marketing của chính BitPaw. Trên trang của 1 tiệm
+    // (có BITPAW_BUSINESS_ID hoặc ngữ cảnh customer_booking) người đang chat là khách của tiệm: SĐT + tin nhắn đầu của họ
+    // từng bị ghi thành lead bán hàng của BitPaw.
+    const IS_BITPAW_MARKETING_PAGE = !BUSINESS_ID && CHAT_CONTEXT !== 'customer_booking';
+
+    // Token phiên ngẫu nhiên theo trình duyệt (32 ký tự hex, localStorage 'bp_chat_token'), gửi kèm mọi lượt chat đặt lịch
+    // (body.chat_token) để server gắn hội thoại với đúng trình duyệt này thay vì chỉ dựa vào SĐT khách tự gõ.
+    // localStorage bị chặn (ẩn danh / chặn dữ liệu trang) -> vẫn dùng 1 token trong bộ nhớ cho tới khi tải lại trang.
+    let chatTokenMem = null;
+    function getChatToken() {
+        if (chatTokenMem) return chatTokenMem;
+        let tok = "";
+        try { tok = localStorage.getItem("bp_chat_token") || ""; } catch (e) { tok = ""; }
+        if (!/^[0-9a-f]{32}$/.test(tok)) {
+            const bytes = new Uint8Array(16);
+            if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+            else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+            tok = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+            try { localStorage.setItem("bp_chat_token", tok); } catch (e) { /* bị chặn: giữ token trong bộ nhớ */ }
+        }
+        chatTokenMem = tok;
+        return tok;
+    }
+    const bookingTokenField = () => (CHAT_CONTEXT === 'customer_booking' ? { chat_token: getChatToken() } : {});
 
     // Dọn lại phần UI tĩnh (không thuộc dna) cho đúng ngữ cảnh đặt lịch: đổi tiêu đề header,
     // ẩn hàng quick-reply "Nail Salon/Restaurant/Payroll..." (chọn ngành phần mềm — vô nghĩa
@@ -973,16 +997,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 showTypingIndicator();
 
-                // Send lead details to Supabase/SQLite CRM outbox asynchronously
-                fetch("/api/cskh/request", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        name: `Khách hàng Vãng Lai (${dna.title})`,
-                        phone: userPhone,
-                        message: `[Mascot AI Chat Lead] ${msgVal}`
-                    })
-                }).catch(err => console.log("CRM Capture deferred: " + err));
+                // Lead bán hàng của BitPaw — chỉ trên trang marketing của BitPaw, KHÔNG BAO GIỜ trên trang của tiệm
+                if (IS_BITPAW_MARKETING_PAGE) {
+                    fetch("/api/cskh/request", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: `Khách hàng Vãng Lai (${dna.title})`,
+                            phone: userPhone,
+                            message: `[Mascot AI Chat Lead] ${msgVal}`
+                        })
+                    }).catch(err => console.log("CRM Capture deferred: " + err));
+                }
 
                 let aiReply = "";
                 if (CHAT_CONTEXT !== 'customer_booking' && msgVal.toLowerCase().includes("tôi làm tiệm nail")) {
@@ -1007,7 +1033,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                     // Persona server tự trả lời đúng ngôn ngữ khách (ai_sales_prompts.MASTER_CLOSER_PERSONA).
                                     : msgVal,
                                 max_tokens: CHAT_CONTEXT === 'customer_booking' ? 320 : 220,
-                                temperature: 0.75
+                                temperature: 0.75,
+                                ...bookingTokenField()
                             })
                         });
 
@@ -1033,7 +1060,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
 
-                if (CHAT_CONTEXT !== 'customer_booking') {
+                if (IS_BITPAW_MARKETING_PAGE) { // chỉ hứa "chuyên viên BitPaw sẽ liên hệ" khi lead thật sự được ghi ở trên
                     // Lượt đầu: xác nhận đã nhận SĐT + kênh liên hệ trực tiếp, 1 LẦN, đúng ngôn ngữ trang. Trước đây chèn
                     // "<br><br><span ...>Đã ghi nhận SĐT/Zalo của Sếp" — sau bản vá XSS (escape mọi chữ) khách thấy
                     // nguyên mã HTML thô; và câu hotline "Sếp kết nối nhanh..." trộn Việt-Anh dán vào mọi trang EN.
@@ -1078,7 +1105,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                 history: chatHistory.slice(-10),
                                 userPrompt: msgVal,
                                 max_tokens: CHAT_CONTEXT === 'customer_booking' ? 320 : 220,
-                                temperature: 0.75
+                                temperature: 0.75,
+                                ...bookingTokenField()
                             })
                         });
 
