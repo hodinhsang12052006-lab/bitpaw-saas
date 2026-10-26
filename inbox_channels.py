@@ -190,7 +190,7 @@ def connect(business_id, channel, fields, base_url):
         'account_name': (name or f.get('account_name') or '')[:120], 'external_id': ext_id[:80],
         'access_token_enc': _vault.encrypt_secret(token), 'hook_key': hook_key,
         'verify_token': old.get('verify_token') or secrets.token_urlsafe(16),
-        'ai_auto_reply': old.get('ai_auto_reply', True), 'connected_at': old.get('connected_at') or now,
+        'ai_auto_reply': ai_auto_reply_on(business_id, channel, doc=old), 'connected_at': old.get('connected_at') or now,
         'token_saved_at': now, 'updated_at': now, 'last_error': None,
     }
     doc['secret_enc'] = _vault.encrypt_secret(secret) if secret else None
@@ -210,14 +210,30 @@ def disconnect(business_id, channel):
 
 
 def set_ai_auto_reply(business_id, channel, enabled):
+    # ai_auto_reply_by_owner: phân biệt "chủ tiệm tự bật" với giá trị mặc định cũ (connect() từng ghi sẵn True cho mọi ngành)
     db.inbox_channels.update_one({'business_id': business_id, 'channel': channel},
-                                 {'$set': {'ai_auto_reply': bool(enabled), 'updated_at': datetime.now().isoformat()},
+                                 {'$set': {'ai_auto_reply': bool(enabled), 'ai_auto_reply_by_owner': True,
+                                           'updated_at': datetime.now().isoformat()},
                                   '$setOnInsert': {'status': 'disconnected'}}, upsert=True)
 
 
-def ai_auto_reply_on(business_id, channel):
-    d = db.inbox_channels.find_one({'business_id': business_id, 'channel': channel}, {'ai_auto_reply': 1, '_id': 0}) or {}
-    return d.get('ai_auto_reply', True)
+def ai_default_on(business_id):
+    """AI tự trả lời mặc định BẬT chỉ cho ngành có gói đặt lịch thật (Nails/Spa). Ngành khác mặc định TẮT — chủ tiệm tự
+    bật thì AI chỉ hỏi đáp + chuyển yêu cầu cho nhân viên (ai_function_tools.QA_TOOLS), không bao giờ đặt lịch."""
+    try:
+        import ai_function_tools
+        return ai_function_tools.has_booking_pack(business_id)
+    except Exception:
+        return False
+
+
+def ai_auto_reply_on(business_id, channel, doc=None):
+    d = doc if doc is not None else (db.inbox_channels.find_one({'business_id': business_id, 'channel': channel},
+                                                                 {'ai_auto_reply': 1, 'ai_auto_reply_by_owner': 1, '_id': 0}) or {})
+    if ai_default_on(business_id):
+        return d.get('ai_auto_reply', True)
+    # Ngành chưa có gói đặt lịch: chỉ BẬT khi chính chủ tiệm đã bật (giá trị True cũ do connect() tự ghi không tính)
+    return bool(d.get('ai_auto_reply')) if d.get('ai_auto_reply_by_owner') else False
 
 
 def public_status(business_id, base_url, sms_ready=False):
@@ -226,11 +242,13 @@ def public_status(business_id, base_url, sms_ready=False):
     counts = {r['_id'] or 'web': r['n'] for r in db.bot_customers.aggregate([
         {'$match': {'business_id': business_id}}, {'$group': {'_id': '$channel', 'n': {'$sum': 1}}}])}
     out = {}
+    # 'booking' = AI đặt lịch thật (Nails/Spa); 'questions_and_handoff' = AI chỉ hỏi đáp + chuyển yêu cầu cho nhân viên
+    ai_mode = 'booking' if ai_default_on(business_id) else 'questions_and_handoff'
     for ch, meta in CHANNELS.items():
         d = docs.get(ch) or {}
         connected = (d.get('status') == 'connected') if ch in CONNECTABLE else (True if ch == 'web' else bool(sms_ready))
         row = {'channel': ch, 'label': meta['label'], 'connected': connected, 'conversations': counts.get(ch, 0),
-               'ai_auto_reply': d.get('ai_auto_reply', True), 'account_name': d.get('account_name') or '',
+               'ai_auto_reply': ai_auto_reply_on(business_id, ch, doc=d), 'ai_mode': ai_mode, 'account_name': d.get('account_name') or '',
                'external_id': d.get('external_id') or '', 'last_inbound_at': d.get('last_inbound_at'),
                'last_error': d.get('last_error'), 'connected_at': d.get('connected_at')}
         if ch in CONNECTABLE and d.get('hook_key') and connected:

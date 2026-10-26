@@ -11854,9 +11854,11 @@ def ai_studio():
     # Giá USD của nhà cung cấp AI là giá vốn của BitPaw -> chỉ super admin thấy; chủ tiệm thấy hạn mức tháng của gói
     return render_template('ai-studio.html', show_costs=session.get('role') == 'super_admin')
 
-def _persist_chat_turn(business_id, customer_phone, content, sender_type='customer'):
+def _persist_chat_turn(business_id, customer_phone, content, sender_type='customer', chat_token_hash=None):
     """Lưu 1 lượt chat vào CRM (bot_customers/bot_messages) theo đúng business_id của tenant,
-    best-effort — không bao giờ được phép làm gãy luồng chat nếu MongoDB lỗi/offline."""
+    best-effort — không bao giờ được phép làm gãy luồng chat nếu MongoDB lỗi/offline.
+    chat_token_hash: mã băm của mã chat riêng trình duyệt (widget đặt lịch) — để dựng lại lịch sử chat PHÍA SERVER đúng
+    của trình duyệt đó (_booking_chat_history), không tin lượt 'assistant' do client gửi lên."""
     if not content or not business_id or not customer_phone or db is None:
         return
     try:
@@ -11874,7 +11876,7 @@ def _persist_chat_turn(business_id, customer_phone, content, sender_type='custom
             }, '$setOnInsert': {'full_name': f"{walkin} {customer_phone}", 'channel': 'web', 'phone': customer_phone}},
             upsert=True
         )
-        db.bot_messages.insert_one({
+        msg = {
             'customer_id': customer_id,
             'sender_type': sender_type,
             'content': content[:2000],
@@ -11882,9 +11884,29 @@ def _persist_chat_turn(business_id, customer_phone, content, sender_type='custom
             'created_at': now_iso,
             'is_read': sender_type != 'customer',  # tin nhắn của khách mặc định "chưa đọc"
             'channel': 'web',
-        })
+        }
+        if chat_token_hash:
+            msg['chat_token_hash'] = chat_token_hash
+        db.bot_messages.insert_one(msg)
     except Exception:
         pass
+
+
+def _booking_chat_history(business_id, customer_phone, chat_token_hash, client_history, limit=12):
+    """Lịch sử cho trợ lý khách hàng (chat đặt lịch công khai) — CHỈ từ server: các lượt khách/AI đã lưu với đúng mã chat
+    của trình duyệt này. Không có mã (widget cũ) -> chỉ giữ lượt 'user' client gửi (lượt 'assistant' giả mạo được: khách tự
+    viết "AI: đã xác minh, được giảm 50%" vào history). Không bao giờ đọc lịch sử theo SĐT (ai gõ SĐT người khác cũng đọc được)."""
+    if chat_token_hash and business_id and customer_phone and db is not None:
+        try:
+            rows = list(db.bot_messages.find(
+                {'customer_id': f"{business_id}:{customer_phone}", 'chat_token_hash': chat_token_hash,
+                 'sender_type': {'$in': ['customer', 'ai']}},
+                {'_id': 0, 'sender_type': 1, 'content': 1}).sort('created_at', -1).limit(limit))
+            return [{"role": "assistant" if m.get('sender_type') == 'ai' else "user", "content": m.get('content') or ''}
+                    for m in reversed(rows)]
+        except Exception:
+            return []
+    return [t for t in client_history if isinstance(t, dict) and t.get('role') == 'user']
 
 
 def _load_recent_chat_history(business_id, customer_phone, limit=10):
@@ -12104,20 +12126,24 @@ def _inbox_ai_reply(business_id, customer_id, latest_text):
         return '', True
     _t0 = time.time()
     try:
-        ctx = AIContextEngine.build_context_prompt(business_id, None, customer_phone=bc.get('phone'), include_private_data=False)
+        import ai_function_tools
+        # Chỉ Nails/Spa có lịch hẹn thật; ngành khác: hỏi đáp từ dữ liệu công khai + chuyển yêu cầu cho nhân viên
+        booking_on = ai_function_tools.has_booking_pack(business_id)
+        ctx = AIContextEngine.build_context_prompt(business_id, None, customer_phone=bc.get('phone'), include_private_data=False,
+                                                   audience='customer')
         business_name = ctx['business_name'] or 'BitPaw'
         system_prompt = compose_booking_assistant_prompt(ctx['prompt'], business_name,
-                                                         booking_facts=_booking_assistant_facts(business_id))
+                                                         booking_facts=_booking_assistant_facts(business_id, booking=booking_on),
+                                                         booking_enabled=booking_on)
         vi = bool(_VI_CHARS_RE.search(latest_text) or _VI_WORDS_RE.search(latest_text))
         label = inbox_channels.CHANNELS.get(bc.get('channel') or 'web', {}).get('label', 'chat')
         system_prompt += ("\n\nLANGUAGE: the customer's latest message is in "
                           + ("Vietnamese — reply in Vietnamese." if vi else
                              "English (or another non-Vietnamese language) — reply in that same language, not Vietnamese."))
         system_prompt += (f"\n\nCHANNEL: this conversation is on {label}. Plain text only (no Markdown, no tables), short like a text message."
-                          + ("" if bc.get('phone') else " You do not have the customer's phone number yet — ask for it before booking."))
+                          + ("" if (bc.get('phone') or not booking_on) else " You do not have the customer's phone number yet — ask for it before booking."))
         if waiting:
             from ai_sales_prompts import WAITING_FOR_TEAM
-            import ai_function_tools
             system_prompt += "\n\n" + WAITING_FOR_TEAM.format(reason=waiting.get('handoff_reason') or 'customer asked for a person',
                                                                expectation=ai_function_tools.reply_expectation(business_id, vi))
         convo = list(db.bot_messages.find({'customer_id': customer_id, 'sender_type': {'$in': ['customer', 'ai', 'staff']}},
@@ -12130,7 +12156,7 @@ def _inbox_ai_reply(business_id, customer_id, latest_text):
             if c:
                 messages.append({"role": "user" if t.get('sender_type') == 'customer' else "assistant", "content": c[:2000]})
         messages.append({"role": "user", "content": latest_text[:2000]})
-        tools = BOOKING_TOOLS
+        tools = BOOKING_TOOLS if booking_on else ai_function_tools.QA_TOOLS
         if waiting:
             tools = [t for t in tools if t['function']['name'] not in ('handoff_to_staff', 'ask_team')]
         result = _call_deepseek_with_tools(messages, 0.4, 600, business_id, customer_id, api_key, tools=tools)
@@ -12188,7 +12214,9 @@ def _inbox_handle_event(doc, ev):
         inbox_channels.link_customer(business_id, channel, ev['user_id'], phone)
     db.inbox_channels.update_one({'business_id': business_id, 'channel': channel},
                                  {'$set': {'last_inbound_at': datetime.now().isoformat()}})
-    _inbox_after_customer_message(business_id, channel, cid, ev['user_id'], ev['text'], doc.get('ai_auto_reply', True))
+    # Mặc định theo ngành (Nails/Spa bật; ngành khác tắt trừ khi chủ tiệm tự bật — inbox_channels.ai_auto_reply_on)
+    _inbox_after_customer_message(business_id, channel, cid, ev['user_id'], ev['text'],
+                                  inbox_channels.ai_auto_reply_on(business_id, channel, doc=doc))
 
 
 @app.route('/webhooks/inbox/<channel>/<hook_key>', methods=['GET', 'POST'])
@@ -12418,12 +12446,21 @@ def _paused_holding_reply(business_id, customer_id, bc, latest_message):
         return ""
 
 
-def _booking_assistant_facts(business_id, client_now=None):
+def _booking_assistant_facts(business_id, client_now=None, booking=None):
     """BUG THẬT đã vá (đóng vai khách chat đặt lịch, 10/2026): trợ lý đặt lịch được bảo gọi
     book_appointment(service_id, appointment_time) nhưng prompt chỉ có TÊN + giá dịch vụ (không có id)
     và không hề biết hôm nay là ngày nào -> khách nói "mai 3h chiều" là AI không đặt được, lần nào cũng
     báo "hệ thống chưa khớp dịch vụ". Bổ sung giờ địa phương hiện tại (lấy từ máy khách — khách ở gần
-    tiệm nên cùng múi giờ; không có thì dùng giờ server) + danh sách dịch vụ kèm id thật."""
+    tiệm nên cùng múi giờ; không có thì dùng giờ server) + danh sách dịch vụ kèm id thật.
+    booking=None -> tự xác định theo ngành (ai_function_tools.has_booking_pack). Ngành KHÔNG có gói đặt lịch: chỉ dữ kiện
+    công khai (bảng giá để tham khảo — không id, không thời lượng, không "đặt được"), giờ mở cửa nếu chủ đã nhập, thông tin
+    tiệm, trang đặt chỗ thật của tiệm. Trước đây mọi món của nhà hàng/karaoke/khách sạn hiện thành "dịch vụ đặt được 60 phút"."""
+    if booking is None:
+        try:
+            import ai_function_tools
+            booking = ai_function_tools.has_booking_pack(business_id)
+        except Exception:
+            booking = False
     # Giờ ĐỊA PHƯƠNG CỦA TIỆM (cùng nguồn với luật đặt lịch — booking_rules.local_now) để "mai 3h" và kiểm giờ trống
     # khớp nhau; giờ máy khách chỉ dùng khi không xác định được tiệm.
     try:
@@ -12438,6 +12475,35 @@ def _booking_assistant_facts(business_id, client_now=None):
         weekday = datetime.fromisoformat(now_str).strftime('%A')
     except ValueError:
         now_str, weekday = datetime.now().strftime('%Y-%m-%dT%H:%M'), datetime.now().strftime('%A')
+    if not booking:
+        lines = [f"CURRENT LOCAL DATE/TIME AT THE BUSINESS: {now_str} ({weekday}). Use it to understand 'today', 'tomorrow', "
+                 f"'Friday'... when you pass a request to the team."]
+        if db is not None and business_id:
+            try:
+                import booking_rules
+                import ai_function_tools
+                rules = booking_rules.get_rules(business_id)
+                cur = _tenant_currency(business_id)
+                items = list(db.products.find({'business_id': business_id, 'is_active': 1},
+                                              {'_id': 0, 'name': 1, 'price': 1}).limit(60))
+                if items:
+                    lines.append("PRICE LIST (information only — nothing here can be booked, reserved, held or ordered in this chat):\n"
+                                 + "\n".join(f"- {s.get('name')} — {format_money(s.get('price') or 0, cur)}" for s in items))
+                if rules.get('configured'):  # giờ mở cửa CHỈ khi chủ tiệm đã nhập (mặc định 9-19 không phải giờ thật của quán)
+                    names = {'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'}
+                    lines.append("OPENING HOURS: " + ', '.join(f"{names.get(d, d)} {v[0]}-{v[1]}" if v else f"{names.get(d, d)} closed"
+                                                               for d, v in (rules.get('hours') or {}).items()) + ".")
+                phone = booking_rules.business_phone(business_id)
+                info = [f"{booking_rules.INFO_LABELS.get(k, k)}: {v}" for k, v in (rules.get('info') or {}).items() if v]
+                if phone:
+                    info.insert(0, f"Phone: {phone}")
+                lines.append("BUSINESS INFO (only these facts are confirmed): " + ('; '.join(info) if info else 'none published yet.'))
+                link = ai_function_tools.reservation_link(business_id)
+                if link:
+                    lines.append(f"ONLINE RESERVATION PAGE (the business's own form; the business confirms each request): {link}")
+            except Exception as e:
+                print(f"[public facts] {e}")
+        return "\n\n".join(lines)
     lines = [f"CURRENT LOCAL DATE/TIME AT THE SALON: {now_str} ({weekday}). Resolve 'today', 'tomorrow', "
              f"'this Friday', 'chiều mai'... from this, and pass appointment_time as local time without timezone "
              f"(e.g. 2026-08-01T15:00:00). Never book a time in the past."]
@@ -12540,17 +12606,26 @@ def secure_ai_generate():
     # phép dùng business_id do widget tự khai để biết đang chat hộ tenant nào — nhưng khi đó
     # include_private_data=False bên dưới đảm bảo KHÔNG lộ doanh thu/PII khách hàng của tenant.
     is_authenticated = 'user_id' in session
-    if is_authenticated:
-        business_id = session.get('business_id') or session['user_id']
-    else:
-        business_id = data.get('business_id')
-        if business_id is not None and not isinstance(business_id, str):
-            return jsonify({"error": "Invalid business_id."}), 400
-    industry = data.get('industry') or session.get('business_mode', 'general')
     # 'customer_booking' — khách hàng CUỐI của tiệm đang chat trên chính trang đặt lịch công
     # khai (booking.html) để tự đặt lịch, KHÁC HẲN đối tượng mặc định của endpoint này (chủ
     # tiệm tiềm năng đang được tư vấn mua phần mềm BitPaw). Xem compose_booking_assistant_prompt().
     chat_context = data.get('context')
+    # Chat khách hàng công khai: người gõ là KHÁCH của tiệm, kể cả khi trình duyệt (máy tính bảng quầy lễ tân) đang đăng
+    # nhập tài khoản nhân viên -> luôn coi như ẩn danh: không dữ liệu riêng, không trí nhớ, không lịch sử theo SĐT.
+    public_customer_chat = chat_context == 'customer_booking'
+    if is_authenticated and not (public_customer_chat and isinstance(data.get('business_id'), str) and data['business_id']):
+        business_id = session.get('business_id') or session['user_id']
+    else:
+        # chat khách công khai: đúng tiệm của trang đặt lịch đang mở (dữ liệu công khai thôi nên không có rủi ro IDOR)
+        business_id = data.get('business_id')
+        if business_id is not None and not isinstance(business_id, str):
+            return jsonify({"error": "Invalid business_id."}), 400
+    private_ok = is_authenticated and not public_customer_chat
+    industry = data.get('industry') or session.get('business_mode', 'general')
+    # Mã chat riêng từng trình duyệt (widget lưu localStorage 'bp_chat_token') — chỉ lưu mã băm
+    import ai_function_tools
+    chat_token = data.get('chat_token') if public_customer_chat else None
+    token_hash = ai_function_tools.chat_token_hash(chat_token)
     # LƯU Ý: KHÔNG còn đọc client's "systemPrompt" để dựng prompt nữa (loophole cũ: browser
     # có thể tự gửi bất kỳ prompt text nào lên, tự ý đổi hành vi/persona của bot). Persona giờ
     # được lắp ráp HOÀN TOÀN server-side qua ai_sales_prompts.compose_system_prompt() — client
@@ -12581,8 +12656,12 @@ def secure_ai_generate():
         client_history = []
     client_history = [t for t in client_history if isinstance(t, dict)]
 
-    ctx = AIContextEngine.build_context_prompt(business_id, industry, customer_phone=customer_phone,
-                                                include_private_data=is_authenticated)
+    if public_customer_chat:  # chỉ dữ liệu công khai, ngành lấy từ hồ sơ tiệm (không tin 'industry' client gửi)
+        ctx = AIContextEngine.build_context_prompt(business_id, None, customer_phone=customer_phone,
+                                                    include_private_data=False, audience='customer')
+    else:
+        ctx = AIContextEngine.build_context_prompt(business_id, industry, customer_phone=customer_phone,
+                                                    include_private_data=private_ok)
     tenant_context = ctx['prompt']
     business_name = ctx['business_name'] or 'BitPaw'
 
@@ -12596,7 +12675,13 @@ def secure_ai_generate():
     # vừa refresh trang) thì khôi phục lại từ DB theo đúng business_id + SĐT khách.
     # Khôi phục từ DB CHỈ khi đã đăng nhập: khách ẩn danh chỉ cần biết business_id + SĐT của người
     # khác là từng đọc được toàn bộ lịch sử chat của họ (bảo AI "nhắc lại cuộc trò chuyện trước").
-    if client_history or not is_authenticated:
+    if public_customer_chat:
+        # Chat khách công khai: lịch sử CHỈ từ server theo mã chat của trình duyệt này; không có mã thì chỉ giữ lượt khách gõ
+        # (lượt 'assistant' client gửi lên giả mạo được). Không bao giờ đọc lịch sử theo SĐT.
+        history = _booking_chat_history(business_id, customer_phone, token_hash, client_history)
+        if not token_hash and history and str(history[-1].get('content') or '').strip() == (user_prompt or '').strip():
+            history = history[:-1]  # widget gửi kèm chính tin vừa gõ trong history -> không lặp 2 lần
+    elif client_history or not is_authenticated:
         history = client_history
     else:
         history = _load_recent_chat_history(business_id, customer_phone)
@@ -12627,13 +12712,18 @@ def secure_ai_generate():
     # nhúng thẳng toàn bộ bảng giá/danh mục (tối đa 40 dòng) vào system prompt mỗi lượt chat —
     # đơn giản hơn, không cần embeddings, không cần Atlas Vector Search index nào cả.
     # Trí nhớ AI về khách cũng là dữ liệu riêng -> chỉ nạp khi đã đăng nhập (cùng lý do ở trên).
-    conversation_memory = get_conversation_memory(customer_id) if (customer_id and is_authenticated) else ""
+    # Chat khách công khai không bao giờ đọc trí nhớ (dù máy đang đăng nhập) -> cũng không tóm tắt (tốn tiền mà không ai đọc).
+    memory_is_read = bool(customer_id and private_ok)
+    conversation_memory = get_conversation_memory(customer_id) if memory_is_read else ""
     extra_context = f"WHAT WE KNOW ABOUT THIS CUSTOMER SO FAR: {conversation_memory}" if conversation_memory else None
 
+    booking_on = public_customer_chat and ai_function_tools.has_booking_pack(business_id)
     if chat_context == 'customer_booking':
+        # Chỉ Nails/Spa có lịch hẹn thật; ngành khác: hỏi đáp từ dữ liệu công khai + chuyển yêu cầu cho nhân viên
         system_prompt = compose_booking_assistant_prompt(
             tenant_context, business_name,
-            booking_facts=_booking_assistant_facts(business_id, data.get('client_now')))
+            booking_facts=_booking_assistant_facts(business_id, data.get('client_now'), booking=booking_on),
+            booking_enabled=booking_on)
         temperature = min(temperature, 0.4)  # đặt lịch cần chính xác hơn bay bổng
         max_tokens = min(max_tokens, 600)
     else:
@@ -12663,7 +12753,7 @@ def secure_ai_generate():
         messages.append({"role": "user", "content": user_prompt})
 
     # Lưu lượt chat của khách vào CRM ngay khi nhận được (best-effort)
-    _persist_chat_turn(business_id, customer_phone, latest_customer_message, sender_type='customer')
+    _persist_chat_turn(business_id, customer_phone, latest_customer_message, sender_type='customer', chat_token_hash=token_hash)
 
     waiting_for_team = None
     # Chủ tiệm đã tắt AI cho khách này (hoặc đã tự nhảy vào trả lời) -> KHÔNG để AI chen vào; widget báo khách
@@ -12697,7 +12787,9 @@ def secure_ai_generate():
         fallback_reply = (
             f"Dạ {business_name} đang xử lý hơi chậm một chút, chị/anh nhắn lại giúp em sau ít phút hoặc gọi trực tiếp cho tiệm nhé!"
             if _vi_fb else
-            f"Sorry — {business_name}'s booking assistant is a bit slow right now. Please try again in a minute or call the salon directly."
+            (f"Sorry — {business_name}'s booking assistant is a bit slow right now. Please try again in a minute or call the salon directly."
+             if booking_on else
+             f"Sorry — {business_name}'s assistant is a bit slow right now. Please try again in a minute or call us directly.")
         )
     else:
         fallback_reply = (
@@ -12720,23 +12812,26 @@ def secure_ai_generate():
         # _call_deepseek_with_tools() cho phép AI THỰC SỰ gọi book_appointment() (Function
         # Calling) thay vì chỉ sinh văn bản "đã đặt lịch" mà không ghi gì vào Database.
         _t0 = time.time()
-        _tools = BOOKING_TOOLS if chat_context == 'customer_booking' else SALES_TOOLS
+        _tools = (BOOKING_TOOLS if booking_on else ai_function_tools.QA_TOOLS) if chat_context == 'customer_booking' else SALES_TOOLS
         if waiting_for_team:  # đang chờ người: không chuyển lần 2
             _tools = [t for t in _tools if t['function']['name'] not in ('handoff_to_staff', 'ask_team')]
-        result = _call_deepseek_with_tools(
-            messages, temperature, max_tokens, business_id, customer_id, api_key, tools=_tools,
-        )
+        # Công cụ đọc mã chat của trình duyệt này (lịch hẹn AI đặt được gắn mã băm; xem/huỷ/dời chỉ lịch khớp mã)
+        with ai_function_tools.chat_scope(chat_token):
+            result = _call_deepseek_with_tools(
+                messages, temperature, max_tokens, business_id, customer_id, api_key, tools=_tools,
+            )
         if waiting_for_team:
             result['waiting_for_team'] = True
         _log_ai_run('booking' if chat_context == 'customer_booking' else 'sales', business_id, time.time() - _t0,
                     result.get('tools_used'), fallback=False)
         try:
             ai_text = result['choices'][0]['message']['content']
-            _persist_chat_turn(business_id, customer_phone, ai_text, sender_type='ai')
+            _persist_chat_turn(business_id, customer_phone, ai_text, sender_type='ai', chat_token_hash=token_hash)
 
             # Phase 2: throttled, background-thread distillation of the running memory —
             # never awaited, never allowed to slow down this response (xem ai_memory_engine.py).
-            if customer_id and db is not None:
+            # Chỉ khi trí nhớ thật sự được đọc lại (memory_is_read) — chat ẩn danh/khách công khai không tốn lệnh AI nào.
+            if memory_is_read and db is not None:
                 customer_turn_count = db.bot_messages.count_documents(
                     {'customer_id': customer_id, 'sender_type': 'customer'}
                 )
@@ -12744,7 +12839,7 @@ def secure_ai_generate():
                     {'role': 'user', 'content': latest_customer_message},
                     {'role': 'assistant', 'content': ai_text},
                 ]
-                maybe_distill_memory_async(customer_id, recent_turns, customer_turn_count)
+                maybe_distill_memory_async(customer_id, recent_turns, customer_turn_count, memory_is_read=memory_is_read)
         except Exception:
             pass
         return jsonify(result)

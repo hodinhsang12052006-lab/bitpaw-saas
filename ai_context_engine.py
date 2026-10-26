@@ -68,7 +68,7 @@ class AIContextEngine:
             return []
 
     @staticmethod
-    def build_context_prompt(business_id, industry_code, customer_phone=None, include_private_data=True):
+    def build_context_prompt(business_id, industry_code, customer_phone=None, include_private_data=True, audience='staff'):
         """Constructs an intelligent, tenant-aware system prompt.
 
         Đa doanh nghiệp (multi-tenant): tra business_id ra ĐÚNG tên cửa hàng, danh mục
@@ -82,9 +82,16 @@ class AIContextEngine:
         khách hàng (PII, hạng thành viên, lịch sử mua hàng, ảnh mẫu dịch vụ) vào prompt
         — chỉ được phép nhúng dữ liệu công khai (tên cửa hàng, bảng giá/danh mục dịch vụ).
 
+        audience='customer' (khách CUỐI của tiệm: chat đặt lịch công khai, Hộp thư chung, SMS): chỉ dữ liệu công khai
+        (tên tiệm + bảng giá), LUÔN không có dữ liệu riêng dù trình duyệt nhân viên đang đăng nhập, và không có vai
+        "BitPaw / SaaS Enterprise" hay câu upsell "luôn mời khách xác nhận đặt hàng" (làm AI cứ mời đặt sau khi khách đã từ chối).
+
         Returns: {"prompt": str, "business_name": str|None}
         """
-        base_prompt = "Bạn là trợ lý AI CSKH của BitPaw Software."
+        customer_facing = audience == 'customer'
+        if customer_facing:
+            include_private_data = False
+        base_prompt = "" if customer_facing else "Bạn là trợ lý AI CSKH của BitPaw Software."
 
         industry_prompts = {
             "retail": "Bạn là chuyên gia tư vấn bán lẻ tối ưu hóa dòng sản phẩm, chiến dịch quảng cáo và thanh lý hàng tồn kho.",
@@ -117,17 +124,17 @@ class AIContextEngine:
             except:
                 pass
 
-        if not industry_code:
+        if not industry_code and not customer_facing:
             return {"prompt": base_prompt, "business_name": business_name}
 
-        custom_prompt = industry_prompts.get(industry_code.lower(), "Bạn là chuyên gia tư vấn tăng trưởng.")
+        custom_prompt = "" if customer_facing else industry_prompts.get(industry_code.lower(), "Bạn là chuyên gia tư vấn tăng trưởng.")
 
         # Load business metrics if connected — dữ liệu nhạy cảm, chỉ nhúng khi caller đã xác thực.
         revenue_sum = 0
         if include_private_data:
             revenue_sum = AIContextEngine._sum_recent_revenue(business_id)
 
-        details = f"\n- Ngành nghề: {industry_code.upper()}\n- Quy mô: SaaS Enterprise"
+        details = "" if customer_facing else f"\n- Ngành nghề: {industry_code.upper()}\n- Quy mô: SaaS Enterprise"
         if include_private_data:
             details += f"\n- Báo cáo doanh thu {AI_CONTEXT_REVENUE_WINDOW_DAYS} ngày gần nhất: {format_money(revenue_sum, tenant_currency)}."
 
@@ -203,7 +210,7 @@ class AIContextEngine:
                     + "\n".join(lines)
                 )
 
-        upsell_directive = (
+        upsell_directive = "" if customer_facing else (
             "\n\nNHIỆM VỤ BÁN HÀNG: Khi khách hỏi hoặc đặt món/dịch vụ, hãy chủ động phân tích nhu cầu và "
             "khéo léo gợi ý thêm 1-2 sản phẩm/dịch vụ liên quan (upsell/cross-sell) từ ĐÚNG danh mục ở trên, "
             "ưu tiên món có giá trị cao hơn hoặc đi kèm hợp lý, không ép buộc, giữ giọng văn thân thiện tự nhiên. "
@@ -222,4 +229,4 @@ class AIContextEngine:
             identity_line = ""
 
         full_prompt = f"{base_prompt} {custom_prompt}{identity_line}{details}{menu_snippet}{customer_snippet}{upsell_directive}"
-        return {"prompt": full_prompt, "business_name": business_name}
+        return {"prompt": full_prompt.strip() if customer_facing else full_prompt, "business_name": business_name}
