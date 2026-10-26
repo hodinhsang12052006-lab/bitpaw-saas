@@ -11622,7 +11622,9 @@ def ai_bot():
     # Công cụ "Sales Demo" (mô phỏng hội thoại để đội bán hàng BitPaw trình diễn) chỉ cho tài khoản demo / super admin
     sales_demo = (session.get('role') == 'super_admin') or str(session.get('user_email') or '').endswith('@bitpawdemo.com')
     try:
-        copilot_enabled = _is_superadmin() or plans.allows(plans.business_plan(db, business_id), 'ai_copilot')
+        # Copilot đọc doanh thu + hoa hồng của cả tiệm: chỉ chủ tiệm/admin (API cũng chặn nhân viên — owner_only)
+        copilot_enabled = _is_superadmin() or (session.get('role') in ('admin', 'super_admin')
+                                                and plans.allows(plans.business_plan(db, business_id), 'ai_copilot'))
     except Exception:
         copilot_enabled = True
     return render_template('ai_bot.html', profile=profile, sales_demo=sales_demo, is_vn_shop=is_vn_shop,

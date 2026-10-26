@@ -107,6 +107,7 @@
                 tF1: '1 · Connect', tF1d: "Paste the token from the app's developer page. BitPaw checks it with the app before saving.",
                 tF2: '2 · One inbox', tF2d: 'Messenger, Instagram, WhatsApp, Zalo, Viber, SMS and website chat show up together, each with its own badge.',
                 tF3: '3 · AI replies', tF3d: 'The AI answers questions and books real appointments. Reply yourself any time — the AI steps back.',
+                tF3dQ: 'The AI answers questions from your real menu, prices and hours, and passes booking requests to your team — it never confirms a booking itself. It is off until you switch it on per channel.',
                 connected: 'Connected', notConnected: 'Not connected', connect: 'Connect', reconnect: 'Update token', disconnect: 'Disconnect',
                 save: 'Check & connect', checking: 'Checking with', cancel: 'Cancel', copy: 'Copy', copied: 'Copied',
                 webhook: 'Webhook / Callback URL', verify: 'Verify token', aiReply: 'AI replies automatically', conv: 'conversations',
@@ -124,6 +125,7 @@
                 tF1: '1 · Nối kênh', tF1d: 'Dán token lấy ở trang nhà phát triển của ứng dụng. BitPaw kiểm tra thật với ứng dụng rồi mới lưu.',
                 tF2: '2 · Một hộp thư', tF2d: 'Messenger, Instagram, WhatsApp, Zalo, Viber, SMS và chat website hiện chung một chỗ, mỗi tin có dấu kênh riêng.',
                 tF3: '3 · AI trả lời', tF3d: 'AI trả lời câu hỏi và đặt lịch thật. Bạn nhảy vào trả lời lúc nào cũng được — AI tự lùi lại.',
+                tF3dQ: 'AI trả lời câu hỏi theo đúng menu, giá và giờ mở cửa của tiệm, còn yêu cầu đặt chỗ thì chuyển cho nhân viên — AI không tự xác nhận. Mặc định tắt, bạn bật cho từng kênh.',
                 connected: 'Đã nối', notConnected: 'Chưa nối', connect: 'Nối kênh', reconnect: 'Cập nhật token', disconnect: 'Ngắt kết nối',
                 save: 'Kiểm tra & nối', checking: 'Đang kiểm tra với', cancel: 'Huỷ', copy: 'Chép', copied: 'Đã chép',
                 webhook: 'Địa chỉ Webhook / Callback URL', verify: 'Verify token', aiReply: 'AI tự trả lời', conv: 'hội thoại',
@@ -261,7 +263,10 @@
         }
 
         function render() {
+            // Ngành chưa có bộ đặt chỗ AI (ai_mode = questions_and_handoff): nói đúng việc AI làm, không hứa "đặt lịch thật"
+            const qOnly = Object.values(STATUS || {}).some((r) => r && r.ai_mode === 'questions_and_handoff');
             ['tTitle', 'tLead', 'tOpenInbox', 'tAlways', 'tF1', 'tF1d', 'tF2', 'tF2d', 'tF3', 'tF3d'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = t(id); });
+            if (qOnly) { const el = document.getElementById('tF3d'); if (el) el.textContent = t('tF3dQ'); }
             document.getElementById('cards').innerHTML = ORDER.map(card).join('');
             const web = STATUS.web || {}, sms = STATUS.sms || {};
             document.getElementById('cards2').innerHTML = `
