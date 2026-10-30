@@ -68,8 +68,10 @@ def _clean(v, n):
     return re.sub(r'\s+', ' ', str(v or '')).strip()[:n]
 
 
-def _check_when(business_id, now, date_s, time_s):
-    """(ngày, 'HH:MM' | None) đã kiểm: không ở quá khứ, không quá xa, trong giờ làm việc chủ văn phòng đã nhập."""
+def _check_when(business_id, now, date_s, time_s, lang='en'):
+    """(ngày, 'HH:MM' | None) đã kiểm: không ở quá khứ, không quá xa, trong giờ làm việc chủ văn phòng đã nhập. Giờ làm
+    việc trong lời từ chối theo 1 kiểu giờ chung với prompt khách, theo ngôn ngữ chat (`lang`): 'Thu 9:00 am – 5:00 pm' /
+    'T5 09:00 – 17:00' (trước: '09:00-17:00' 24 giờ cạnh prompt 12 giờ)."""
     if date_s in (None, ''):
         if time_s not in (None, ''):
             raise _err('Ask which day they want — a time alone is not enough. Nothing was sent.')
@@ -92,12 +94,14 @@ def _check_when(business_id, now, date_s, time_s):
     if rules.get('configured'):
         hrs = booking_rules.hours_on(rules, day)
         if not hrs:
-            raise _err(f"The office is closed on {day:%A} ({_c._hours_line(rules)}). Ask for another day. Nothing was sent.")
+            raise _err(f"The office is closed on {day:%A} ({_c._hours_line(rules, lang)}). Ask for another day. Nothing was sent.")
         if tm:
             mins = int(tm[:2]) * 60 + int(tm[3:])
             if not hrs[0] <= mins < hrs[1]:
-                raise _err(f"{tm} is outside office hours on {day:%A} ({hrs[0] // 60:02d}:{hrs[0] % 60:02d}-"
-                           f"{hrs[1] // 60:02d}:{hrs[1] % 60:02d}). Ask for a time within those hours. Nothing was sent.")
+                import reservations_core
+                span = reservations_core.span_text(reservations_core.DAY_KEYS[day.weekday()], hrs[0], hrs[1], lang)
+                raise _err(f"{tm} is outside office hours on {day:%A} ({span}). Ask for a time within those hours. "
+                           "Nothing was sent.")
     if tm and day == now.date() and tm <= now.strftime('%H:%M'):
         raise _err(f"{tm} today has already passed (it is {now:%H:%M} at the office). Ask for a later time. Nothing was sent.")
     return day, tm
@@ -112,7 +116,7 @@ def request_consultation(args, ctx):
     if mode and mode not in MODES:
         raise _err(f"mode must be one of {', '.join(MODES)}. Nothing was sent.")
     now = _c._now(ctx)
-    day, tm = _check_when(bid, now, args.get('preferred_date'), args.get('preferred_time'))
+    day, tm = _check_when(bid, now, args.get('preferred_date'), args.get('preferred_time'), 'vi' if _c._vi(ctx) else 'en')
     email = _c.clean_email(args.get('email'))
     shop = _c._shop(bid)
     name, phone, pkey = _c._contact(args, ctx, 'sending the consultation request', shop)

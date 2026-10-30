@@ -654,11 +654,15 @@ class TestOvernightHoursText(hp.Base):
         hp.booking_rules.save_rules(BID, {'hours': {'fri': ['06:00', '02:00'], 'sat': ['09:00', '17:00']}},
                                     allow_overnight=True)
         hp.booking_rules._CACHE.clear()
-        en, vi = hotel.facts(BID, 'en', NOW), hotel.facts(BID, 'vi', NOW)
-        self.assertIn('Fri 06:00-02:00 (closes at 02:00 Sat, after midnight)', en)
-        self.assertIn('T6 06:00-02:00 (đóng lúc 02:00 sáng T7, qua nửa đêm)', vi)
-        self.assertIn('Sat 09:00-17:00', en)
-        self.assertNotIn('09:00-17:00 (closes', en)
+        # vòng 4: 1 dòng giờ mở cửa cho prompt khách sạn (customer_context.hours_lines, kiểu giờ chung), không còn dòng riêng
+        import customer_context
+        rules = hp.booking_rules.get_rules(BID)
+        en, vi = customer_context.hours_lines(BID, rules)[0], customer_context.hours_lines(BID, rules, lang='vi')[0]
+        self.assertIn('Fri 6:00 am – 2:00 am (Sat)', en)
+        self.assertIn('T6 06:00 – 02:00 (sáng T7)', vi)
+        self.assertIn('Sat 9:00 am – 5:00 pm', en)
+        self.assertNotIn('5:00 pm (Sun)', en)
+        self.assertNotIn('GIỜ MỞ CỬA', hotel.facts(BID, 'vi', NOW))
 
 
 if __name__ == '__main__':

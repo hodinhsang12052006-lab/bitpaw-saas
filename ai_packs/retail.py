@@ -330,10 +330,11 @@ def when_label(dt, vi):
     return f"{dt:%H:%M} {VI_DOW[dt.weekday()]} {dt:%d/%m}" if vi else dt.strftime('%a %d %b, %H:%M')
 
 
-def _hours_line(rules):
-    names = {'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'}
-    return 'OPENING HOURS: ' + ', '.join(f"{names.get(d, d)} {v[0]}-{v[1]}" if v else f"{names.get(d, d)} closed"
-                                         for d, v in (rules.get('hours') or {}).items()) + '.'
+def _hours_line(rules, lang='en'):
+    """Giờ mở cửa cả tuần theo 1 kiểu giờ chung (reservations_core.week_hours_text — cùng chữ dòng OPENING HOURS của prompt
+    khách), theo ngôn ngữ chat: 'Mon 9:00 am – 5:00 pm, ...' / 'T2 09:00 – 17:00, ...'. Trước: 'Mon 09:00-17:00' 24 giờ."""
+    import reservations_core
+    return 'OPENING HOURS: ' + reservations_core.week_hours_text(rules.get('hours'), lang) + '.'
 
 
 def shop_vi(shop):

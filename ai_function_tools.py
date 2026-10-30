@@ -502,11 +502,13 @@ def check_availability(business_id, customer_id, date=None, service_id=None, sta
         full = booking_rules.available_slots(business_id, day, svc and svc['id'], staff and staff[0], limit=200, guests=guests)
         mins = lambda t: int(t[:2]) * 60 + int(t[3:5])  # noqa: E731
         slots = sorted(sorted(full, key=lambda t: abs(mins(t) - want))[:6])
-    # giờ đóng qua nửa đêm (vd 1560 = 02:00 hôm sau): hiện "18:00-02:00 (next day)", không phải "26:00"
-    close = (hrs[1] % 1440 if hrs[1] > 1440 else hrs[1]) if hrs else 0
-    out = {"success": True, "date": day.isoformat(), "weekday": day.strftime('%A'),
-           "open": bool(hrs), "opening_hours": (f"{hrs[0] // 60:02d}:{hrs[0] % 60:02d}-{close // 60:02d}:{close % 60:02d}"
-                                                + (" (next day)" if hrs[1] > 1440 else "") if hrs else "closed"),
+    # giờ mở cửa ngày đó (đúng khung check_slot kiểm: booking_rules.hours_on) theo ĐÚNG kiểu giờ chung của dòng OPENING HOURS
+    # trong prompt khách (customer_context.hours_lines), theo ngôn ngữ chat: 'Wed 9:00 am – 7:00 pm' / 'T4 09:00 – 19:00',
+    # 'Sun closed' / 'CN nghỉ'. Trước: '09:00-19:00' 24 giờ cạnh prompt 12 giờ trong cùng 1 chat.
+    import reservations_core
+    key = reservations_core.DAY_KEYS[day.weekday()]
+    out = {"success": True, "date": day.isoformat(), "weekday": day.strftime('%A'), "open": bool(hrs),
+           "opening_hours": reservations_core.day_value_text(key, (rules.get('hours') or {}).get(key), _chat_lang(customer_id)),
            "service": svc and svc['name'], "duration_minutes": booking_rules.duration_of(rules, svc and svc['id']),
            "staff": staff and staff[1], "available_start_times": slots}
     if want is not None:
@@ -838,9 +840,10 @@ def _note_for_staff(business_id, customer_id, text, sender='system'):
 
 
 def reply_expectation(business_id, vi=False):
-    """Câu hẹn giờ nhân viên trả lời — THẬT theo giờ mở cửa (như Intercom báo "team thường trả lời trong..."), kèm SĐT tiệm nếu có."""
+    """Câu hẹn giờ nhân viên trả lời — THẬT theo giờ mở cửa (như Intercom báo "team thường trả lời trong..."), kèm SĐT tiệm nếu có.
+    Giờ mở tới theo 1 kiểu giờ chung với prompt khách, đúng ngôn ngữ khách: 'tomorrow 9:00 am' / 'ngày mai 09:00', 'T4 16:00'."""
     try:
-        st = booking_rules.open_status(business_id)
+        st = booking_rules.open_status(business_id, lang='vi' if vi else 'en')
         phone = booking_rules.business_phone(business_id)
     except Exception:
         st, phone = {'open_now': True}, ''
@@ -848,9 +851,8 @@ def reply_expectation(business_id, vi=False):
         en, v = "The team is in today and will reply right here in this chat.", "Tiệm đang mở cửa, nhân viên sẽ trả lời ngay trong khung chat này."
     elif st.get('next_open'):
         nxt = st['next_open']
-        nxt_vi = nxt.replace('today', 'hôm nay').replace('tomorrow', 'ngày mai')
         en, v = (f"We're closed right now — the team will reply here when we open ({nxt}).",
-                 f"Tiệm đang đóng cửa — nhân viên sẽ trả lời tại đây khi tiệm mở cửa ({nxt_vi}).")
+                 f"Tiệm đang đóng cửa — nhân viên sẽ trả lời tại đây khi tiệm mở cửa ({nxt}).")
     else:
         en, v = "The team will reply right here in this chat.", "Nhân viên sẽ trả lời ngay trong khung chat này."
     if phone:
