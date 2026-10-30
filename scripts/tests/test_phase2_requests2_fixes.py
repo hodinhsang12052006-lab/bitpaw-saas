@@ -30,8 +30,10 @@ DANGER = (
     'I can smell gas in the kitchen',
     'It smells like burning',
     'Smells like something burning near the switchboard',
-    'Is it dangerous if there is smoke?',
-    'What should I do if I smell gas?',
+    # Câu HỎI / GIẢ ĐỊNH ('Is it dangerous if there is smoke?', 'What should I do if I smell gas?', 'Is it safe to stay
+    # inside if there is no gas smell?', "There's no gas smell, sparks or smoke?", 'Có khói thì có nguy hiểm không?',
+    # 'Không có mùi gas thì có nguy hiểm không?', 'Nếu không có khói thì có sao không') không còn ép khẩn cấp (luật mới
+    # phase2-fix3: dặn an toàn, không tạo việc khẩn cấp) — kiểm ở test_phase2_fix3_requests3.py.
     'The outlet sparked when I plugged in the kettle',
     'I got a shock from the oven door',
     'The water heater exploded',
@@ -43,7 +45,6 @@ DANGER = (
     "I haven't seen sparks like this before",
     'No smoke until I switched it on',
     "No burning smell when it's off",
-    'Is it safe to stay inside if there is no gas smell?',
     # từ phủ định KHÔNG trực tiếp chi phối từ khoá (đoán, thiếu dấu phẩy...)
     "not sure if it's sparking",
     'no i can smell gas',
@@ -52,18 +53,14 @@ DANGER = (
     "I don't think it's a gas leak",
     "It doesn't seem to be sparking",
     'almost no smoke now',
-    # danh sách không phải danh sách từ khoá thuần / không đóng bằng "or" / là câu hỏi
+    # danh sách không phải danh sách từ khoá thuần / không đóng bằng "or"
     'No power, sparks or smoke from the board',
     'No gas smell, sparks.',
-    "There's no gas smell, sparks or smoke?",
     'the smoke alarm went off and there is smoke',
     # tiếng Việt
     'Chưa bao giờ thấy tia lửa như vầy',
     'Lúc đầu không có mùi khét',
     'Không để ý mùi khét cho đến giờ',
-    'Có khói thì có nguy hiểm không?',
-    'Không có mùi gas thì có nguy hiểm không?',
-    'Nếu không có khói thì có sao không',
     'Trước giờ chưa thấy chập điện như vậy',
     'Không có mùi khét nhưng giờ thì có rồi',
     'Hông có mùi khét lúc đầu, giờ khét lẹt',

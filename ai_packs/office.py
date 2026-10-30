@@ -128,6 +128,20 @@ def request_consultation(args, ctx):
            'channel': ctx.get('channel') or 'web', 'created_at': datetime.now().isoformat(),
            'created_at_local': now.strftime('%Y-%m-%dT%H:%M')}
     saved, created = _c.insert_once(db.consultation_requests, bid, key, doc)
+    if not created and not _c.owns_request(saved, ctx, phone):
+        # cùng khoá nhưng chat chưa chứng minh là chủ (trình duyệt khác gõ cùng SĐT): không lộ mã yêu cầu đã có
+        old = (saved or {}).get('id')
+        return _c.passed_to_team(
+            ctx, shop,
+            f"Chat AI xin TƯ VẤN ({topic}) cho {name} {phone} — trùng yêu cầu tư vấn #{old} đã có hôm nay (cùng SĐT, cùng "
+            "nội dung) nên AI KHÔNG tạo thêm (chat chưa xác minh là chủ yêu cầu đó). Văn phòng liên hệ khách để xác nhận.",
+            f"The AI chat asked for a CONSULTATION ({topic}) for {name} {phone} — it matches consultation request #{old} "
+            "from today (same phone and details), so nothing new was created (the chat isn't verified as its owner). "
+            "Please confirm with the customer.",
+            'Em đã chuyển yêu cầu tư vấn cho văn phòng — văn phòng sẽ gọi số điện thoại của mình để xác nhận giờ. Hiện CHƯA '
+            'có lịch cho tới khi văn phòng xác nhận.',
+            "I've passed your consultation request to the office — they'll call you on your phone number to confirm a "
+            "time. Nothing is booked until they confirm.")
     if not created:
         return {'success': True, 'already_requested': True, 'consult_request_id': (saved or {}).get('id'), 'status': 'pending',
                 'note': 'This consultation request was already sent today — do not send it again.'}

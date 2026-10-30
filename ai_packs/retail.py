@@ -389,9 +389,52 @@ def insert_once(coll, business_id, key, doc, key_field='dedupe_key'):
 
 
 def request_key(ctx, phone, *parts):
-    """Khoá chống trùng: người gửi (hội thoại, hoặc SĐT) + nội dung chính + ngày tại tiệm."""
+    """Khoá chống trùng: người gửi (hội thoại, hoặc SĐT) + nội dung chính + ngày tại tiệm. Chỉ để không tạo 2 dòng: chat web
+    '<tiệm>:<SĐT tự gõ>' ở trình duyệt khác gõ cùng SĐT cũng ra cùng khoá — trùng khoá KHÔNG chứng minh là chủ (owns_request)."""
     who = ctx.get('customer_id') or phone_key(phone, _country(ctx)) or _clean_phone(phone) or ''   # chưa biết nước: số khách gõ
     return hashlib.sha1('|'.join([str(who)] + [_fold(p) for p in parts]).encode('utf-8')).hexdigest()[:24]
+
+
+def owns_request(doc, ctx, phone=None, phone_field='customer_phone'):
+    """Yêu cầu ĐÃ LƯU trùng khoá (doc) có CHỨNG MINH được là của cuộc chat này không — cùng luật owner_filter: SĐT đã xác
+    minh (NGUYÊN số), mã chat của đúng trình duyệt KÈM đúng chat web này (cùng hội thoại, hoặc cùng SĐT khách gõ ở đây — kể
+    cả SĐT gõ trong chính yêu cầu này), hoặc đúng hội thoại kênh nền tảng. Id hội thoại web một mình KHÔNG phải bằng chứng."""
+    if not doc:
+        return False
+    country = _country(ctx)
+    k = phone_key(ctx.get('phone'), country)
+    if k and doc.get('phone_key') == k:
+        return True
+    th, cid, ch = real_token(ctx), ctx.get('customer_id'), ctx.get('channel')
+    if th and doc.get('chat_token_hash') == th:
+        if str(ch or 'web').lower() != 'web':
+            return True                                    # 'conv:<băm>' của hội thoại nền tảng
+        if cid and doc.get('ai_conversation_id') == cid:
+            return True
+        typed = phone_key(_typed_phone(ctx), country)
+        if (typed and doc.get('phone_key') == typed) or (phone and doc.get(phone_field) == phone):
+            return True                                    # máy dùng chung: đúng người đang gõ đúng SĐT này
+    return bool(cid and ch in PLATFORM_CHANNELS and str(cid).startswith(f"{ctx.get('business_id')}:{ch}:")
+                and doc.get('ai_conversation_id') == cid)
+
+
+def passed_to_team(ctx, shop, staff_vi, staff_en, tell_vi, tell_en, **extra):
+    """Yêu cầu trùng 1 yêu cầu ĐÃ CÓ mà chat KHÔNG chứng minh được là chủ (vd trình duyệt khác gõ cùng SĐT + cùng nội dung):
+    không tạo thêm, không nói "đã có yêu cầu #..." (không lộ mã / trạng thái yêu cầu của người khác) — trả lời như mọi yêu
+    cầu đang chờ (giống _dup_result của fnb / karaoke / hotel); ghi chú (theo ngôn ngữ của tiệm) để nhân viên liên hệ khách."""
+    try:
+        import ai_function_tools as aft
+        cid = ctx.get('customer_id')
+        if cid:
+            aft._note_for_staff(ctx['business_id'], cid, staff_vi if shop_vi(shop) else staff_en)
+    except Exception as e:
+        print(f"[ai_packs.retail] passed to team: {e}")
+    out = {'success': True, 'request_sent_to_team': True, 'confirmed': False, 'status': 'pending',
+           'tell_customer': tell_vi if _vi(ctx) else tell_en,
+           'note': 'Passed to the team, which contacts the customer. Nothing new was created in this chat: give no request '
+                   'number and never say it is confirmed, booked or scheduled; pass on tell_customer.'}
+    out.update(extra)
+    return out
 
 
 def _active_key(ctx, business_id, product_id, pkey):
