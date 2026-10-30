@@ -3599,19 +3599,10 @@ def api_public_reservation_create(business_id):
     if party_size < 1:
         party_size = 1
     try:
-        reservation_doc = {
-            'id': next_mongo_id('table_reservations'),
-            'business_id': business_id,
-            'customer_name': name,
-            'customer_phone': phone,
-            'party_size': party_size,
-            'reserved_time': reserved_time,
-            'table_id': None,
-            'note': (data.get('note') or '').strip() or None,
-            'status': 'pending',
-            'created_at': datetime.now().isoformat(),
-        }
-        db.table_reservations.insert_one(reservation_doc)
+        # Cùng 1 hàm ghi với trợ lý AI đặt bàn (ai_packs/fnb.py) — reservations_core.py
+        import reservations_core
+        reservation_doc = reservations_core.create_table_reservation(business_id, name, phone, party_size, reserved_time,
+                                                                     note=data.get('note'))
         return jsonify({'success': True, 'id': reservation_doc['id']})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Không thể tạo yêu cầu đặt bàn: {str(e)}'}), 500
@@ -6737,25 +6728,10 @@ def api_public_karaoke_reservation_create(business_id):
     if party_size < 1:
         party_size = 1
     try:
-        duration_hours = float(data.get('duration_hours') or 2)
-    except (TypeError, ValueError):
-        duration_hours = 2.0
-    duration_hours = max(0.5, min(12.0, duration_hours))
-    try:
-        reservation_doc = {
-            'id': next_mongo_id('karaoke_room_reservations'),
-            'business_id': business_id,
-            'customer_name': name,
-            'customer_phone': phone,
-            'party_size': party_size,
-            'reserved_time': reserved_time,
-            'duration_hours': duration_hours,
-            'room_id': None,
-            'note': (data.get('note') or '').strip() or None,
-            'status': 'pending',
-            'created_at': datetime.now().isoformat(),
-        }
-        db.karaoke_room_reservations.insert_one(reservation_doc)
+        # Cùng 1 hàm ghi với trợ lý AI đặt phòng (ai_packs/karaoke.py); số giờ: lỗi -> 2, kẹp 0.5-12 như trước
+        import reservations_core
+        reservation_doc = reservations_core.create_karaoke_reservation(business_id, name, phone, party_size, reserved_time,
+                                                                       data.get('duration_hours'), note=data.get('note'))
         return jsonify({'success': True, 'id': reservation_doc['id']})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Không thể tạo yêu cầu đặt phòng: {str(e)}'}), 500
