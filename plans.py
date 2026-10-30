@@ -102,6 +102,7 @@ ROUTE_FEATURES = [
     ('/campaign_builder', 'crm_ai'), ('/ai/campaign-builder', 'crm_ai'), ('/customer_nurturing', 'crm_ai'),
     ('/ai/customer-nurturing', 'crm_ai'), ('/crm_automation', 'crm_ai'),
     ('/ai_bot', 'ai_inbox'), ('/inbox/channels', 'ai_inbox'), ('/api/inbox', 'ai_inbox'), ('/api/bot', 'ai_inbox'),
+    ('/ai/knowledge', 'ai_inbox'), ('/api/ai/knowledge', 'ai_inbox'),   # kiến thức AI lễ tân dùng để trả lời khách
     ('/api/ai/copilot', 'ai_copilot'),
     ('/ai-studio', 'ai_studio'), ('/ai_studio', 'ai_studio'), ('/api/ai_studio', 'ai_studio'), ('/api/media', 'ai_studio'),
     ('/social', 'marketing_pro'), ('/api/social', 'marketing_pro'),

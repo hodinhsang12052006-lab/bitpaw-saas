@@ -454,7 +454,8 @@ def seed():
     DB.businesses.insert_one({'id': SPA, 'name': 'Calm Spa', 'industry_code': 'spa', 'currency': 'USD', 'country': 'US'})
     DB.businesses.insert_one({'id': FOOD, 'name': 'Golden Test Kitchen', 'industry_code': 'testfood', 'currency': 'VND',
                               'country': 'VN', 'phone': '0281234567', 'address': '5 Lê Lợi, Q1'})
-    DB.businesses.insert_one({'id': QA_SHOP, 'name': 'Corner Office', 'industry_code': 'office', 'currency': 'USD', 'country': 'US'})
+    # ngành chưa có gói đặt chỗ (cả 9 ngành thật giờ đều có gói sau Giai đoạn 2): giữ đường Q&A + chuyển nhân viên
+    DB.businesses.insert_one({'id': QA_SHOP, 'name': 'Corner Office', 'industry_code': 'zz_nopack', 'currency': 'USD', 'country': 'US'})
     DB.booking_settings.insert_one({'business_id': NAIL, 'hours': {d: ['09:00', '19:00'] for d in booking_rules.DAY_KEYS},
                                     'capacity': 1, 'durations': {'1': 60, '2': 90, '3': 45}, 'slot_minutes': 30,
                                     'info': {'parking': 'Free parking behind the shop'}})
@@ -562,9 +563,9 @@ class RegistryTests(_Base):
     def test_claim_ready_needs_pack_and_sim_flag_and_nothing_flips_it(self):
         self.assertFalse(ai_packs.claim_ready('testfood'))       # có gói, chưa qua sim
         self.assertFalse(ai_packs.claim_ready('nail'))           # không tự bật cho gói dựng sẵn
-        os.environ['BITPAW_AI_SIM_PASSED'] = 'testfood,office'
+        os.environ['BITPAW_AI_SIM_PASSED'] = 'testfood,zz_nopack'
         self.assertTrue(ai_packs.claim_ready('testfood'))
-        self.assertFalse(ai_packs.claim_ready('office'))         # cờ có nhưng KHÔNG có gói -> False
+        self.assertFalse(ai_packs.claim_ready('zz_nopack'))      # cờ có nhưng KHÔNG có gói -> False
         os.environ.pop('BITPAW_AI_SIM_PASSED')
         DB.system_settings.insert_one({'key': 'ai_sim_passed', 'value': {'testfood': {'passed': True, 'overall': 4.6}}})
         ai_packs._FLAG_CACHE.clear()

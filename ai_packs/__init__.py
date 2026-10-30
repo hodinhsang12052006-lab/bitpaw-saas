@@ -463,7 +463,7 @@ DEFAULT_BOOKING_COLLECTIONS = {
     'room_hour': (('karaoke_room_reservations', 'customer_phone'),),
     'room_night': (('hotel_reservations', 'guest_phone'),),   # /hotel/reserve stores the guest's phone as guest_phone
     'stock_hold': (('retail_holds', 'customer_phone'), ('orders', 'customer_phone')),
-    'job': (('tasks', 'customer_phone'),),
+    'job': (('tasks', 'sdt'),),   # bảng điều phối kỹ thuật lưu SĐT khách ở 'sdt'
     'quote': (('quote_requests', 'customer_phone'),),
     'consult': (('consultation_requests', 'customer_phone'),),
 }

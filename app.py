@@ -14480,6 +14480,13 @@ try:
 except Exception as bp_err:
     print(f"Error registering ai_knowledge_bp: {str(bp_err)}")
 
+# Danh sách yêu cầu AI lễ tân tạo cho ngành không đặt giờ: giữ hàng chờ lấy (bán lẻ), báo giá (sản xuất), tư vấn (văn phòng)
+try:
+    from retail_holds_bp import retail_holds_bp
+    app.register_blueprint(retail_holds_bp)
+except Exception as bp_err:
+    print(f"Error registering retail_holds_bp: {str(bp_err)}")
+
 try:
     # Gói liệu trình nhiều buổi (bán tại quầy, dùng buổi ở POS Spa) — service_packages.py
     from service_packages import packages_bp
