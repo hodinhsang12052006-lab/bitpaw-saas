@@ -6975,18 +6975,54 @@ def api_hotel_room_checkin(room_id):
     if not guest_name:
         return jsonify({"success": False, "message": "Thiếu tên khách."}), 400
     guest_phone = (data.get('guest_phone') or '').strip() or None
+    import reservations_hotel
+    try:
+        # Ngày trả phòng dự kiến (tuỳ chọn, theo giờ khách sạn): AI lễ tân coi phòng bận MỌI đêm tới ngày đó. Để trống thì
+        # AI không bao giờ tự xác nhận phòng này cho các đêm sau (đặt phòng chờ duyệt + báo nhân viên).
+        expected_checkout = reservations_hotel.walkin_checkout_date(data.get('expected_checkout_date'),
+                                                                    tenant_today(business_id))
+    except reservations_hotel.HotelRequestError as e:
+        return jsonify({"success": False, "message": _vi_en(e.vi, e.en)}), 400
     now = datetime.now().isoformat()
     try:
         # find_one_and_update lọc status='Trống' ngay trong filter -> atomic, tránh 2 lễ tân
         # cùng check-in 1 phòng 1 lúc (giống race-condition fix của karaoke room start).
         result = db.hotel_rooms.find_one_and_update(
             {'id': room_id, 'business_id': business_id, 'status': 'Trống'},
-            {'$set': {'status': 'Đang ở', 'guest_name': guest_name, 'guest_phone': guest_phone, 'checkin_date': now}},
+            {'$set': {'status': 'Đang ở', 'guest_name': guest_name, 'guest_phone': guest_phone, 'checkin_date': now,
+                      'expected_checkout_date': expected_checkout}},
             return_document=ReturnDocument.AFTER,
             projection={'_id': 0}
         )
         if not result:
             return jsonify({"success": False, "message": "Phòng không tồn tại hoặc đang không trống."}), 409
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route('/api/hotel/rooms/<int:room_id>/expected_checkout', methods=['POST'])
+@login_required
+def api_hotel_room_expected_checkout(room_id):
+    """Sửa / bỏ ngày trả phòng dự kiến của khách đang ở (khách báo ở thêm hoặc về sớm) — không có cách sửa thì khách ở thêm
+    vẫn bị AI lễ tân coi là trả phòng theo ngày cũ và phòng bị bán cho đêm khách còn ở. Chỉ phòng 'Đang ở' (lọc ngay trong
+    filter, nguyên tử). Gửi rỗng / null = chưa rõ ngày đi."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.json or {}
+    import reservations_hotel
+    try:
+        expected_checkout = reservations_hotel.walkin_checkout_date(data.get('expected_checkout_date'),
+                                                                    tenant_today(business_id))
+    except reservations_hotel.HotelRequestError as e:
+        return jsonify({"success": False, "message": _vi_en(e.vi, e.en)}), 400
+    try:
+        result = db.hotel_rooms.find_one_and_update(
+            {'id': room_id, 'business_id': business_id, 'status': 'Đang ở'},
+            {'$set': {'expected_checkout_date': expected_checkout}},
+            return_document=ReturnDocument.AFTER, projection={'_id': 0})
+        if not result:
+            return jsonify({"success": False, "message": _vi_en('Phòng không tồn tại hoặc không có khách đang ở.',
+                                                                'Room not found, or no guest is staying in it.')}), 409
         return jsonify({"success": True, "data": result})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -7068,7 +7104,8 @@ def api_hotel_room_checkout(room_id):
         # phòng từng ghi 2 hoá đơn + 2 bút toán doanh thu.
         room = db.hotel_rooms.find_one_and_update(
             {'id': room_id, 'business_id': business_id, 'status': 'Đang ở'},
-            {'$set': {'status': 'Đang dọn', 'guest_name': None, 'guest_phone': None, 'checkin_date': None}},
+            {'$set': {'status': 'Đang dọn', 'guest_name': None, 'guest_phone': None, 'checkin_date': None,
+                      'expected_checkout_date': None}},
             projection={'_id': 0}, return_document=ReturnDocument.BEFORE,
         )
         if not room:
@@ -7117,7 +7154,8 @@ def api_hotel_room_checkout(room_id):
                 db.hotel_rooms.update_one(
                     {'id': room_id, 'business_id': business_id, 'status': 'Đang dọn'},
                     {'$set': {'status': 'Đang ở', 'guest_name': room.get('guest_name'),
-                              'guest_phone': room.get('guest_phone'), 'checkin_date': room.get('checkin_date')}}
+                              'guest_phone': room.get('guest_phone'), 'checkin_date': room.get('checkin_date'),
+                              'expected_checkout_date': room.get('expected_checkout_date')}}
                 )
             except Exception:
                 pass
@@ -7131,7 +7169,7 @@ def api_hotel_room_mark_clean(room_id):
     try:
         result = db.hotel_rooms.update_one(
             {'id': room_id, 'business_id': business_id, 'status': 'Đang dọn'},
-            {'$set': {'status': 'Trống'}}
+            {'$set': {'status': 'Trống', 'expected_checkout_date': None}}
         )
         if result.matched_count == 0:
             return jsonify({"success": False, "message": "Phòng không tồn tại hoặc không ở trạng thái đang dọn."}), 409
@@ -7143,7 +7181,9 @@ def api_hotel_room_mark_clean(room_id):
 @app.route('/hotel_rooms')
 @login_required
 def hotel_rooms_page():
-    return render_template('hotel_rooms.html')
+    # Hôm nay THEO GIỜ KHÁCH SẠN cho ô "ngày trả phòng dự kiến" (phải sau hôm nay) — máy chủ chạy giờ UTC.
+    business_id = session.get('business_id') or session['user_id']
+    return render_template('hotel_rooms.html', hotel_today=tenant_today(business_id).isoformat())
 
 
 # ========== ĐẶT PHÒNG KHÁCH SẠN TƯƠNG LAI ==========
@@ -7240,8 +7280,9 @@ def api_hotel_reservation_update(reservation_id):
     phòng (trước đây chỉ kiểm trùng rồi ghi — AI đặt đúng lúc đó vẫn lọt vào cùng phòng/đêm). Mở lại
     1 đặt phòng đã huỷ cũng kiểm lại phòng trống (sau khi huỷ, phòng có thể đã bán cho khách khác) và phải gửi rõ
     reopen=true — màn này không có nút mở lại, nên "Duyệt" lên 1 đặt phòng khách vừa huỷ trong chat = bấm trên trang cũ.
-    from_status (nếu gửi) phải đúng trạng thái hiện tại. Mọi lần ghi đều CÓ ĐIỀU KIỆN theo bản vừa đọc (trạng thái, ngày,
-    phòng): chat AI ghi chen vào giữa (khách đổi ngày / huỷ) -> 409 tải lại trang, không đè."""
+    from_status / from_checkin_date / from_checkout_date / from_party_size / from_room_id (nếu gửi — trang /hotel/reservations
+    luôn gửi đúng những gì dòng đó đang hiện) phải khớp bản hiện tại. Mọi lần ghi đều CÓ ĐIỀU KIỆN theo bản vừa đọc (trạng
+    thái, ngày, số khách, phòng): chat AI ghi chen vào giữa (khách đổi ngày / huỷ) -> 409 tải lại trang, không đè."""
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     reservation = db.hotel_reservations.find_one({'id': reservation_id, 'business_id': business_id}, {'_id': 0})
@@ -7271,6 +7312,13 @@ def api_hotel_reservation_update(reservation_id):
                                'This booking was just changed elsewhere — reload the page and try again.')
     if 'from_status' in data and data.get('from_status') != old_status:
         return jsonify({'success': False, 'message': changed_elsewhere}), 409
+    # Khách dời ngày / đổi số khách trong chat thì trạng thái vẫn 'pending': chỉ so trạng thái thì "Duyệt" trên trang cũ xác
+    # nhận đúng những ngày nhân viên chưa từng thấy. Trang gửi lại ngày / số khách / phòng nó đang hiện -> lệch = 409.
+    for _key, _field in (('from_checkin_date', 'checkin_date'), ('from_checkout_date', 'checkout_date'),
+                         ('from_party_size', 'party_size'), ('from_room_id', 'room_id')):
+        if _key in data and ('' if data.get(_key) is None else str(data.get(_key))) != \
+                ('' if reservation.get(_field) is None else str(reservation.get(_field))):
+            return jsonify({'success': False, 'message': changed_elsewhere}), 409
     if reopening and data.get('reopen') is not True:
         by_guest = reservation.get('cancelled_by') == 'customer_ai_chat'
         return jsonify({'success': False, 'message': _vi_en(
@@ -7306,7 +7354,8 @@ def api_hotel_reservation_update(reservation_id):
         guard = {'id': reservation_id, 'business_id': business_id,
                  'status': new_status if (reopening and assigned) else old_status,
                  'room_id': room_id if assigned else reservation.get('room_id'),
-                 'checkin_date': reservation.get('checkin_date'), 'checkout_date': reservation.get('checkout_date')}
+                 'checkin_date': reservation.get('checkin_date'), 'checkout_date': reservation.get('checkout_date'),
+                 'party_size': reservation.get('party_size')}
         if db.hotel_reservations.update_one(guard, {'$set': update_fields}).matched_count == 0:
             return jsonify({'success': False, 'message': changed_elsewhere}), 409
         if new_status not in live or room_id is None:

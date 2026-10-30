@@ -286,6 +286,16 @@ def run(name, args, c=None):
     return hotel.execute(name, args, c or ctx())
 
 
+def with_quote(args, c=None):
+    """Như AI thật khi đổi ngày: báo giá trước (không kèm customer_confirmed), khách đồng ý ĐÚNG số đó rồi mới xác nhận với
+    quoted_total — lượt xác nhận không kèm quoted_total không được ghi (giá có thể đã đổi từ lượt báo giá)."""
+    if args.get('customer_confirmed') is True and 'quoted_total' not in args:
+        q = run('hotel_change_dates', dict(args, customer_confirmed=False), c)
+        if q.get('needs_confirmation') and q.get('new_total'):
+            args = dict(args, quoted_total=q['new_total'])
+    return args
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         DB.reset()
@@ -873,7 +883,7 @@ class TestChangeDates(Base):
     def change(self, bid_, ci, co, c=None, **kw):
         args = {'booking_id': bid_, 'new_checkin_date': ci, 'new_checkout_date': co, 'customer_confirmed': True}
         args.update(kw)
-        return run('hotel_change_dates', args, c)
+        return run('hotel_change_dates', with_quote(args, c), c)
 
     def test_needs_confirmation_first(self):
         b = self.book()

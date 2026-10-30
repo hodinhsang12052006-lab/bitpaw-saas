@@ -75,7 +75,8 @@ TOOLS = [
         {"booking_id": {"type": "integer"}, "new_checkin_date": _DATE, "new_checkout_date": _DATE,
          "guests": {"type": "integer", "description": "New number of guests (optional)."},
          "customer_confirmed": {"type": "boolean", "description": "true only after the guest clearly confirmed the change."},
-         "quoted_total": {"type": "string", "description": "The new_total the first call returned, which the guest agreed to."}},
+         "quoted_total": {"type": "string", "description": "REQUIRED with customer_confirmed=true: the new_total the first "
+                                                          "call returned, which the guest agreed to."}},
         ["booking_id", "new_checkin_date", "new_checkout_date", "customer_confirmed"]),
 ]
 
@@ -96,7 +97,8 @@ PROMPT_RULES = {
         "- Existing bookings only through hotel_my_bookings / hotel_change_dates / hotel_cancel_booking. Read the booking back "
         "and get a clear yes before changing or cancelling. For a change, first call hotel_change_dates without "
         "customer_confirmed: it checks the new dates (the guest's own booking is not counted as taken) and returns the exact "
-        "new total to quote. If a tool refuses, say what it says and reveal nothing else."),
+        "new total to quote; after the guest's yes, call it again with customer_confirmed=true and quoted_total = that total. "
+        "If a tool refuses, say what it says and reveal nothing else."),
     'vi': (
         "LƯU TRÚ KHÁCH SẠN (phòng tính theo đêm):\n"
         "- Trước khi báo giá hay hứa phòng, gọi hotel_check_availability với ngày nhận phòng, ngày trả phòng (YYYY-MM-DD, "
@@ -111,7 +113,8 @@ PROMPT_RULES = {
         "- Đặt phòng đã có chỉ xem/sửa qua hotel_my_bookings / hotel_change_dates / hotel_cancel_booking. Đọc lại đặt phòng và "
         "chờ khách đồng ý rõ ràng trước khi đổi hoặc huỷ. Muốn đổi: gọi hotel_change_dates trước, không kèm "
         "customer_confirmed — công cụ tự kiểm ngày mới (không tính đặt phòng của chính khách là bận) và trả đúng tổng tiền mới "
-        "để báo khách. Công cụ từ chối thì nói đúng ý nó, không tiết lộ gì thêm."),
+        "để báo khách; khách đồng ý rồi thì gọi lại với customer_confirmed=true và quoted_total = đúng tổng tiền đó. Công cụ "
+        "từ chối thì nói đúng ý nó, không tiết lộ gì thêm."),
 }
 
 
@@ -361,8 +364,9 @@ def _nearby(c, ci, nights, guests, key, min_nights, cur, ignore_id=None, skip=No
 
 
 def _same_total(given, total, cur):
-    """quoted_total AI gửi lại ('$450.00' / '450' / số) có đúng tổng tiền hiện tại không. total None (giá chưa công bố):
-    không có gì để so."""
+    """quoted_total AI gửi lại ('$450.00' / '450' / '450.000đ' / số) có đúng tổng tiền hiện tại không. total None (giá chưa
+    công bố): không có gì để so. Không bao giờ bỏ hết dấu rồi so chữ số trần ('450000' khớp nhầm $4,500.00, '4500' khớp
+    nhầm $45.00) — dấu chấm / phẩy chỉ là dấu nghìn khi đúng nhóm 3 chữ số (_amounts)."""
     if total is None:
         return True
     if isinstance(given, bool):
@@ -370,16 +374,23 @@ def _same_total(given, total, cur):
     if isinstance(given, (int, float)):
         return abs(float(given) - float(total)) < 0.005
     s = str(given).strip()
-    shown = _money(total, cur)
-    if s == shown:
+    if s == _money(total, cur):
         return True
-    try:
-        if abs(float(re.sub(r'[^\d.,]', '', s).replace(',', '')) - float(total)) < 0.005:
-            return True
-    except ValueError:
-        pass
-    digits = re.sub(r'\D', '', s)
-    return bool(digits) and digits == re.sub(r'\D', '', shown)
+    return any(abs(v - float(total)) < 0.005 for v in _amounts(s))
+
+
+def _amounts(s):
+    """Các cách đọc HỢP LỆ của 1 số tiền: '1,200.50' / '1200.5' / '450' (chấm thập phân), '450.000' / '1.200.000' /
+    '450,000' (dấu nghìn đúng nhóm 3 chữ số, kiểu VND), '1.200,50' (phẩy thập phân)."""
+    num = re.sub(r'[^\d.,]', '', s)
+    out = []
+    if re.fullmatch(r'\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?', num):
+        out.append(float(num.replace(',', '')))
+    if re.fullmatch(r'\d{1,3}([.,])\d{3}(?:\1\d{3})*', num):
+        out.append(float(re.sub(r'[.,]', '', num)))
+    if re.fullmatch(r'\d{1,3}(?:\.\d{3})*,\d{1,2}', num):
+        out.append(float(num.replace('.', '').replace(',', '.')))
+    return out
 
 
 def _walkin_note(doc, av):
@@ -389,10 +400,12 @@ def _walkin_note(doc, av):
     if rid is None or rid not in (av.get('_walkins') or ()):
         return '', ''
     num = next((r.get('room_number') for r in av.get('_rooms') or () if r.get('id') == rid), None) or rid
-    return (f" Lưu ý: phòng {num} đang có khách vãng lai chưa có ngày trả phòng — kiểm tra khách đó trả phòng trước "
-            f"{doc.get('checkin_date')} rồi mới xác nhận.",
-            f" Note: room {num} has a walk-in guest with no check-out date — check they leave before "
-            f"{doc.get('checkin_date')} before confirming.")
+    return (f" Lưu ý: phòng {num} đang có khách vãng lai chưa có ngày trả phòng dự kiến (hoặc đã quá ngày đó) — kiểm tra "
+            f"khách đó trả phòng trước {doc.get('checkin_date')} rồi mới xác nhận (nhập ngày trả phòng dự kiến ở trang Quản "
+            f"Lý Phòng).",
+            f" Note: room {num} has a walk-in guest with no expected check-out date (or it has passed) — check they leave "
+            f"before {doc.get('checkin_date')} before confirming (set their expected check-out date on the Room Management "
+            f"page).")
 
 
 def _booking_public(r, cur, c):
@@ -741,7 +754,11 @@ def _change_dates(args, c):
         return _change_unavailable(c, res, ci, nights, guests, q['key'], settings, cur, q['av'])
     keep_confirmed = settings['auto_confirm'] and res.get('status') == 'confirmed'
     new_total = _money(q['total'], cur) if q['total'] else None
-    if not _yes(args.get('customer_confirmed')):
+    quoted = args.get('quoted_total')
+    confirmed = _yes(args.get('customer_confirmed'))
+    # Xác nhận mà không kèm số đã báo khách: giá có thể đã đổi giữa lượt báo giá và lượt này -> báo lại, không ghi im lặng.
+    no_quote = confirmed and quoted in (None, '') and q['total'] is not None
+    if not confirmed or no_quote:
         out = {"success": False, "needs_confirmation": True, "booking": _booking_public(res, cur, c),
                "new_dates": {"checkin_date": ci.isoformat(), "checkout_date": co.isoformat(), "nights": nights},
                "guests": guests, "available": True,
@@ -753,6 +770,15 @@ def _change_dates(args, c):
                                    "Ngày mới còn phòng (không tính đặt phòng của chính khách là bận). Báo khách new_total, chờ "
                                    "khách đồng ý rõ ràng, rồi gọi lại với customer_confirmed=true và quoted_total = new_total. "
                                    "Không cần kiểm phòng trống thêm.")}
+        if no_quote:
+            out["quoted_total_missing"] = True
+            out["ask_customer"] = c.t(
+                f"The booking is NOT changed: confirming needs quoted_total. The total for the new dates is {new_total}. "
+                f"Unless the guest already agreed to exactly {new_total}, tell them and get a clear yes; then call again "
+                f"with customer_confirmed=true and quoted_total={new_total}.",
+                f"Đặt phòng CHƯA được đổi: xác nhận phải kèm quoted_total. Tổng tiền ngày mới là {new_total}. Nếu khách chưa "
+                f"đồng ý đúng số {new_total} thì báo khách và chờ khách đồng ý rõ ràng; rồi gọi lại với "
+                f"customer_confirmed=true và quoted_total={new_total}.")
         walkin_room = q['room'] is not None and q['room']['id'] in q['av']['_walkins']
         if res.get('status') == 'confirmed' and (not keep_confirmed or walkin_room or not q['rate']):
             out["after_change"] = c.t("The hotel re-confirms the new dates (status pending); the cancellation rules of a "
@@ -760,7 +786,6 @@ def _change_dates(args, c):
                                       "Khách sạn sẽ xác nhận lại ngày mới (status pending); luật huỷ của đặt phòng đã xác "
                                       "nhận vẫn áp dụng.")
         return out
-    quoted = args.get('quoted_total')
     if quoted not in (None, '') and not _same_total(quoted, q['total'], cur):
         return {"success": False, "price_changed": True, "new_total": new_total,
                 "booking_unchanged": _booking_public(res, cur, c),
@@ -844,6 +869,21 @@ def execute(name, args, ctx):
 
 
 # ---------------------------------------------------------------- dữ kiện công khai cho prompt
+_DAY_ORDER = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
+
+
+def _after_midnight(day, hours, names, T):
+    """' (closes at 02:00 Sat, after midnight)' khi giờ đóng sau nửa đêm ('Fri 18:00-02:00'), không thì ''."""
+    try:
+        o, cl = ((int(str(x).split(':')[0]) * 60 + int(str(x).split(':')[1])) for x in (hours[0], hours[1]))
+    except (TypeError, ValueError, IndexError):
+        return ''
+    if not 0 < cl < o or day not in _DAY_ORDER:
+        return ''
+    nxt = names.get(_DAY_ORDER[(_DAY_ORDER.index(day) + 1) % 7], '')
+    return T(f" (closes at {hours[1]} {nxt}, after midnight)", f" (đóng lúc {hours[1]} sáng {nxt}, qua nửa đêm)")
+
+
 def facts(business_id, lang, now_local):
     """Dữ kiện THẬT cho prompt: loại phòng + giá/đêm (tiền của khách sạn), luật lưu trú, giờ nhận/trả phòng nếu chủ đã
     đặt, cách xác nhận, chính sách huỷ, thông tin khách sạn chủ đã nhập. Phòng trống thì chỉ qua công cụ (không ở đây)."""
@@ -952,6 +992,7 @@ def facts(business_id, lang, now_local):
         names = ({'mon': 'T2', 'tue': 'T3', 'wed': 'T4', 'thu': 'T5', 'fri': 'T6', 'sat': 'T7', 'sun': 'CN'} if vi else
                  {'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'})
         lines.append(T("OPENING HOURS (as set by the hotel): ", "GIỜ MỞ CỬA (khách sạn tự đặt): ")
-                     + ', '.join(f"{names.get(d, d)} {v[0]}-{v[1]}" if v else f"{names.get(d, d)} " + T('closed', 'nghỉ')
+                     + ', '.join(f"{names.get(d, d)} {v[0]}-{v[1]}" + _after_midnight(d, v, names, T) if v else
+                                 f"{names.get(d, d)} " + T('closed', 'nghỉ')
                                  for d, v in (rules.get('hours') or {}).items()) + ".")
     return "\n".join(lines)

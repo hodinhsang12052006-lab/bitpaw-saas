@@ -374,10 +374,10 @@ def _night_state(business_id, rooms, nights, today=None, ignore_id=None, now=Non
         if _claim_live(c, res, now):
             busy[c.get('night')].add(c.get('room_id'))
     # Khách đang ở (check-in tại quầy, có thể không có đặt phòng): phòng 'Đang ở' bận đêm nay, trừ khi đặt phòng của
-    # chính phòng đó trả phòng hôm nay (khách cũ đi trưa nay).
+    # chính phòng đó trả phòng hôm nay (khách cũ đi trưa nay) hoặc khách vãng lai báo trả phòng đúng hôm nay.
     t = today.isoformat() if today else None
     if t and t in nights:
-        occupied = [r['id'] for r in rooms if r.get('status') == OCCUPIED]
+        occupied = [r['id'] for r in rooms if r.get('status') == OCCUPIED and _walkin_until(r, t) != t]
         if occupied:
             leaving = {r.get('room_id') for r in db.hotel_reservations.find(
                 {'business_id': business_id, 'status': {'$in': list(LIVE_STATUSES)}, 'checkout_date': t,
@@ -398,15 +398,35 @@ def _night_state(business_id, rooms, nights, today=None, ignore_id=None, now=Non
 
 
 def _walkin_until(room, t):
+    """Ngày trả phòng dự kiến (hôm nay hoặc sau) của khách vãng lai đang ở phòng này; None nếu không có / đã quá ngày đó
+    (khách ở quá ngày đã báo = lại chưa rõ ngày đi)."""
     until = str(room.get('expected_checkout_date') or '').strip()
-    return until if (room.get('status') == OCCUPIED and _DATE_RE.match(until) and until > t) else None
+    return until if (room.get('status') == OCCUPIED and _DATE_RE.match(until) and until >= t) else None
+
+
+def walkin_checkout_date(value, today):
+    """Ngày trả phòng dự kiến nhân viên nhập khi khách vãng lai check-in tại quầy / ở thêm (/api/hotel/rooms/<id>/checkin,
+    /expected_checkout): để trống -> None (chưa rõ ngày đi); có thì phải là ngày 'YYYY-MM-DD' theo giờ khách sạn, SAU hôm
+    nay, trong vòng 1 năm. Sai -> HotelRequestError (câu VI + EN cho nhân viên)."""
+    s = str(value if value is not None else '').strip()
+    if not s:
+        return None
+    day = parse_day(s)
+    if day <= today:
+        raise HotelRequestError('expected_checkout_not_after_today',
+                                f"The expected check-out date must be after today ({today.isoformat()}).",
+                                f"Ngày trả phòng dự kiến phải sau hôm nay ({today.isoformat()}).")
+    if (day - today).days > MAX_ADVANCE_DAYS:
+        raise HotelRequestError('too_far_ahead', 'The expected check-out date must be within one year.',
+                                'Ngày trả phòng dự kiến phải trong vòng 1 năm tới.')
+    return day.isoformat()
 
 
 def open_walkins(business_id, rooms, today):
     """Phòng 'Đang ở' KHÔNG rõ ngày khách rời đi: không có đặt phòng nào của chính phòng đó phủ hôm nay / trả phòng hôm nay,
-    cũng không có expected_checkout_date — khách vãng lai check-in tại quầy (/api/hotel/rooms/<id>/checkin không ghi ngày
-    trả phòng). Đêm nay đã bận (_night_state); các đêm sau chưa biết khách còn ở hay không nên phòng đó chỉ được xếp khi
-    các phòng khác cùng loại đã hết, và KHÔNG BAO GIỜ tự xác nhận (pending + báo nhân viên)."""
+    cũng không có expected_checkout_date (hoặc đã quá ngày đó) — khách vãng lai check-in tại quầy mà nhân viên để trống ô
+    ngày trả phòng dự kiến. Đêm nay đã bận (_night_state); các đêm sau chưa biết khách còn ở hay không nên phòng đó chỉ
+    được xếp khi các phòng khác cùng loại đã hết, và KHÔNG BAO GIỜ tự xác nhận (pending + báo nhân viên)."""
     if today is None:
         return set()
     t = today.isoformat()

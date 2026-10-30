@@ -71,9 +71,16 @@ def facts(shop, data):
     lines.append(f"- Check-in from: {data['checkin_time'] or 'NOT published'}; check-out by: {data['checkout_time'] or 'NOT published'} "
                  "(early check-in is only ever 'subject to availability — the hotel decides').")
     fc = data['free_cancel_hours']
-    lines.append('- Cancellation: pending requests can be cancelled anytime; confirmed bookings free until '
-                 + (f'{fc} hours before check-in' if fc is not None else 'the day before check-in (no hours published)')
-                 + ', after that the hotel decides.')
+    # Đúng luật đang áp (reservations_hotel.cancel_allowed + ai_packs/hotel._cancel_booking): chưa có giờ nhận phòng thì hạn
+    # tính từ 00:00 ngày nhận phòng; yêu cầu 'pending' từ ngày nhận phòng do quầy lễ tân xử lý.
+    if fc in (None, ''):
+        window = 'the day before check-in (no hours published)'
+    elif data['checkin_time']:
+        window = f"{fc} hours before check-in ({data['checkin_time']})"
+    else:
+        window = f'{fc} hours before 00:00 (the start) of the check-in day (no check-in time published)'
+    lines.append('- Cancellation: pending requests can be cancelled until the day before check-in (from the check-in day '
+                 'on, the front desk handles it); confirmed bookings free until ' + window + ', after that the hotel decides.')
     lines.append(k.info_line(shop))
     return '\n'.join(lines)
 
