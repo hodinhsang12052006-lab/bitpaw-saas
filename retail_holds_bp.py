@@ -36,9 +36,13 @@ LIST_LIMIT = 200
 KINDS = {
     'holds': {'industry': 'retail', 'coll': 'retail_holds', 'open': ('pending', 'ready'), 'admin_only': False},
     'quotes': {'industry': 'production', 'coll': 'quote_requests', 'open': ('new', 'contacted', 'quoted'),
-               'set': ('new', 'contacted', 'quoted', 'won', 'lost'), 'admin_only': True},
+               'set': ('new', 'contacted', 'quoted', 'won', 'lost'), 'admin_only': True,
+               # luật chuyển trạng thái (server kiểm): trạng thái hiện tại -> được đổi sang. Khớp nút PAGE_TEXT[...]['actions']
+               'next': {'new': ('contacted', 'quoted', 'lost'), 'contacted': ('quoted', 'lost'), 'quoted': ('won', 'lost'),
+                        'won': ('quoted',), 'lost': ('new',)}},
     'consultations': {'industry': 'office', 'coll': 'consultation_requests', 'open': ('pending', 'confirmed'),
-                      'set': ('pending', 'confirmed', 'done', 'declined', 'cancelled'), 'admin_only': False},
+                      'set': ('pending', 'confirmed', 'done', 'declined', 'cancelled'), 'admin_only': False,
+                      'next': {'pending': ('confirmed', 'declined', 'cancelled'), 'confirmed': ('done', 'cancelled')}},
 }
 VI_DOW = ('T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN')
 
@@ -236,9 +240,18 @@ def _set_request_status(kind, rid):
     upd = {'status': new, f'{new}_at': now, 'updated_at': now, 'updated_by': f"staff:{session.get('user_id') or ''}"[:80]}
     if 'staff_note' in body:
         upd['staff_note'] = re.sub(r'\s+', ' ', str(body.get('staff_note') or '')).strip()[:300]
-    res = db[cfg['coll']].update_one({'id': rid, 'business_id': bid}, {'$set': upd})
+    # nguyên tử: chỉ đổi khi trạng thái HIỆN TẠI cho phép -> trang cũ (người khác vừa đổi) bấm sau bị 409, không đè
+    allowed_from = [s for s, nxt in cfg['next'].items() if new in nxt]
+    res = db[cfg['coll']].update_one({'id': rid, 'business_id': bid, 'status': {'$in': allowed_from}}, {'$set': upd})
     if not res.matched_count:
-        return _err(404, 'Không tìm thấy yêu cầu này.', 'Request not found.')
+        cur = db[cfg['coll']].find_one({'id': rid, 'business_id': bid}, {'_id': 0, 'status': 1})
+        if not cur:
+            return _err(404, 'Không tìm thấy yêu cầu này.', 'Request not found.')
+        st = cur.get('status')
+        vi_lab, en_lab = PAGE_TEXT[kind]['vi']['status'], PAGE_TEXT[kind]['en']['status']
+        return _err(409, f"Yêu cầu này đang ở trạng thái \"{vi_lab.get(st, st)}\", không chuyển sang \"{vi_lab.get(new, new)}\" được.",
+                    f"This request is already \"{en_lab.get(st, st)}\" and can't be changed to \"{en_lab.get(new, new)}\".",
+                    current_status=st)
     row = db[cfg['coll']].find_one({'id': rid, 'business_id': bid}, {'_id': 0})
     fmt = _quote_row if kind == 'quotes' else _consult_row
     return jsonify({'success': True, 'item': fmt(row or {}, _vi())})
