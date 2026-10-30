@@ -327,9 +327,18 @@ def _check(args, ctx):
 
 def _dup_result(dup, ctx, name, note, cur):
     if not rc.is_owned(dup, ctx):
-        return {'success': True, 'already_reserved': True,
-                'note': "This phone number already has a booking at exactly this time. Do not create another one. It can't "
-                        'be viewed or changed from this chat — the customer can call the venue.'}
+        # Chat chưa chứng minh là chủ: KHÔNG nói "SĐT này đã có phòng đúng giờ này" (dò được giờ người khác tới quán). Không tạo
+        # đặt phòng thứ 2; ghi chú cho quán tự liên hệ khách — trả lời như 1 yêu cầu chờ quán xác nhận.
+        when = str(dup.get('reserved_time') or '')[:16].replace('T', ' ')
+        _staff_note(ctx, f"🎤 Chat AI xin đặt phòng {when} cho {name} — SĐT này đã có đặt phòng #{dup.get('id')} đúng giờ đó "
+                         "nên AI KHÔNG tạo thêm (chat chưa xác minh là chủ). Quán liên hệ khách để xác nhận.",
+                    f"🎤 The AI chat asked for a room at {when} for {name} — this phone number already has booking "
+                    f"#{dup.get('id')} at that time, so nothing new was created (the chat isn't verified as its owner). "
+                    "Please confirm with the customer.")
+        return {'success': True, 'request_sent_to_team': True, 'confirmed': False, 'status': 'pending',
+                'say': _say('pending'),
+                'note': 'Passed to the venue, which confirms it with the customer by phone. Nothing new was booked in this '
+                        'chat: give no booking number and never say it is confirmed.'}
     upd = {}
     if name and name != dup.get('customer_name'):
         upd['customer_name'] = name

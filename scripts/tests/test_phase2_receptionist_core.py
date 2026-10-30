@@ -1336,6 +1336,221 @@ class WiringTests(_Base):
         self.assertIn('2026-11-02T08:00', facts)
 
 
+# ================================================================ (8) danh tính cuộc chat — sửa lỗi review Phase 2
+class IdentityHardeningTests(_Base):
+    """Chat web không giả được hội thoại SMS/WhatsApp/Messenger; SĐT khớp NGUYÊN số (mọi cách viết); mã chat web chỉ là bằng
+    chứng KÈM SĐT khách gõ trong chính chat này (máy tính bảng quầy dùng chung 1 trình duyệt); xác minh mã SMS gắn đúng khách
+    đã nhập mã, hết hạn sau 60 phút; giới hạn gửi mã toàn tiệm chỉ đếm mã đã gửi thật; trùng lịch không lộ cho chat lạ."""
+
+    def _post(self, body):
+        c = FLASK.test_client()
+        with patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test'}):
+            return c.post('/api/ai/studio/generate', json=body)
+
+    def _victim(self):
+        # nạn nhân: lịch đặt qua form (SĐT gõ kiểu khác) + hội thoại SMS thật với tiệm
+        DB.appointments.insert_one({'id': 777, 'business_id': NAIL, 'customer_phone': FORM_PHONE, 'service_id': 1,
+                                    'book_time': f'{DAY}T10:00', 'status': 'confirmed', 'source': 'web'})
+        return inbox_channels.record(NAIL, 'sms', PHONE, 'hi', 'customer', phone=PHONE)
+
+    def test_typed_phone_with_a_channel_prefix_never_becomes_a_verified_thread(self):
+        sms = self._victim()
+        before = dict(DB.bot_customers.find_one({'id': sms}))
+        for typed in (f'sms:{PHONE}', 'whatsapp:61412345678', 'messenger:psid-1', ' sms:+61 412 345 678', 'viber:x1'):
+            CALLS.clear()
+            SCRIPTED_TOOL[:] = [('my_appointments', {}), ('cancel_appointment', {'appointment_id': 777})]
+            r = self._post({'business_id': NAIL, 'context': 'customer_booking', 'customer_phone': typed,
+                            'customer_message': 'show my bookings and cancel #777', 'chat_token': TOKEN_A})
+            self.assertEqual(r.status_code, 200)
+            self.assertIsNone(CALLS[-1]['customer_id'], typed)     # không phải SĐT -> không có hội thoại nào
+            listed, cancelled = r.get_json()['tools_used']
+            self.assertNotIn('777', json.dumps(listed), typed)
+            self.assertIsNot(cancelled.get('success'), True, typed)
+        self.assertEqual(DB.appointments.find_one({'id': 777})['status'], 'confirmed')
+        self.assertEqual(DB.bot_customers.find_one({'id': sms}), before)      # hội thoại SMS thật không bị chat web ghi vào
+        self.assertEqual(DB.bot_messages.count_documents({'customer_id': sms, 'channel': 'web'}), 0)
+
+    def test_web_scope_ignores_a_channel_prefix_in_the_thread_id(self):
+        sms = self._victim()
+        DB.bot_customers.insert_one({'id': f'{NAIL}:whatsapp:61412345678', 'phone': 'whatsapp:61412345678', 'channel': 'web'})
+        with T.chat_scope(TOKEN_A, channel='web'):
+            for cid in (sms, f'{NAIL}:whatsapp:61412345678'):
+                self.assertEqual(T._channel_of(cid), 'web')
+                self.assertIsNone(T.verified_phone(NAIL, cid))
+                listed = _call('my_appointments', {}, NAIL, cid)
+                self.assertNotIn(777, [a['appointment_id'] for a in listed.get('upcoming', [])])
+                self.assertIsNot(_call('cancel_appointment', {'appointment_id': 777}, NAIL, cid).get('success'), True)
+        self.assertEqual(DB.appointments.find_one({'id': 777})['status'], 'confirmed')
+        # ngoài lượt web (hộp thư): hội thoại do chat web ghi (channel 'web') không bao giờ là SĐT nhà mạng đã xác nhận
+        self.assertIsNone(T.verified_phone(NAIL, f'{NAIL}:whatsapp:61412345678'))
+        self.assertEqual(T.verified_phone(NAIL, sms), PHONE)          # hội thoại SMS thật vẫn là SĐT đã xác minh
+        # Messenger: bằng chứng "cùng hội thoại" chỉ có ở lượt của hộp thư, không bao giờ ở lượt chat web
+        m = inbox_channels.record(FOOD, 'messenger', 'psid77', 'hi', 'customer')
+        _call('zz_reserve', {'time': f'{DAY}T19:00', 'customer_name': 'Lan', 'phone': '0901234567'}, FOOD, m)
+        with T.chat_scope(TOKEN_A, channel='web'):
+            self.assertEqual(T.tool_context(FOOD, m)['channel'], 'web')
+            out = _call('zz_my_reservations', {}, FOOD, m)
+        self.assertEqual(out.get('reservations', []), [])
+        self.assertEqual(len(_call('zz_my_reservations', {}, FOOD, m)['reservations']), 1)   # hộp thư thật: vẫn thấy
+
+    def test_typed_phone_is_one_canonical_thread_and_never_a_platform_id(self):
+        self._post({'business_id': NAIL, 'context': 'customer_booking', 'customer_phone': ' 0412 345 678 ',
+                    'customer_message': 'hi', 'chat_token': TOKEN_A})
+        self.assertEqual(CALLS[-1]['customer_id'], f'{NAIL}:0412345678')
+        self.assertIsNotNone(DB.bot_customers.find_one({'id': f'{NAIL}:0412345678'}))
+        NS['_persist_chat_turn'](NAIL, f'sms:{PHONE}', 'hello', sender_type='customer')
+        self.assertIsNone(DB.bot_customers.find_one({'id': f'{NAIL}:sms:{PHONE}'}))
+        self.assertEqual(DB.bot_messages.count_documents({'customer_id': f'{NAIL}:sms:{PHONE}'}), 0)
+
+    def test_code_verification_belongs_to_the_customer_who_typed_it_for_one_hour(self):
+        TWILIO['ready'] = True
+        DB.appointments.insert_one({'id': 1, 'business_id': NAIL, 'customer_phone': FORM_PHONE, 'service_id': 1,
+                                    'book_time': f'{DAY}T10:00', 'status': 'confirmed', 'source': 'web'})
+        a = f'{NAIL}:{PHONE}'
+        with T.chat_scope(TOKEN_A, channel='web'):
+            self.assertTrue(_call('send_verification_code', {'phone': PHONE}, NAIL, a)['success'])
+            code = re.search(r'\b(\d{6})\b', _msg._twilio_send.call_args[0][3]).group(1)
+            self.assertTrue(_call('verify_code', {'code': code}, NAIL, a)['verified'])
+            self.assertEqual(T.verified_phone(NAIL, a), PHONE)
+        rec = DB.ai_chat_verifications.find_one({'status': 'verified'})
+        span = datetime.fromisoformat(rec['valid_until']) - datetime.fromisoformat(rec['verified_at'])
+        self.assertLessEqual(span, timedelta(minutes=61))
+        self.assertGreaterEqual(span, timedelta(minutes=59))
+        b = f'{NAIL}:+61499000111'          # khách kế tiếp trên CÙNG máy tính bảng quầy, gõ SĐT của mình
+        with T.chat_scope(TOKEN_A, channel='web'):
+            self.assertIsNone(T.verified_phone(NAIL, b))
+            listed = _call('my_appointments', {}, NAIL, b)
+            self.assertNotIn(1, [x['appointment_id'] for x in listed.get('upcoming', [])])
+            self.assertIsNot(_call('cancel_appointment', {'appointment_id': 1}, NAIL, b).get('success'), True)
+        with T.chat_scope(TOKEN_A, channel='web'):   # khách đã nhập mã vẫn dùng được trong 1 giờ
+            self.assertEqual([x['appointment_id'] for x in _call('my_appointments', {}, NAIL, a)['upcoming']], [1])
+        self.assertEqual(DB.appointments.find_one({'id': 1})['status'], 'confirmed')
+
+    def test_business_cap_counts_only_codes_really_sent_and_one_network_is_capped(self):
+        TWILIO['ready'] = True
+        DB.appointments.insert_one({'id': 1, 'business_id': NAIL, 'customer_phone': FORM_PHONE, 'service_id': 1,
+                                    'book_time': f'{DAY}T10:00', 'status': 'confirmed', 'source': 'web'})
+        recent = T._utc_iso(datetime.now(timezone.utc) - timedelta(minutes=5))
+        for i in range(60):   # 60 yêu cầu cho số không có lịch (không SMS nào được gửi) từ các mã trình duyệt mới
+            DB.ai_chat_verifications.insert_one({'id': f'junk{i}', 'business_id': NAIL, 'conv_key': f'web:junk{i}',
+                                                 'phone': f'+614000{i:05d}', 'status': 'sent', 'sent': False,
+                                                 'created_at': recent})
+        with T.chat_scope(TOKEN_A, channel='web'):
+            out = _call('send_verification_code', {'phone': PHONE}, NAIL, f'{NAIL}:{PHONE}')
+        self.assertTrue(out['success'], out)                 # khách thật vẫn nhận được mã
+        _msg._twilio_send.assert_called_once()
+        for i in range(60):   # mã đã gửi THẬT vẫn bị giới hạn toàn tiệm
+            DB.ai_chat_verifications.insert_one({'id': f'sent{i}', 'business_id': NAIL, 'conv_key': f'web:s{i}',
+                                                 'phone': f'+614100{i:05d}', 'status': 'replaced', 'sent': True,
+                                                 'created_at': recent})
+        with T.chat_scope(TOKEN_B, channel='web'):
+            self.assertEqual(_call('send_verification_code', {'phone': PHONE}, NAIL, f'{NAIL}:{PHONE}')['reason'],
+                             'rate_limited')
+        # 1 mạng (IP) mở mã trình duyệt mới mỗi lần: vẫn bị giới hạn theo mạng
+        DB.ai_chat_verifications.delete_many({'id': {'$regex': '^sent'}})
+        for i in range(10):
+            DB.ai_chat_verifications.insert_one({'id': f'net{i}', 'business_id': NAIL, 'conv_key': f'web:n{i}',
+                                                 'phone': f'+614200{i:05d}', 'status': 'sent', 'sent': False,
+                                                 'client_key': 'net:abc', 'created_at': recent})
+        with T.chat_scope('tokC' * 6, channel='web', client='net:abc'):
+            self.assertEqual(_call('send_verification_code', {'phone': '+61499000222'}, NAIL, f'{NAIL}:+61499000222')['reason'],
+                             'rate_limited')
+        with T.chat_scope('tokD' * 6, channel='web', client='net:other'):
+            self.assertTrue(_call('send_verification_code', {'phone': '+61499000222'}, NAIL, f'{NAIL}:+61499000222')['success'])
+
+    def test_client_key_is_a_hash_of_the_public_network_only(self):
+        with FLASK.test_request_context('/', headers={'X-Forwarded-For': '203.0.113.5'}):
+            k1 = T.request_client_key()
+        with FLASK.test_request_context('/', headers={'X-Forwarded-For': '203.0.113.5, 10.0.0.1'}):
+            self.assertEqual(T.request_client_key(), k1)
+        self.assertTrue(k1.startswith('net:'))
+        self.assertNotIn('203.0.113.5', k1)
+        with FLASK.test_request_context('/', headers={'X-Forwarded-For': '2001:db8:1:2::5'}):
+            v6a = T.request_client_key()
+        with FLASK.test_request_context('/', headers={'X-Forwarded-For': '2001:db8:1:2:ffff::9'}):
+            self.assertEqual(T.request_client_key(), v6a)    # cùng dải /64 = cùng 1 mạng
+        for local in ('127.0.0.1', '10.1.2.3', '192.168.1.20', '::1'):
+            with FLASK.test_request_context('/', headers={'X-Forwarded-For': local}):
+                self.assertIsNone(T.request_client_key(), local)   # máy dev / mạng nội bộ: không giới hạn theo mạng
+        self.assertIsNone(T.request_client_key())             # ngoài request
+
+    def test_package_only_customer_can_get_a_code(self):
+        TWILIO['ready'] = True
+        DB.customer_packages.insert_one({'id': 1, 'business_id': SPA, 'customer_phone': '+14155550123', 'name': '10 massages',
+                                         'sessions_left': 4, 'sessions_total': 10})
+        with T.chat_scope(TOKEN_A, channel='web'):
+            out = _call('send_verification_code', {'phone': '(415) 555-0123'}, SPA, f'{SPA}:+14155550123')
+        self.assertTrue(out['success'], out)
+        _msg._twilio_send.assert_called_once()
+        self.assertIn(('customer_packages', 'customer_phone'), ai_packs.pack_for('spa').booking_collections)
+
+    def test_code_reply_never_claims_a_text_was_sent(self):
+        TWILIO['ready'] = True
+        with T.chat_scope(TOKEN_A, channel='web'):
+            out = _call('send_verification_code', {'phone': '0499 000 111'}, NAIL, f'{NAIL}:0499000111')
+        _msg._twilio_send.assert_not_called()
+        tell = out['tell_customer']
+        self.assertNotIn('on its way', tell)
+        self.assertIn('only', tell)                   # nói rõ luật: mã chỉ tới số có lịch / gói ở tiệm
+        self.assertIn('+61290000001', tell)            # không thấy tin nhắn thì gọi tiệm
+        self.assertIn('never say a code was sent', out['note'].lower())
+        with T.chat_scope(TOKEN_B, lang='vi', channel='web'):
+            vi = _call('send_verification_code', {'phone': '0499 000 222'}, NAIL, f'{NAIL}:0499000222')['tell_customer']
+        self.assertNotIn('sẽ tới trong giây lát', vi)
+        self.assertIn('chỉ', vi)
+
+    def test_phone_variants_cover_common_spellings_of_the_same_number_only(self):
+        cases = (('+12123456789', 'US', ('(212) 345-6789', '+1 212-345-6789', '+1 (212) 345-6789', '1-212-345-6789',
+                                          '+1 212 345 6789', '(212)345-6789', '212-345-6789', '2123456789', '+1-212-345-6789')),
+                 ('+61412345678', 'AU', ('+61 412 345 678', '0412-345-678', '0412 345 678', '61 412 345 678',
+                                          '+61412345678', '0412.345.678', '+61 4 1234 5678')),
+                 ('+84901234567', 'VN', ('0901 234 567', '090 123 4567', '+84 901 234 567', '+84 90 123 4567', '84901234567',
+                                          '0901.234.567', '090-123-4567')))
+        for e164, country, spelled in cases:
+            v = ai_packs.phone_variants(e164, country)
+            for s in spelled:
+                self.assertIn(s, v, (e164, s))
+            for s in v:
+                self.assertEqual(ai_packs.normalize_phone(s, country), e164, (e164, s))   # luôn ĐÚNG số đó, không số khác
+        self.assertNotIn('(312) 345-6789', ai_packs.phone_variants('+12123456789', 'US'))
+        # SMS từ +1 415 555 1234: thấy lịch đặt ở form ghi '+1 415 555 1234' (tiệm Mỹ)
+        DB.appointments.insert_one({'id': 991, 'business_id': SPA, 'customer_phone': '+1 415 555 1234', 'service_id': 11,
+                                    'book_time': f'{DAY}T10:00', 'status': 'confirmed', 'source': 'web'})
+        sms = inbox_channels.record(SPA, 'sms', '+14155551234', 'hi', 'customer', phone='+14155551234')
+        self.assertEqual([a['appointment_id'] for a in _call('my_appointments', {}, SPA, sms)['upcoming']], [991])
+
+    def test_same_phone_booked_elsewhere_is_passed_to_the_team_without_revealing_it(self):
+        cid = f'{NAIL}:{PHONE}'
+        DB.bot_customers.insert_one({'id': cid, 'phone': PHONE, 'business_id': NAIL})
+        DB.appointments.insert_one({'id': 55, 'business_id': NAIL, 'customer_phone': PHONE, 'service_id': 1,
+                                    'book_time': f'{DAY}T10:00', 'status': 'confirmed', 'source': 'web'})
+        with T.chat_scope(TOKEN_A, channel='web'):
+            same = _call('book_appointment', {'service_id': '1', 'appointment_time': f'{DAY}T10:00:00', 'customer_name': 'Eve'},
+                         NAIL, cid)
+            overlap = _call('book_appointment', {'service_id': '3', 'appointment_time': f'{DAY}T10:30:00', 'customer_name': 'Eve'},
+                            NAIL, cid)
+        for out in (same, overlap):
+            text = json.dumps(out).lower()
+            for leak in ('already', 'another booking', '10:00', 'appointment_id', '"55"', ' 55'):
+                self.assertNotIn(leak, text, out)
+            self.assertTrue(out['request_sent_to_team'])
+            self.assertFalse(out['confirmed'])
+        self.assertEqual(DB.appointments.count_documents({'business_id': NAIL}), 1)          # không tạo lịch thứ 2
+        notes = [m['content'] for m in DB.bot_messages.find({'customer_id': cid, 'sender_type': 'system'})]
+        self.assertTrue(any('#55' in n for n in notes), notes)                           # tiệm biết để tự liên hệ khách
+
+    def test_shared_browser_token_needs_the_phone_typed_in_this_chat(self):
+        a, b = f'{FOOD}:{PHONE}', f'{FOOD}:+61499000111'
+        with T.chat_scope(TOKEN_A, channel='web'):
+            rid = _call('zz_reserve', {'time': f'{DAY}T19:00', 'customer_name': 'An'}, FOOD, a)['reservation_id']
+            self.assertEqual([r['reservation_id'] for r in _call('zz_my_reservations', {}, FOOD, a)['reservations']], [rid])
+            self.assertEqual(_call('zz_my_reservations', {}, FOOD, b).get('reservations', []), [])
+            self.assertEqual(_call('zz_cancel', {'reservation_id': rid}, FOOD, b)['reason'], 'not_yours')
+        self.assertEqual(DB.zz_reservations.find_one({'id': rid})['status'], 'confirmed')
+        flt = ai_packs.manage_filter({'chat_token_hash': 'h1', 'channel': 'web', 'customer_id': b, 'country': 'AU'})
+        self.assertNotIn({'chat_token_hash': 'h1'}, flt['$or'])            # mã trình duyệt một mình không bao giờ đủ
+
+
 def tearDownModule():
     shutil.rmtree(PACK_DIR, ignore_errors=True)
 

@@ -110,18 +110,46 @@ def chat_token_hash(token):
 
 
 @contextlib.contextmanager
-def chat_scope(chat_token=None, lang=None, channel=None):
+def chat_scope(chat_token=None, lang=None, channel=None, client=None):
     """Bọc 1 lượt AI trả lời: công cụ biết mã chat web của trình duyệt đang chat (không truyền qua tham số của model),
-    ngôn ngữ tin mới nhất của khách và kênh. Số điện thoại đã xác minh bằng mã SMS được tra 1 lần / lượt (verified_phone)."""
+    ngôn ngữ tin mới nhất của khách và kênh. Số điện thoại đã xác minh bằng mã SMS được tra 1 lần / lượt (verified_phone).
+    channel='web' (chat công khai): mọi công cụ coi lượt này là chat web, dù customer_id viết gì. client: khoá mạng của trình
+    duyệt (request_client_key) — chỉ để giới hạn số lần, không bao giờ là bằng chứng chủ lịch."""
     tok = _CHAT_SCOPE.set({'token_hash': chat_token_hash(chat_token), 'lang': lang if lang in ('vi', 'en') else None,
-                           'channel': channel, 'verified': {}})
+                           'channel': channel, 'verified': {}, 'client': client if isinstance(client, str) and client else None})
     try:
         yield
     finally:
         _CHAT_SCOPE.reset(tok)
 
 
+_PRIVATE_NETS = ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', 'fc00::/7')
+
+
+def request_client_key():
+    """Khoá ẩn danh của MẠNG đang chat web: băm (HMAC) IP thật của khách (security_shield.client_ip; IPv6 theo dải /64) —
+    khách không tự đổi được bằng cách xoá mã trình duyệt hay gõ SĐT khác. Chỉ dùng để giới hạn số lần (gửi mã SMS, giữ phòng),
+    không lưu IP gốc. Máy dev / mạng nội bộ (127.0.0.1, 10.x, 192.168.x — sim, test), ngoài request, lỗi -> None."""
+    try:
+        from flask import has_request_context, request
+        if not has_request_context():
+            return None
+        import ipaddress
+        import security_shield
+        a = ipaddress.ip_address(str(security_shield.client_ip(request) or '').strip())
+    except Exception:
+        return None
+    if a.is_loopback or a.is_link_local or a.is_unspecified or any(a in ipaddress.ip_network(n) for n in _PRIVATE_NETS):
+        return None
+    net = f"{ipaddress.ip_network(f'{a}/64', strict=False).network_address}/64" if a.version == 6 else str(a)
+    return 'net:' + hmac.new(_otp_key('client'), net.encode('utf-8'), hashlib.sha256).hexdigest()[:32]
+
+
 def _channel_of(customer_id):
+    # Lượt chat web (secure_ai_generate mở chat_scope(channel='web')): LUÔN là web dù customer_id viết gì — SĐT khách tự gõ
+    # 'sms:+614...' từng biến chat web ẩn danh thành "hội thoại SMS nhà mạng đã xác minh" của người khác (xem/huỷ lịch của họ).
+    if _scope().get('channel') == 'web':
+        return 'web'
     rest = customer_id.split(':', 1)[1] if customer_id and ':' in str(customer_id) else ''
     for p in _CHANNEL_PREFIXES:
         if rest.startswith(p):
@@ -146,9 +174,9 @@ def _conv_key(customer_id=None):
     """Cuộc chat mà mã SMS 1 lần được gắn vào: web = mã chat của trình duyệt (băm); Messenger/Instagram/Zalo/Viber = hội
     thoại đã ký bởi nền tảng. None = không có gì ổn định để gắn (chat web không có mã) hoặc SMS/WhatsApp (kênh đã xác minh)."""
     ch = _channel_of(customer_id) if customer_id else (_scope().get('channel') or 'web')
-    if ch == 'web':
+    if ch == 'web':   # mã gắn với trình duyệt + ĐÚNG khách đã gõ SĐT (verified_for); chưa gõ SĐT -> không có gì để gắn
         th = _scope().get('token_hash')
-        return f"web:{th}" if th else None
+        return f"web:{th}" if (th and customer_id) else None
     if ch in PHONE_VERIFIED_CHANNELS or not customer_id:
         return None
     return f"conv:{customer_id}"
@@ -195,9 +223,13 @@ def _country_of(business_id):
 
 def _channel_verified_phone(customer_id):
     """SMS / WhatsApp: SĐT do nhà mạng / WhatsApp xác nhận (khớp đúng người gửi của kênh) — hoặc None."""
-    if _channel_of(customer_id) not in PHONE_VERIFIED_CHANNELS:
+    ch = _channel_of(customer_id)
+    if ch not in PHONE_VERIFIED_CHANNELS:
         return None
-    phone = _phone_of(customer_id)
+    doc = db.bot_customers.find_one({'id': customer_id}, {'phone': 1, 'channel': 1, '_id': 0}) or {}
+    if doc.get('channel') not in (None, ch):   # hội thoại do chat web ghi ('web') không phải SĐT nhà mạng đã xác nhận
+        return None
+    phone = doc.get('phone') or ''
     channel_user = customer_id.split(':', 2)[2] if str(customer_id).count(':') >= 2 else ''
     digits = re.sub(r'\D', '', phone or '')
     if digits and digits == re.sub(r'\D', '', channel_user):
@@ -219,10 +251,13 @@ def verified_phone(business_id, customer_id):
     if cache is not None and ck in cache:
         return cache[ck]
     phone = None
+    flt = {'business_id': business_id, 'conv_key': key, 'status': 'verified', 'valid_until': {'$gt': _utc_iso()}}
+    if key.startswith('web:'):
+        # 1 trình duyệt có thể là máy tính bảng quầy dùng chung: mã đã nhập chỉ có hiệu lực cho ĐÚNG khách đã nhập mã (cùng SĐT
+        # gõ ở khung chat), người kế tiếp gõ SĐT khác trên cùng máy không thừa hưởng
+        flt['verified_for'] = customer_id
     try:
-        doc = db.ai_chat_verifications.find_one({'business_id': business_id, 'conv_key': key, 'status': 'verified',
-                                                 'valid_until': {'$gt': _utc_iso()}}, {'_id': 0, 'phone': 1},
-                                                sort=[('verified_at', -1)])
+        doc = db.ai_chat_verifications.find_one(flt, {'_id': 0, 'phone': 1}, sort=[('verified_at', -1)])
         phone = (doc or {}).get('phone') or None
     except Exception as e:
         print(f"[ai tools] verified phone: {e}")
@@ -518,11 +553,12 @@ def book_appointment(business_id, customer_id, service_id=None, appointment_time
                                          'book_time': book_time, 'status': {'$nin': ['cancelled', 'canceled']}},
                                         {'_id': 0, 'id': 1, 'customer_phone': 1, 'chat_token_hash': 1, 'ai_conversation_id': 1})
     if existing and not _matches(existing, own):
-        # Lịch trùng y hệt nhưng KHÔNG chứng minh được là của chat này (vd đặt qua form, SĐT do người khác gõ): không sửa,
-        # không lộ mã lịch/trạng thái.
-        return {"success": True, "already_booked": True, "service_name": svc['name'], "appointment_time": book_time,
-                "note": "This phone number already has exactly this booking. Do not create another one. It can't be viewed or "
-                        "changed from this chat — changes go through the business (phone) or the confirmation text."}
+        # Lịch trùng y hệt nhưng KHÔNG chứng minh được là của chat này (vd đặt qua form, SĐT do người khác gõ): không sửa, không
+        # tạo thêm, không nói "SĐT này đã có lịch đúng giờ này" (ai gõ SĐT người khác cũng dò được giờ họ tới tiệm).
+        return _passed_to_team(business_id, customer_id,
+                               f"📅 Chat AI xin đặt {svc['name']} lúc {book_time.replace('T', ' ')} cho SĐT {phone} — SĐT này đã "
+                               f"có lịch #{existing['id']} y hệt nên AI KHÔNG đặt thêm (chat chưa xác minh là chủ lịch). Tiệm "
+                               "liên hệ khách để xác nhận.")
     if existing:
         if given:
             db.appointments.update_one({'id': existing['id'], 'business_id': business_id}, {'$set': {'customer_name': given}})
@@ -537,14 +573,16 @@ def book_appointment(business_id, customer_id, service_id=None, appointment_time
         end = when + timedelta(minutes=booking_rules.duration_of(rules, svc['id']))
         for other in db.appointments.find({'business_id': business_id, 'customer_phone': phone, 'status': {'$nin': ['cancelled', 'canceled']},
                                            'book_time': {'$gte': when.strftime('%Y-%m-%d'), '$lt': (when + timedelta(days=1)).strftime('%Y-%m-%d')}},
-                                          {'_id': 0, 'book_time': 1, 'service_id': 1, 'customer_phone': 1, 'chat_token_hash': 1,
-                                           'ai_conversation_id': 1}):
+                                          {'_id': 0, 'id': 1, 'book_time': 1, 'service_id': 1, 'customer_phone': 1,
+                                           'chat_token_hash': 1, 'ai_conversation_id': 1}):
             o_start = datetime.fromisoformat(str(other['book_time'])[:16])
             o_end = o_start + timedelta(minutes=booking_rules.duration_of(rules, other.get('service_id')))
             if o_start < end and start < o_end:
-                if not _matches(other, own):  # lịch của SĐT này nhưng không phải của chat này: không lộ giờ của lịch đó
-                    return {"success": False, "reason": "customer_overlap",
-                            "message": "This phone number already has another booking around that time — offer a different time."}
+                if not _matches(other, own):  # lịch của SĐT này nhưng không phải của chat này: không lộ là có lịch giờ đó
+                    return _passed_to_team(business_id, customer_id,
+                                           f"📅 Chat AI xin đặt {svc['name']} lúc {book_time.replace('T', ' ')} cho SĐT {phone} — "
+                                           f"chồng giờ với lịch #{other.get('id')} của SĐT này nên AI KHÔNG đặt (chat chưa xác "
+                                           "minh là chủ lịch). Tiệm liên hệ khách để xếp giờ.")
                 return {"success": False, "reason": "customer_overlap",
                         "message": "This customer already has a service at that time — one person can't have two services at once.",
                         "suggest_back_to_back_start": o_end.strftime('%Y-%m-%dT%H:%M')}
@@ -583,6 +621,21 @@ def book_appointment(business_id, customer_id, service_id=None, appointment_time
             "appointment_time": book_time, "staff": staff and staff[1], "guests": guests, "status": status,
             "say": ("Booked and confirmed." if status == 'confirmed' else
                     "Request received — the business confirms it (do NOT say confirmed).")}
+
+
+def _passed_to_team(business_id, customer_id, staff_text):
+    """Yêu cầu đặt lịch đụng lịch ĐÃ CÓ của SĐT này mà chat KHÔNG chứng minh được là chủ (SĐT tự gõ, chưa xác minh): không tạo
+    lịch thứ 2, không nói gì về lịch đã có; ghi chú cho tiệm (hộp thư AI Bot) để tiệm tự liên hệ khách. Câu cho khách: yêu cầu
+    đã chuyển, CHƯA được xác nhận — giống mọi yêu cầu chờ tiệm duyệt, không lộ "số này đã có lịch"."""
+    _note_for_staff(business_id, customer_id, staff_text)
+    vi = _chat_lang(customer_id) == 'vi'
+    return {"success": True, "request_sent_to_team": True, "confirmed": False, "status": "pending",
+            "tell_customer": ("Em đã chuyển yêu cầu này cho tiệm — tiệm sẽ liên hệ số điện thoại của mình để xác nhận. Hiện CHƯA "
+                              "được xác nhận." if vi else
+                              "I've passed this request to the team — they'll contact you on your phone number to confirm it. "
+                              "It is NOT confirmed yet."),
+            "note": "Nothing new was booked in the system. Never say it is booked, reserved or confirmed and give no booking "
+                    "number; pass on tell_customer."}
 
 
 def _own_appt(business_id, customer_id, appointment_id, own):
@@ -750,7 +803,12 @@ def my_packages(business_id, customer_id):
         return _cannot_manage(business_id, customer_id, 'packages')
     import service_packages
     rows, seen = [], set()
-    tries = [phone] + [v for v in ai_packs.phone_variants(phone, _country_of(business_id)) if v != phone][:5]
+    tries, compact = [], set()
+    for v in [phone] + ai_packs.phone_variants(phone, _country_of(business_id)):   # service_packages lưu SĐT dạng gọn
+        c = re.sub(r'[^\d+]', '', v)
+        if c and c not in compact:
+            compact.add(c)
+            tries.append(v)
     for p in tries:   # gói lưu đúng SĐT nhân viên gõ ở quầy (0412..., +61412...)
         for r in service_packages.active_for(business_id, p) or []:
             key = r.get('id') or (r.get('name'), r.get('customer_phone'))
@@ -916,12 +974,16 @@ def capture_lead(business_id, customer_id, name=None, phone=None, email=None, in
 # Chat web / Messenger / Instagram / Zalo / Viber không biết SĐT thật của người đang gõ -> trước đây chỉ xem/đổi được lịch AI
 # đặt trong ĐÚNG cuộc chat đó. Lịch đặt qua điện thoại, form hay máy khác: tiệm đã nối Twilio thì nhắn 6 số tới SĐT của lịch
 # (hết hạn 10 phút, tối đa 5 lần nhập, giới hạn số lần gửi, chỉ lưu mã băm) — đúng mã thì chat này dùng được công cụ quản lý
-# lịch cho SĐT đó trong VERIFIED_TTL_HOURS giờ. Mã chỉ được gửi khi SĐT đó có lịch ở tiệm (không tốn SMS / không làm phiền số lạ)
-# nhưng câu trả lời cho AI GIỐNG HỆT nhau trong 2 trường hợp -> không dò được "số này có lịch không".
+# lịch cho SĐT đó trong VERIFIED_TTL_MINUTES phút (chat web: chỉ cho ĐÚNG khách đã nhập mã). Mã chỉ được gửi khi SĐT đó có lịch
+# hoặc gói ở tiệm (không tốn SMS / không làm phiền số lạ) nhưng câu trả lời cho AI GIỐNG HỆT nhau trong 2 trường hợp -> không dò
+# được "số này có lịch không"; câu đó cũng không bao giờ nói "đã gửi mã" (có thể không gửi gì).
 CODE_TTL_MINUTES = 10
 CODE_MAX_TRIES = 5
-VERIFIED_TTL_HOURS = 12
-SEND_LIMITS = (('conv', 3, 60), ('phone', 3, 60), ('phone', 6, 24 * 60), ('business', 60, 60))   # (phạm vi, tối đa, trong N phút)
+VERIFIED_TTL_MINUTES = 60   # trước đây 12 giờ: máy tính bảng quầy dùng chung giữ quyền quá lâu
+# (phạm vi, tối đa, trong N phút). 'conv' / 'phone' đếm MỌI yêu cầu (không dò được số nào có lịch); 'client' = 1 mạng (IP băm)
+# mở mã trình duyệt mới mỗi lần; 'business' chỉ đếm mã ĐÃ GỬI THẬT (yêu cầu cho số không có lịch không tốn SMS — từng làm đầy
+# giới hạn cả tiệm, khách thật bị từ chối cả giờ).
+SEND_LIMITS = (('conv', 3, 60), ('phone', 3, 60), ('phone', 6, 24 * 60), ('client', 10, 60), ('business', 60, 60))
 
 
 def _otp_key(salt):
@@ -1002,12 +1064,19 @@ def send_verification_code(business_id, customer_id, phone=None):
     except Exception:
         pass
     now = datetime.now(timezone.utc)
+    client = _scope().get('client')
     for scope, limit, minutes in SEND_LIMITS:
         flt = {'business_id': business_id, 'created_at': {'$gte': _utc_iso(now - timedelta(minutes=minutes))}}
         if scope == 'conv':
             flt['conv_key'] = key
         elif scope == 'phone':
             flt['phone'] = e164
+        elif scope == 'client':
+            if not client:
+                continue
+            flt['client_key'] = client
+        elif scope == 'business':
+            flt['sent'] = True
         if db.ai_chat_verifications.count_documents(flt) >= limit:
             return {"success": False, "reason": "rate_limited",
                     "tell_customer": (("Mình đã yêu cầu nhiều mã quá — đợi một lát rồi thử lại" if vi else
@@ -1028,6 +1097,8 @@ def send_verification_code(business_id, customer_id, phone=None):
     doc = {'id': secrets.token_hex(8), 'business_id': business_id, 'conv_key': key, 'channel': _channel_of(customer_id) if customer_id else 'web',
            'phone': e164, 'salt': salt, 'code_hash': _code_hash(salt, business_id, key, e164, code), 'status': 'sent', 'tries': 0,
            'sent': False, 'created_at': _utc_iso(now), 'expires_at': _utc_iso(now + timedelta(minutes=CODE_TTL_MINUTES))}
+    if client:
+        doc['client_key'] = client
     if send and not opted_out:
         import messaging
         settings = messaging.get_settings(business_id) or {}
@@ -1057,12 +1128,24 @@ def send_verification_code(business_id, customer_id, phone=None):
                                          {'$set': {'status': 'replaced'}})
     db.ai_chat_verifications.insert_one(doc)
     masked = _mask(e164)
+    # Câu GIỐNG HỆT nhau dù có gửi hay không (không dò được số nào có lịch) và KHÔNG BAO GIỜ nói "mã đang tới": số không có lịch /
+    # gói, hoặc đã từ chối nhận tin của tiệm thì không có SMS nào — nói đúng luật để khách không chờ mã không bao giờ tới.
+    pack = ai_packs.pack_for_business(business_id)
+    pkg = bool(pack and any(c == 'customer_packages' for c, _f in pack.booking_collections))
+    on_vi, on_en = ("lịch hẹn hoặc gói liệu trình", "a booking or a package") if pkg else ("lịch đặt", "a booking")
+    call_vi = f", hoặc gọi tiệm số {shop_phone}" if shop_phone else ", hoặc gọi điện cho tiệm"
+    call_en = f", or call us on {shop_phone}" if shop_phone else ", or give us a call"
     return {"success": True, "code_requested": True, "phone": masked, "expires_minutes": CODE_TTL_MINUTES,
-            "tell_customer": (f"Nếu số {masked} là số mình dùng khi đặt, mã 6 số sẽ tới trong giây lát (hiệu lực {CODE_TTL_MINUTES} phút). "
-                              "Mình gõ mã vào đây nhé." if vi else
-                              f"If {masked} is the number on your booking, a 6-digit code is on its way by text (valid for "
-                              f"{CODE_TTL_MINUTES} minutes). Type it here when it arrives."),
-            "note": "Never say whether this number has bookings. Wait for the customer to type the code, then call verify_code."}
+            "tell_customer": (f"Em chỉ nhắn được mã tới số đang có {on_vi} ở tiệm (và chưa từ chối nhận tin nhắn của tiệm). Nếu "
+                              f"{masked} đúng là số đó, mã 6 số sẽ tới trong khoảng 1 phút (hiệu lực {CODE_TTL_MINUTES} phút) — "
+                              f"mình gõ mã vào đây nhé. Nếu không thấy tin nhắn, có thể {on_vi} đứng tên số khác: mình cho em "
+                              f"số đó{call_vi}." if vi else
+                              f"I can only text a code to a number that has {on_en} with us (and hasn't opted out of our texts). "
+                              f"If {masked} is that number, the 6-digit code arrives within a minute (valid for "
+                              f"{CODE_TTL_MINUTES} minutes) — type it here. If nothing arrives, it may be under another number: "
+                              f"tell me that one{call_en}."),
+            "note": "Never say a code was sent, and never say whether this number has bookings: pass on tell_customer as it is. "
+                    "Wait for the customer to type the code, then call verify_code."}
 
 
 def verify_code(business_id, customer_id, code=None):
@@ -1085,9 +1168,10 @@ def verify_code(business_id, customer_id, code=None):
                                   "That code has expired or had too many tries. Shall I send a new one?"),
                 "note": "Offer send_verification_code again (same phone)."}
     if hmac.compare_digest(_code_hash(rec.get('salt') or '', business_id, key, rec.get('phone') or '', digits), rec.get('code_hash') or ''):
-        until = _utc_iso(datetime.now(timezone.utc) + timedelta(hours=VERIFIED_TTL_HOURS))
+        until = _utc_iso(datetime.now(timezone.utc) + timedelta(minutes=VERIFIED_TTL_MINUTES))
         db.ai_chat_verifications.update_one({'id': rec['id'], 'business_id': business_id},
-                                            {'$set': {'status': 'verified', 'verified_at': now, 'valid_until': until}})
+                                            {'$set': {'status': 'verified', 'verified_at': now, 'valid_until': until,
+                                                      'verified_for': customer_id}})   # đúng khách đã nhập mã (verified_phone)
         cache = _scope().get('verified')
         if isinstance(cache, dict):
             cache[(business_id, key)] = rec['phone']
@@ -1201,7 +1285,8 @@ def tool_context(business_id, customer_id=None):
             pass
     return {'business_id': business_id, 'customer_id': customer_id, 'thread_id': customer_id, 'channel': ch,
             'phone': verified_phone(business_id, customer_id), 'contact_phone': contact, 'chat_token_hash': th,
-            'lang': _chat_lang(customer_id), 'now_local': now_local, 'customer_name': name, 'country': biz.get('country')}
+            'lang': _chat_lang(customer_id), 'now_local': now_local, 'customer_name': name, 'country': biz.get('country'),
+            'client_key': scope.get('client') if ch == 'web' else None}
 
 
 _VERIFY_HINT = ("If the customer's booking is not shown here (booked by phone, on the website form or on another device), you can "

@@ -545,10 +545,16 @@ class FnbCovers(Base):
         settings(hours=FNB_HOURS, auto_confirm=True, table={'max_covers_per_slot': 30})
         table_row(50, '2026-10-30T19:00:00', 2, phone='0412 345 678')        # form công khai, cùng SĐT
         r = self.reserve()
-        self.assertTrue(r['already_reserved'])
+        # chat chưa chứng minh là chủ: không nói "SĐT này đã có bàn đúng giờ này" (dò được giờ người khác tới quán) — trả lời
+        # chung như 1 yêu cầu chờ quán xác nhận, không tạo bàn thứ 2, quán nhận ghi chú để tự liên hệ khách
+        self.assertNotIn('already_reserved', r)
         self.assertNotIn('reservation_id', r)
-        self.assertNotIn('status', r)
+        self.assertNotIn('already', json.dumps(r).lower())
+        self.assertTrue(r['request_sent_to_team'])
+        self.assertEqual(r['status'], 'pending')
+        self.assertIn('do not say confirmed', r['say'].lower())
         self.assertEqual(len(DB.table_reservations.docs), 1)
+        self.assertTrue(any('#50' in m['content'] for m in DB.bot_messages.docs))
 
     def test_lock_held_by_another_booking_is_refused_honestly(self):
         settings(hours=FNB_HOURS, auto_confirm=True, table={'max_covers_per_slot': 30})
@@ -729,6 +735,30 @@ class OwnershipAndContact(Base):
         self.call(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, explicit)
         self.assertEqual(DB.table_reservations.find_one({'id': rid})['status'], 'cancelled')
         self.assertTrue(any(m['customer_id'] == 'thread-77' for m in DB.bot_messages.docs))
+
+    def test_shared_browser_token_alone_is_not_proof(self):
+        # máy tính bảng quầy lễ tân: 1 mã trình duyệt cho mọi khách -> khách kế tiếp gõ SĐT khác không thấy / đổi / huỷ được
+        # bàn của người trước; cùng khách gõ lại SĐT của mình (cách viết khác) vẫn là của mình
+        a = web_ctx(token='a' * 40, customer_id=f"{BID}:0412345678", contact_phone='0412345678')
+        rid = self.reserve(a)['reservation_id']
+        b = web_ctx(token='a' * 40, customer_id=f"{BID}:0499000111", contact_phone='0499000111')
+        self.assertEqual(self.call(fnb, 'fnb_my_reservations', {}, b)['reservations'], [])
+        self.refuse(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, b)
+        self.refuse(fnb, 'fnb_change_reservation', {'reservation_id': rid, 'time': '20:00'}, b)
+        self.assertEqual(DB.table_reservations.find_one({'id': rid})['status'], 'confirmed')
+        again = web_ctx(token='a' * 40, customer_id=f"{BID}:+61412345678", contact_phone='+61412345678')
+        self.assertEqual([x['reservation_id'] for x in self.call(fnb, 'fnb_my_reservations', {}, again)['reservations']], [rid])
+        self.assertFalse(rc.is_owned(DB.table_reservations.find_one({'id': rid}), b))
+        self.assertTrue(rc.is_owned(DB.table_reservations.find_one({'id': rid}), a))
+        # karaoke: cùng luật
+        room(1, 'Room A (2-6 people)', 20)
+        DB.booking_settings.update_one({'business_id': BID}, {'$set': {'hours': KTV_HOURS}})
+        k = self.call(karaoke, 'karaoke_reserve_room', {'date': FRI, 'time': '20:00', 'hours': 2, 'group_size': 4,
+                                                        'customer_name': 'Kai', 'phone': '0412345678'}, dict(a))
+        self.assertEqual(self.call(karaoke, 'karaoke_my_reservations', {}, dict(b))['reservations'], [])
+        self.refuse(karaoke, 'karaoke_cancel_reservation', {'reservation_id': k['reservation_id']}, dict(b))
+        self.assertEqual([x['reservation_id'] for x in self.call(karaoke, 'karaoke_my_reservations', {}, dict(a))['reservations']],
+                         [k['reservation_id']])
 
     def test_platform_conversation_id_is_proof(self):
         conv = f"{BID}:messenger:psid-123"
@@ -945,6 +975,17 @@ class KaraokeBooking(KaraokeBase):
         day = self.call(karaoke, 'karaoke_check_rooms', {'date': FRI, 'hours': 2, 'group_size': 2})
         self.assertIn('14:00', day['free_start_times'])
         self.assertNotIn('23:00', day['free_start_times'])
+
+    def test_same_phone_booked_elsewhere_is_not_revealed(self):
+        ktv_row(60, '2026-10-30T20:00:00', 2, 1, phone='0412 345 678')        # form công khai, cùng SĐT, cùng giờ
+        r = self.reserve()
+        self.assertNotIn('already_reserved', r)
+        self.assertNotIn('reservation_id', r)
+        self.assertNotIn('already', json.dumps(r).lower())
+        self.assertTrue(r['request_sent_to_team'])
+        self.assertEqual(r['status'], 'pending')
+        self.assertEqual(len(DB.karaoke_room_reservations.docs), 1)
+        self.assertTrue(any('#60' in m['content'] for m in DB.bot_messages.docs))
 
     def test_double_submit_is_one_booking(self):
         a = self.reserve()

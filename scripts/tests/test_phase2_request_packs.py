@@ -289,6 +289,8 @@ NOW = datetime(2026, 10, 30, 10, 0, tzinfo=TZ)              # thứ Sáu, giờ 
 SAT = datetime(2026, 10, 31, 11, 0, tzinfo=TZ)
 NY_NOW = datetime(2026, 10, 30, 10, 0, tzinfo=ZoneInfo('America/New_York'))   # văn phòng ở Mỹ: thứ Sáu 10:00 giờ văn phòng
 AU, VN, US_SHOP, TECH, PROD, OFFICE, OTHER = 'shop_au', 'shop_vn', 'shop_us', 'tech_au', 'prod_vn', 'office_us', 'shop_other'
+# chat web thật luôn có SĐT khách gõ ('<tiệm>:<SĐT>'): mã trình duyệt chỉ là bằng chứng KÈM đúng chat này
+AU_CHAT, TECH_CHAT = f'{AU}:0412345678', f'{TECH}:0412345678'
 HOURS = {'mon': ['09:00', '17:30'], 'tue': ['09:00', '17:30'], 'wed': ['09:00', '17:30'], 'thu': ['09:00', '17:30'],
          'fri': ['09:00', '17:30'], 'sat': ['09:00', '13:00'], 'sun': None}
 
@@ -535,8 +537,8 @@ class RetailHoldTests(unittest.TestCase):
             hold(args={'product_id': 3, 'quantity': 1})       # stock 0
 
     def test_same_customer_twice_returns_the_existing_hold(self):
-        a = hold(chat_token_hash='tokA')
-        b = hold(chat_token_hash='tokA')
+        a = hold(chat_token_hash='tokA', customer_id=AU_CHAT)
+        b = hold(chat_token_hash='tokA', customer_id=AU_CHAT)
         self.assertTrue(b['already_held'])
         self.assertEqual(b['hold_id'], a['hold_id'])
         self.assertEqual(len(DB.retail_holds.docs), 1)
@@ -570,27 +572,27 @@ class RetailHoldTests(unittest.TestCase):
 class RetailManageTests(unittest.TestCase):
     def setUp(self):
         seed()
-        self.a = hold(chat_token_hash='tokA')['hold_id']
+        self.a = hold(chat_token_hash='tokA', customer_id=AU_CHAT)['hold_id']
         self.us = retail.execute('retail_hold_for_pickup', {'product_id': 31, 'quantity': 1, 'customer_name': 'Joe',
                                                            'phone': '(212) 345-6789'}, ctx(US_SHOP, chat_token_hash='tokUS'))['hold_id']
 
     def test_my_holds_by_token_and_by_verified_phone(self):
-        mine = retail.execute('retail_my_holds', {}, ctx(chat_token_hash='tokA'))['holds']
+        mine = retail.execute('retail_my_holds', {}, ctx(chat_token_hash='tokA', customer_id=AU_CHAT))['holds']
         self.assertEqual([(h['hold_id'], h['status']) for h in mine], [(self.a, 'pending')])
         self.assertIn('not confirmed', mine[0]['status_meaning'])
         by_phone = retail.execute('retail_my_holds', {}, ctx(chat_token_hash='tokOther', phone='+61412345678'))['holds']
         self.assertEqual([h['hold_id'] for h in by_phone], [self.a])
         retail.staff_set_status(AU, self.a, 'ready')
-        again = retail.execute('retail_my_holds', {}, ctx(chat_token_hash='tokA'))['holds'][0]
+        again = retail.execute('retail_my_holds', {}, ctx(chat_token_hash='tokA', customer_id=AU_CHAT))['holds'][0]
         self.assertEqual(again['status'], 'ready')
         self.assertIn('confirmed by the store', again['status_meaning'])
 
     def test_other_customers_never_see_or_cancel(self):
-        self.assertEqual(retail.execute('retail_my_holds', {}, ctx(chat_token_hash='tokB'))['holds'], [])
+        self.assertEqual(retail.execute('retail_my_holds', {}, ctx(chat_token_hash='tokB', customer_id=AU_CHAT))['holds'], [])
         # (312) đã xác minh không thấy hold của (212) — trùng 9 số cuối
         self.assertEqual(retail.execute('retail_my_holds', {}, ctx(US_SHOP, chat_token_hash='x', phone='+13123456789'))['holds'], [])
         with self.assertRaises(PackError):
-            retail.execute('retail_cancel_hold', {'hold_id': self.a}, ctx(chat_token_hash='tokB'))
+            retail.execute('retail_cancel_hold', {'hold_id': self.a}, ctx(chat_token_hash='tokB', customer_id=AU_CHAT))
         self.assertEqual(DB.retail_holds.find_one({'id': self.a})['status'], 'pending')
         # platform id giả (không đúng dạng '<tiệm>:<kênh>:') không phải bằng chứng
         self.assertIsNone(retail.owner_filter(ctx(chat_token_hash='anon:x', channel='messenger', customer_id='zzz')))
@@ -603,6 +605,18 @@ class RetailManageTests(unittest.TestCase):
             with self.assertRaises(PackError):
                 retail.execute('retail_cancel_hold', {'hold_id': self.a}, c)
 
+    def test_shared_browser_token_needs_the_phone_typed_in_this_chat(self):
+        # máy tính bảng quầy: cùng mã trình duyệt, khách kế tiếp gõ SĐT khác -> không thấy / huỷ được hàng giữ của người trước
+        h = hold(customer_id=f'{AU}:0412345678', chat_token_hash='tokS')['hold_id']
+        nxt = ctx(chat_token_hash='tokS', customer_id=f'{AU}:0499000111', contact_phone='0499000111')
+        self.assertEqual(retail.execute('retail_my_holds', {}, nxt)['holds'], [])
+        with self.assertRaises(PackError):
+            retail.execute('retail_cancel_hold', {'hold_id': h}, nxt)
+        self.assertEqual(DB.retail_holds.find_one({'id': h})['status'], 'pending')
+        same = ctx(chat_token_hash='tokS', customer_id=f'{AU}:+61412345678', contact_phone='+61412345678')
+        self.assertEqual([x['hold_id'] for x in retail.execute('retail_my_holds', {}, same)['holds']], [h])
+        self.assertNotIn({'chat_token_hash': 'tokS'}, retail.owner_filter(nxt)['$or'])
+
     def test_platform_conversation_counts_as_owner(self):
         cid = f'{AU}:messenger:psid123'
         h = hold(channel='messenger', customer_id=cid, chat_token_hash='conv:abc', args={'product_id': 7, 'quantity': 1})
@@ -610,17 +624,17 @@ class RetailManageTests(unittest.TestCase):
         self.assertEqual([x['hold_id'] for x in mine], [h['hold_id']])
 
     def test_cancel_releases_stock_once_and_allows_a_new_hold(self):
-        out = retail.execute('retail_cancel_hold', {'hold_id': self.a}, ctx(chat_token_hash='tokA'))
+        out = retail.execute('retail_cancel_hold', {'hold_id': self.a}, ctx(chat_token_hash='tokA', customer_id=AU_CHAT))
         self.assertEqual(out['status'], 'cancelled')
         self.assertEqual(product(1)['held_qty'], 0)
         self.assertNotIn('active_key', DB.retail_holds.find_one({'id': self.a}))
-        twice = retail.execute('retail_cancel_hold', {'hold_id': self.a}, ctx(chat_token_hash='tokA'))
+        twice = retail.execute('retail_cancel_hold', {'hold_id': self.a}, ctx(chat_token_hash='tokA', customer_id=AU_CHAT))
         self.assertEqual(twice['already'], 'cancelled')
         self.assertEqual(product(1)['held_qty'], 0)
-        self.assertTrue(hold(chat_token_hash='tokA')['success'])         # khoá active_key đã gỡ -> giữ lại được
+        self.assertTrue(hold(chat_token_hash='tokA', customer_id=AU_CHAT)['success'])         # khoá active_key đã gỡ -> giữ lại được
         self.assertEqual(CALLS[-1][4] if CALLS[-1][0] == 'alert' else None, 'retail_hold')
         with self.assertRaises(PackError):
-            retail.execute('retail_cancel_hold', {'hold_id': 'abc'}, ctx(chat_token_hash='tokA'))
+            retail.execute('retail_cancel_hold', {'hold_id': 'abc'}, ctx(chat_token_hash='tokA', customer_id=AU_CHAT))
 
     def test_expired_holds_release_stock_lazily(self):
         DB.retail_holds.update_one({'id': self.a}, {'$set': {'expires_at_local': '2026-10-30T09:00'}})
@@ -628,7 +642,7 @@ class RetailManageTests(unittest.TestCase):
         h = DB.retail_holds.find_one({'id': self.a})
         self.assertEqual(h['status'], 'expired')
         self.assertEqual(product(1)['held_qty'], 0)
-        mine = retail.execute('retail_my_holds', {}, ctx(chat_token_hash='tokA'))['holds'][0]
+        mine = retail.execute('retail_my_holds', {}, ctx(chat_token_hash='tokA', customer_id=AU_CHAT))['holds'][0]
         self.assertIsNone(mine['pickup_by'])
         self.assertIn('released', mine['status_meaning'])
 
@@ -749,12 +763,12 @@ class TechnicalTests(unittest.TestCase):
         self.assertEqual(len(DB.tasks.docs), 1)
 
     def test_job_status_ownership_and_states(self):
-        mine = job(chat_token_hash='tokT')['job_id']
+        mine = job(chat_token_hash='tokT', customer_id=TECH_CHAT)['job_id']
         DB.tasks.insert_one({'id': 500, 'business_id': TECH, 'ten_khach': 'Tom', 'sdt': '0412 345 678', 'dia_chi': '1 A St',
                              'noi_dung': '[DỊCH VỤ] X [Hoa Hồng]: 50', 'trang_thai': 'Đã Nhận', 'nguoi_nhan': 'Liam Nguyen',
                              'on_way_at': '2026-10-30T09:40'})
         DB.tasks.insert_one({'id': 501, 'business_id': TECH, 'sdt': '0412 345 679', 'trang_thai': 'Chờ Nhận', 'dia_chi': 'x'})
-        by_token = technical.execute('technical_job_status', {}, ctx(TECH, chat_token_hash='tokT'))['jobs']
+        by_token = technical.execute('technical_job_status', {}, ctx(TECH, chat_token_hash='tokT', customer_id=TECH_CHAT))['jobs']
         self.assertEqual([(j['job_id'], j['state']) for j in by_token], [(mine, 'waiting')])
         self.assertEqual(by_token[0]['problem'], 'Air-con leaking water inside')
         jt = types.ModuleType('job_tracking')
@@ -773,9 +787,17 @@ class TechnicalTests(unittest.TestCase):
         one = technical.execute('technical_job_status', {'job_id': 500}, ctx(TECH, chat_token_hash='x', phone='+61412345678'))
         self.assertEqual([j['job_id'] for j in one['jobs']], [500])
 
+    def test_job_status_shared_browser_needs_the_typed_phone(self):
+        mine = job(customer_id=f'{TECH}:0412345678', chat_token_hash='tokJ')['job_id']
+        nxt = ctx(TECH, chat_token_hash='tokJ', customer_id=f'{TECH}:0499000111', contact_phone='0499000111')
+        self.assertEqual(technical.execute('technical_job_status', {}, nxt)['jobs'], [])
+        me = ctx(TECH, chat_token_hash='tokJ', customer_id=f'{TECH}:0412345678', contact_phone='0412345678')
+        self.assertEqual([j['job_id'] for j in technical.execute('technical_job_status', {}, me)['jobs']], [mine])
+
     def test_job_status_refuses_strangers(self):
-        job(chat_token_hash='tokT')
-        self.assertEqual(technical.execute('technical_job_status', {}, ctx(TECH, chat_token_hash='tokOther'))['jobs'], [])
+        job(chat_token_hash='tokT', customer_id=TECH_CHAT)
+        self.assertEqual(technical.execute('technical_job_status', {}, ctx(TECH, chat_token_hash='tokOther',
+                                                                         customer_id=TECH_CHAT))['jobs'], [])
         with self.assertRaises(PackError) as e:
             technical.execute('technical_job_status', {}, ctx(TECH, chat_token_hash='anon:1'))
         self.assertIn('not_verified', str(e.exception))

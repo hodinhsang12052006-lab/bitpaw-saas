@@ -29,12 +29,18 @@ ctx passed to execute() (a fresh copy per call):
                      confirmed with a one-time SMS code in this chat (ai_function_tools.verify_code)
     contact_phone    the phone the customer GAVE (unverified) — use it as the contact for NEW bookings only
     chat_token_hash  never None: web = sha256 of the browser's chat token ('anon:<random>' without one); other channels =
-                     'conv:<hash of the thread>'. Store it on bookings the AI creates.
+                     'conv:<hash of the thread>'. Store it on bookings the AI creates. On web ONE browser token is shared by
+                     everyone using that browser (a reception tablet), so it proves a booking only together with this chat:
+                     the booking was made in this same web thread, or its phone is the phone typed in this chat (token_owns).
+    client_key       web only: hashed public network of the browser (None on a local / private network) — for rate caps that
+                     a visitor can't dodge by clearing the browser token or typing a new phone. Never proof of anything.
     lang             'vi' | 'en' (the customer's latest message)
     now_local        timezone-aware datetime in the shop's timezone
     customer_name    name we already know (None when only a placeholder) ; country  shop country code
   A MANAGE tool on web chat with neither a chat token nor a verified phone is refused here, before the pack runs.
-  manage_filter(ctx) builds the ownership filter the contract asks for (verified phone OR chat_token_hash OR conversation).
+  manage_filter(ctx) builds the ownership filter the contract asks for (verified phone OR this chat's token OR conversation);
+  token_owns(doc, ctx) is the same token rule for one document. Phones match as the SAME full number only (same_phone /
+  phone_variants), never 'the last N digits'.
 
 Other helpers: pack_for(industry), pack_for_business(business_id), tools_for(...), claim_ready(industry),
 normalize_phone(), phone_variants(), errors() (modules skipped at discovery and why).
@@ -401,13 +407,61 @@ def normalize_phone(phone, country=None):
     return ''
 
 
+# How people group the digits of a national number ('0412 345 678', '090 123 4567', '(02) 9000 0001'), by digit count
+_GROUPS = {8: ((4, 4), (2, 3, 3)), 9: ((3, 3, 3), (2, 3, 4), (1, 4, 4), (3, 6)),
+           10: ((4, 3, 3), (3, 3, 4), (2, 4, 4), (4, 6), (3, 7)), 11: ((3, 4, 4), (4, 3, 4), (5, 3, 3), (5, 6), (3, 8))}
+
+
+def _grouped(d, seps=(' ', '-', '.')):
+    """d split by every usual grouping for its length, joined by each separator."""
+    out = set()
+    for g in _GROUPS.get(len(d), ()):
+        parts, i = [], 0
+        for n in g:
+            parts.append(d[i:i + n])
+            i += n
+        for sep in seps:
+            out.add(sep.join(parts))
+        if len(parts[0]) <= 3 and d.startswith('0'):
+            out.add(f"({parts[0]}) " + ' '.join(parts[1:]))   # '(02) 9000 0001', '(028) 3822 1234'
+    return out
+
+
+def _more_spellings(cc, nat):
+    """Common ways staff / customers type the SAME number (national + international), beyond the core forms."""
+    out = set()
+    if cc == '1':
+        if len(nat) != 10:
+            return out
+        a, b, c = nat[:3], nat[3:6], nat[6:]
+        bodies = {f"({a}) {b}-{c}", f"({a}){b}-{c}", f"({a}) {b} {c}", f"({a}) {b}.{c}", f"({a})-{b}-{c}", f"({a}) {b}{c}",
+                  f"{a}-{b}-{c}", f"{a}.{b}.{c}", f"{a} {b} {c}", f"{a} {b}-{c}", f"{a}/{b}-{c}"}
+        out |= bodies
+        for body in bodies:
+            out.update(('+1 ' + body, '1 ' + body, '+1' + body, '1' + body))
+        out.update((f"+1-{a}-{b}-{c}", f"1-{a}-{b}-{c}", f"+1.{a}.{b}.{c}", f"1.{a}.{b}.{c}", f"001 {a} {b} {c}"))
+        return out
+    local = '0' + nat
+    out |= _grouped(local)
+    for body in _grouped(nat, seps=(' ',)) | {nat}:
+        out.update((f"+{cc} {body}", f"{cc} {body}", f"00{cc} {body}"))
+    for sep in ('-', '.'):
+        for body in _grouped(nat, seps=(sep,)):
+            out.add(f"+{cc}{sep}{body}")
+    return out
+
+
 def phone_variants(phone, country=None):
-    """Spellings the same number may be stored under (bookings keep what the customer typed): raw, digits, E.164, national."""
+    """Spellings the SAME number may be stored under (bookings keep what the customer or the staff typed): raw, digits,
+    E.164, national, then the usual groupings ('(212) 345-6789', '+1 212-345-6789', '0412 345 678', '+61 412 345 678',
+    '0901 234 567', '+84 90 123 4567'...). Every spelling is that full number — never 'the last N digits'. The core spellings
+    come first (sorted), the extra groupings after them (sorted)."""
     raw = str(phone or '').strip()
     digits = re.sub(r'\D', '', raw)
     if len(digits) < 6:
         return []
     out = {raw, digits, '+' + digits}
+    extra = set()
     e164 = normalize_phone(raw, country)
     if e164:
         out.update((e164, e164[1:]))
@@ -420,16 +474,56 @@ def phone_variants(phone, country=None):
                 else:
                     local = '0' + nat
                     out.update((local, f"{local[:4]} {local[4:7]} {local[7:]}", f"+{cc} {nat}"))
+                extra = _more_spellings(cc, nat)
                 break
-    return sorted(x for x in out if x)
+    core = sorted(x for x in out if x)
+    return core + sorted(x for x in extra if x and x not in out)
 
 
 def same_phone(a, b, country=None):
+    """The SAME full number however it is written: equal E.164 after normalising with the shop's country, else all digits
+    equal (6+ digits). Never compares only the last digits ((212) 345-6789 and (312) 345-6789 are two people)."""
     ea, eb = normalize_phone(a, country), normalize_phone(b, country)
     if ea and eb:
         return ea == eb
     da, db_ = re.sub(r'\D', '', str(a or '')), re.sub(r'\D', '', str(b or ''))
-    return bool(da) and da == db_
+    return len(da) >= 6 and da == db_
+
+
+def typed_phone(ctx):
+    """The phone the customer typed in THIS web chat: ctx.contact_phone, else the '<shop>:<phone>' web thread id. Never proof
+    of ownership on its own (anyone can type any number) — only ties a shared browser token to the person chatting now."""
+    ctx = ctx or {}
+    if ctx.get('contact_phone'):
+        return str(ctx['contact_phone'])
+    cid = str(ctx.get('customer_id') or '')
+    if str(ctx.get('channel') or 'web').lower() == 'web' and ':' in cid:
+        rest = cid.split(':', 1)[1].split('~', 1)[0].strip()
+        if re.fullmatch(r'\+?[0-9(][0-9 ().-]{5,31}', rest):
+            return rest
+    return None
+
+
+def _web_chat(ctx):
+    return str((ctx or {}).get('channel') or 'web').lower() == 'web'
+
+
+def token_owns(doc, ctx, phone_fields=('customer_phone',)):
+    """The booking carries this chat's token (never an 'anon:' one) AND, on web chat, belongs to THIS chat: made in the same
+    web thread, or stored under the phone typed in this chat. One browser token is shared by everyone on that browser (a
+    reception tablet), so the next customer typing another phone never gets the previous customer's bookings.
+    Platform conversations ('conv:<hash>' of a platform-signed thread) need nothing more."""
+    ctx = ctx or {}
+    th = ctx.get('chat_token_hash')
+    if not doc or not th or str(th).startswith('anon:') or doc.get('chat_token_hash') != th:
+        return False
+    if not _web_chat(ctx):
+        return True
+    cid = ctx.get('customer_id')
+    if cid and doc.get('ai_conversation_id') == cid:
+        return True
+    typed = typed_phone(ctx)
+    return bool(typed) and any(same_phone(doc.get(f), typed, ctx.get('country')) for f in phone_fields)
 
 
 def conversation_hash(customer_id):
@@ -447,9 +541,18 @@ def manage_filter(ctx, phone_fields=('customer_phone',)):
         for f in phone_fields:
             ors.append({f: {'$in': variants}})
     th = ctx.get('chat_token_hash')
-    if th and not str(th).startswith('anon:'):
-        ors.append({'chat_token_hash': th})
     cid = ctx.get('customer_id')
+    if th and not str(th).startswith('anon:'):
+        if not _web_chat(ctx):
+            ors.append({'chat_token_hash': th})
+        else:   # web: the browser token only together with THIS chat (same web thread, or the phone typed here) — token_owns
+            mine = [{'ai_conversation_id': cid}] if cid else []
+            typed = typed_phone(ctx)
+            if typed:
+                tv = phone_variants(typed, ctx.get('country'))
+                mine += [{f: {'$in': tv}} for f in phone_fields]
+            if mine:
+                ors.append({'chat_token_hash': th, '$or': mine})
     if cid and ctx.get('channel') not in (None, '', 'web'):   # web thread id = typed phone -> never proof on its own
         ors.append({'ai_conversation_id': cid})
     return {'$or': ors} if ors else None
@@ -458,7 +561,7 @@ def manage_filter(ctx, phone_fields=('customer_phone',)):
 # Where each resource's bookings live (pack may override with BOOKING_COLLECTIONS). Only used to decide whether a one-time
 # SMS code is worth sending to a phone (no texts to numbers that never booked here).
 DEFAULT_BOOKING_COLLECTIONS = {
-    'appointment': (('appointments', 'customer_phone'),),
+    'appointment': (('appointments', 'customer_phone'), ('customer_packages', 'customer_phone')),   # gói trả trước, chưa đặt lịch
     'table': (('table_reservations', 'customer_phone'),),
     'room_hour': (('karaoke_room_reservations', 'customer_phone'),),
     'room_night': (('hotel_reservations', 'guest_phone'),),   # /hotel/reserve stores the guest's phone as guest_phone

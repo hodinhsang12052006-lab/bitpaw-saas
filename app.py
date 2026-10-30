@@ -12031,6 +12031,9 @@ def _persist_chat_turn(business_id, customer_phone, content, sender_type='custom
     của trình duyệt đó (_booking_chat_history), không tin lượt 'assistant' do client gửi lên."""
     if not content or not business_id or not customer_phone or db is None:
         return
+    if ':' in str(customer_phone):
+        # '<tiệm>:sms:+614...' là id hội thoại kênh nền tảng (SMS/WhatsApp/Messenger...) — chat web không bao giờ ghi vào đó
+        return
     try:
         customer_id = f"{business_id}:{customer_phone}"
         now_iso = datetime.now().isoformat()
@@ -12851,6 +12854,17 @@ def secure_ai_generate():
     customer_phone = data.get('customer_phone')  # tuỳ chọn: để AI cá nhân hoá theo hạng/lịch sử chi tiêu
     if customer_phone is not None and not isinstance(customer_phone, str):
         customer_phone = None
+    if customer_phone is not None:
+        # Chỉ nhận SỐ ĐIỆN THOẠI (chữ số, khoảng trắng ( ) . - và dấu + đầu) — trước khi dựng customer_id / lưu CRM. Trước đây
+        # 'sms:+614...' / 'whatsapp:614...' / 'messenger:<id>' dựng ra đúng id hội thoại kênh thật '<tiệm>:sms:+614...' -> chat
+        # web ẩn danh được coi là SĐT nhà mạng đã xác minh, xem / huỷ lịch của người khác. Bỏ dấu cách / ngoặc / chấm / gạch
+        # như widget (1 số = 1 hội thoại).
+        customer_phone = customer_phone.strip()
+        if (re.fullmatch(r'\+?[0-9(][0-9 ().-]{5,31}', customer_phone)
+                and 6 <= len(re.sub(r'\D', '', customer_phone)) <= 15):
+            customer_phone = re.sub(r'[\s().-]', '', customer_phone)
+        else:
+            customer_phone = None
     client_history = data.get('history') or []
     if not isinstance(client_history, list):
         client_history = []
@@ -13025,7 +13039,9 @@ def secure_ai_generate():
         _t0 = time.time()
         # Công cụ đọc mã chat của trình duyệt này (lịch hẹn AI đặt được gắn mã băm; xem/huỷ/dời chỉ lịch khớp mã hoặc SĐT đã
         # xác minh bằng mã SMS 1 lần) + ngôn ngữ của khách
-        with ai_function_tools.chat_scope(chat_token, lang=chat_lang, channel='web'):
+        # client: khoá mạng (IP băm) của trình duyệt — chỉ để giới hạn số lần gửi mã SMS / giữ phòng, không là bằng chứng chủ lịch
+        with ai_function_tools.chat_scope(chat_token, lang=chat_lang, channel='web',
+                                          client=ai_function_tools.request_client_key() if public_customer_chat else None):
             if chat_context == 'customer_booking':  # gói của ngành (+ mã SMS khi tiệm nhắn được); đang chờ người: không chuyển lần 2
                 _tools = ai_function_tools.customer_tools(business_id, customer_id, waiting=bool(waiting_for_team))
             else:

@@ -20,6 +20,9 @@ INDUSTRIES = ('hotel',)
 RESOURCE = 'room_night'
 
 MAX_LIVE_AI_BOOKINGS_PER_GUEST = 3   # quá số phòng này -> đặt đoàn, nhân viên xử lý (chặn 1 chat giữ hết phòng)
+# Cùng 1 MẠNG (IP băm của chat web, ctx.client_key): khách xoá mã trình duyệt + gõ SĐT mới mỗi lần thì giới hạn theo khách ở trên
+# luôn = 0 -> 1 người giữ được gần hết phòng. Mạng nội bộ / máy dev không có khoá (không áp).
+MAX_LIVE_AI_BOOKINGS_PER_NETWORK = 6
 MAX_AI_BOOKINGS_PER_HOUR = 30        # mỗi khách sạn; quá mức -> dừng đặt qua chat, chuyển nhân viên
 _PLATFORM_CHANNELS = ('messenger', 'instagram', 'whatsapp', 'zalo', 'viber', 'sms')
 _EMAIL_RE = re.compile(r'^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$')
@@ -133,6 +136,9 @@ class _Ctx:
         if self.phone and not rh.phone_ok(self.phone):
             self.phone = None
         self.token_hash = c.get('chat_token_hash') or None
+        self.contact_phone = c.get('contact_phone') or None   # SĐT khách gõ (chưa xác minh): chỉ gắn mã trình duyệt với chat này
+        self.client_key = c.get('client_key') or None          # mạng của chat web: chỉ để giới hạn, không là bằng chứng
+        self.country = str(c.get('country') or '').upper() or None   # thiếu thì lấy theo hồ sơ khách sạn (_country)
         self.lang = 'vi' if c.get('lang') == 'vi' else 'en'
         self.now = _local_now(self.business_id, c.get('now_local'))
         self.today = self.now.date()
@@ -149,19 +155,58 @@ def _digits(p):
     return re.sub(r'\D', '', str(p or ''))
 
 
-def _same_phone(a, b):
-    da, dbb = _digits(a), _digits(b)
-    if len(da) < 6 or len(dbb) < 6:
+def _same_phone(a, b, country=None):
+    """Cùng 1 số: trùng NGUYÊN số (E.164 sau khi chuẩn hoá theo nước của khách sạn, hoặc đủ mọi chữ số) — không bao giờ so
+    'mấy số cuối' (ở Mỹ (212) 555-0123 và (312) 555-0123 trùng 9 số cuối nhưng là 2 người). Hàm chung ai_packs.same_phone;
+    gói được nạp riêng (registry chưa có hàm đó) thì reservations_core.same_phone — cùng luật."""
+    if len(_digits(a)) < 6 or len(_digits(b)) < 6:
         return False
-    return da == dbb or (len(da) >= 9 and len(dbb) >= 9 and da[-9:] == dbb[-9:])
+    fn = getattr(ai_packs, 'same_phone', None)
+    if not callable(fn):
+        import reservations_core
+        fn = reservations_core.same_phone
+    return bool(fn(a, b, country))
+
+
+def _country(c):
+    """Nước của khách sạn để chuẩn hoá SĐT: ctx.country, không thì hồ sơ khách sạn (country, thiếu thì suy từ tiền tệ)."""
+    if c.country is None:
+        shop = _shop(c.business_id)
+        cur = str(shop.get('currency') or '').strip().upper()
+        c.country = (str(shop.get('country') or '').strip().upper()
+                     or next((k for k, v in _COUNTRY_CURRENCY.items() if v == cur), ''))
+    return c.country or None
+
+
+def _typed_phone(c):
+    """SĐT khách gõ trong CHÍNH chat web này (ctx.contact_phone, không thì id hội thoại web '<tiệm>:<SĐT>')."""
+    if c.contact_phone:
+        return str(c.contact_phone)
+    if c.channel in ('', 'web') and c.customer_id and ':' in str(c.customer_id):
+        rest = str(c.customer_id).split(':', 1)[1].split('~', 1)[0].strip()
+        return rest if re.fullmatch(r'\+?[0-9(][0-9 ().-]{5,31}', rest) else None
+    return None
+
+
+def _token_owns(doc, c):
+    """Mã chat khớp VÀ (chat web) đúng chat này: đặt trong cùng hội thoại web, hoặc đứng tên đúng SĐT khách gõ ở đây. 1 máy
+    tính bảng quầy dùng chung 1 mã trình duyệt: khách kế tiếp gõ SĐT khác không thấy / đổi / huỷ được phòng của người trước."""
+    if not c.token_hash or doc.get('chat_token_hash') != c.token_hash:
+        return False
+    if c.channel not in ('', 'web'):
+        return True
+    if c.customer_id and doc.get('ai_conversation_id') == c.customer_id:
+        return True
+    typed = _typed_phone(c)
+    return bool(typed) and _same_phone(doc.get('guest_phone'), typed, _country(c))
 
 
 def _owned(doc, c):
-    """Đặt phòng CHỨNG MINH được là của cuộc chat này: SĐT đã xác minh (SMS/WhatsApp), mã chat web của đúng trình duyệt,
-    hoặc hội thoại nền tảng đã ký (Messenger/Instagram/Zalo/Viber...)."""
-    if c.phone and _same_phone(doc.get('guest_phone'), c.phone):
+    """Đặt phòng CHỨNG MINH được là của cuộc chat này: SĐT đã xác minh (SMS/WhatsApp, mã SMS 1 lần) trùng NGUYÊN số, mã chat
+    web của đúng trình duyệt kèm đúng chat này, hoặc hội thoại nền tảng đã ký (Messenger/Instagram/Zalo/Viber...)."""
+    if c.phone and _same_phone(doc.get('guest_phone'), c.phone, _country(c)):
         return True
-    if c.token_hash and doc.get('chat_token_hash') == c.token_hash:
+    if _token_owns(doc, c):
         return True
     return bool(c.platform and doc.get('ai_conversation_id') == c.customer_id)
 
@@ -387,19 +432,28 @@ def _caps(c, phone):
                     "team with ask_team — nothing is booked yet.",
                     "Đặt phòng qua chat đang tạm dừng vì quá nhiều yêu cầu. Chuyển yêu cầu cho nhân viên bằng ask_team — "
                     "hiện CHƯA đặt được gì."))
-    mine = 0
+    mine = from_network = 0
+    country = _country(c)
     for r in db.hotel_reservations.find({'business_id': c.business_id, 'source': 'ai_bot',
                                          'status': {'$in': list(rh.LIVE_STATUSES)},
                                          'checkout_date': {'$gte': c.today.isoformat()}},
-                                        {'_id': 0, 'ai_conversation_id': 1, 'chat_token_hash': 1, 'guest_phone': 1}).limit(5000):
+                                        {'_id': 0, 'ai_conversation_id': 1, 'chat_token_hash': 1, 'guest_phone': 1,
+                                         'client_key': 1}).limit(5000):
         if ((c.customer_id and r.get('ai_conversation_id') == c.customer_id)
-                or (c.token_hash and r.get('chat_token_hash') == c.token_hash) or _same_phone(r.get('guest_phone'), phone)):
+                or (c.token_hash and r.get('chat_token_hash') == c.token_hash) or _same_phone(r.get('guest_phone'), phone, country)):
             mine += 1
+        if c.client_key and r.get('client_key') == c.client_key:
+            from_network += 1
     if mine >= MAX_LIVE_AI_BOOKINGS_PER_GUEST:
         _refuse(c.t(f"This guest already has {mine} rooms booked through chat — more rooms are a group booking the team "
                     "handles. Use ask_team; nothing new is booked.",
                     f"Khách đã đặt {mine} phòng qua chat — đặt thêm là đặt đoàn, nhân viên sẽ xử lý. Dùng ask_team; "
                     "chưa đặt thêm gì."))
+    if from_network >= MAX_LIVE_AI_BOOKINGS_PER_NETWORK:
+        _refuse(c.t("Several rooms have already been booked through chat from this same connection — more rooms go through "
+                    "the team (as a group booking). Use ask_team; nothing new is booked.",
+                    "Đã có nhiều phòng được đặt qua chat từ cùng kết nối mạng này — đặt thêm do nhân viên xử lý (đặt đoàn). "
+                    "Dùng ask_team; chưa đặt thêm gì."))
 
 
 def _create_booking(args, c):
@@ -471,6 +525,8 @@ def _create_booking(args, c):
              'chat_token_hash': c.token_hash, 'guest_email': email or None, 'arrival_time': arrival,
              'special_requests': requests_, 'currency': cur,
              'note': ('; '.join(note_bits) or None)}
+    if c.client_key:
+        extra['client_key'] = c.client_key   # giới hạn số phòng theo mạng (_caps)
     try:
         doc, av = rh.create_hold(c.business_id, checkin=ci, checkout=co, guests=guests, room_type_key=key, guest_name=name,
                                  guest_phone=phone, status=status, today=c.today, min_nights=settings['min_nights'],

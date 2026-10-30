@@ -239,17 +239,38 @@ def real_token(ctx):
     return th if isinstance(th, str) and th and not th.startswith('anon:') else None
 
 
+def _typed_phone(ctx):
+    """SĐT khách gõ trong CHÍNH chat web này (ctx.contact_phone, không thì id hội thoại web '<tiệm>:<SĐT>') — không bao giờ
+    là bằng chứng một mình."""
+    if ctx.get('contact_phone'):
+        return str(ctx['contact_phone'])
+    cid = str(ctx.get('customer_id') or '')
+    if str(ctx.get('channel') or 'web').lower() == 'web' and ':' in cid:
+        rest = cid.split(':', 1)[1].split('~', 1)[0].strip()
+        return rest if re.fullmatch(r'\+?[0-9(][0-9 ().-]{5,31}', rest) else None
+    return None
+
+
 def owner_filter(ctx):
     """Điều kiện Mongo cho bản ghi CHỨNG MINH được là của khách đang chat, hoặc None (không chứng minh được).
-    Chat web: chỉ mã chat của đúng trình duyệt (id hội thoại web = '<tiệm>:<SĐT tự gõ>' giả mạo được nên KHÔNG dùng)."""
+    Chat web: mã chat của đúng trình duyệt KÈM đúng chat này — cùng hội thoại web, hoặc đúng SĐT (NGUYÊN số) khách gõ ở đây:
+    1 máy tính bảng quầy dùng chung 1 mã trình duyệt, khách kế tiếp gõ SĐT khác không thấy / huỷ được hàng giữ của người
+    trước. Id hội thoại web một mình ('<tiệm>:<SĐT tự gõ>', ai cũng gõ được) KHÔNG bao giờ là bằng chứng."""
     ors = []
     k = phone_key(ctx.get('phone'), _country(ctx))
     if k:
         ors.append({'phone_key': k})
     th = real_token(ctx)
-    if th:
-        ors.append({'chat_token_hash': th})
     cid, ch = ctx.get('customer_id'), ctx.get('channel')
+    if th and str(ch or 'web').lower() != 'web':
+        ors.append({'chat_token_hash': th})   # 'conv:<băm>' của hội thoại nền tảng
+    elif th:
+        mine = [{'ai_conversation_id': cid}] if cid else []
+        typed = phone_key(_typed_phone(ctx), _country(ctx))
+        if typed:
+            mine.append({'phone_key': typed})
+        if mine:
+            ors.append({'chat_token_hash': th, '$or': mine})
     if cid and ch in PLATFORM_CHANNELS and str(cid).startswith(f"{ctx.get('business_id')}:{ch}:"):
         ors.append({'ai_conversation_id': cid})
     return {'$or': ors} if ors else None
