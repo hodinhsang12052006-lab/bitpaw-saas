@@ -33,3 +33,30 @@ export async function safeScreenshot(page, options) {
     }
   }
 }
+
+// Mở 1 trang bất kỳ, thử lại khi response lớn bị kẹt (~19s rồi đứt) trên server dev Windows — cùng lý do với gotoSell.
+export async function gotoRetry(page, url, { attempts = 3, waitUntil = 'domcontentloaded', timeout = 30000 } = {}) {
+  let lastErr;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      const resp = await page.goto(url, { waitUntil, timeout });
+      if (i > 1) console.log(`   ↻ ${url.replace(/^https?:\/\/[^/]+/, '')} mở được sau ${i} lần tải`);
+      return resp;
+    } catch (err) { lastErr = err; }
+  }
+  throw lastErr;
+}
+
+// Chờ 1 phần tử; hết giờ thì làm lại thao tác (redo) rồi chờ tiếp — cho các bước gửi form mà response bị kẹt truyền.
+export async function waitOrRedo(page, selector, redo, { attempts = 3, timeout = 12000 } = {}) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      const el = await page.waitForSelector(selector, { timeout });
+      if (i > 1) console.log(`   ↻ ${selector} hiện sau ${i} lần thử`);
+      return el;
+    } catch (err) {
+      if (i === attempts) throw err;
+      await redo();
+    }
+  }
+}

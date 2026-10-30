@@ -12,6 +12,7 @@
  */
 import { chromium } from 'playwright';
 import { ownerContextOptions } from './lib/device.mjs';
+import { waitOrRedo } from './lib/nail_nav.mjs';
 import fs from 'fs';
 import { execFileSync } from 'child_process';
 
@@ -96,7 +97,9 @@ for (const ind of ONLY) {
     await go(staff, '/app_nhanvien');
     await staff.fill('#login_manv', MA_NV);
     await staff.click('#btn_login_submit');
-    await staff.waitForSelector('#checkinScreen:not(.hidden)', { timeout: 10000 });
+    await waitOrRedo(staff, '#checkinScreen:not(.hidden)', async () => {
+      await go(staff, '/app_nhanvien'); await staff.fill('#login_manv', MA_NV); await staff.click('#btn_login_submit');
+    });
     await staff.click('[onclick="startCameraAndGPS()"]', { force: true });   // nút có hiệu ứng nhịp thở
     await staff.waitForSelector('#captureBtn:not([disabled])', { timeout: 15000 });
     // Nút Chụp chỉ được mở khi camera ĐÃ có hình (trước đây mở theo GPS -> chụp lúc video 0x0: ảnh rỗng / huỷ chấm công)

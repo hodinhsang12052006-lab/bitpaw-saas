@@ -11,6 +11,7 @@
  * Chạy: node scripts/industry_isolation_audit.mjs   (server local đang chạy)
  */
 import { chromium } from 'playwright';
+import { gotoRetry } from './lib/nail_nav.mjs';
 import fs from 'fs';
 import { execFileSync } from 'child_process';
 
@@ -73,13 +74,13 @@ for (const ind of ONLY) {
   rec(ind, 'Đăng nhập -> vào đúng trang chủ ngành', landed === home || landed === home.replace('/chamcong/', '/chamcong_'), landed);
 
   // sidebar (POS toàn màn hình của nhiều ngành không có sidebar -> lấy từ trang Bảng lương dùng chung)
-  await page.goto(`${BASE}/bangluong`, { waitUntil: 'domcontentloaded' });
+  await gotoRetry(page, `${BASE}/bangluong`);
   for (let i = 0; i < 3 && !(await page.locator('#app-sidebar a').count()); i++) await page.goto(`${BASE}/bangluong`, { waitUntil: 'networkidle' }).catch(() => {});
   const links = [...new Set(await page.$$eval('#app-sidebar a[href^="/"]', (as) => as.map((a) => a.getAttribute('href'))))].filter((h) => !/logout|delete/.test(h));
   const ownPages = new Set(R.pages[ind]);
   const badLinks = [];
   for (const href of links) {
-    const resp = await page.goto(`${BASE}${href}`, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch((e) => ({ status: () => 'ERR ' + e.message.split('\n')[0] }));
+    const resp = await gotoRetry(page, `${BASE}${href}`).catch((e) => ({ status: () => 'ERR ' + e.message.split('\n')[0] }));
     const final = pathOf(page.url());
     const foreign = allForeignPagePaths.has(final) && !ownPages.has(final);
     // link trỏ tới trang riêng của ngành khác (dù bị chặn về trang chủ) cũng là lỗi; /dashboard tự chuyển về
@@ -91,7 +92,7 @@ for (const ind of ONLY) {
     if (st !== 200 || foreign || linksForeign) badLinks.push(`${href}→${final} (${st})`);
   }
   rec(ind, `${links.length} link sidebar mở đúng, không dẫn sang ngành khác`, badLinks.length === 0, badLinks.join(', '));
-  await page.goto(`${BASE}/bangluong`, { waitUntil: 'domcontentloaded' });
+  await gotoRetry(page, `${BASE}/bangluong`);
   const posHref = await page.locator('#app-sidebar a', { has: page.locator('[data-i18n="menu_pos_service"]') }).first().getAttribute('href').catch(() => null);
   if (posHref) rec(ind, 'Nút POS dịch vụ ở sidebar trỏ đúng POS của ngành', posHref === R.pos[ind], posHref);
   const ccHref = await page.locator('#app-sidebar a', { has: page.locator('[data-i18n="menu_attendance"]') }).first().getAttribute('href').catch(() => null);

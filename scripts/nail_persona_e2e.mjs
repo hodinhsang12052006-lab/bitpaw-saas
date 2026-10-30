@@ -119,7 +119,11 @@ try {
   check('Thợ', 'Gõ sai mã NV -> không vào được app', await staff.locator('#authScreen').isVisible());
   await staff.fill('#login_manv', MA_NV.toLowerCase());
   await staff.click('#btn_login_submit');
-  await staff.waitForSelector('#checkinScreen:not(.hidden)', { timeout: 8000 });
+  await waitOrRedo(staff, '#checkinScreen:not(.hidden)', async () => {
+    await staff.goto(`${BASE}/app_nhanvien`, { waitUntil: 'domcontentloaded' }).catch(() => {});
+    await staff.click('#tabLogin').catch(() => {});
+    await staff.fill('#login_manv', MA_NV.toLowerCase()); await staff.click('#btn_login_submit');
+  });
   check('Thợ', 'Đăng nhập bằng mã NV (gõ chữ thường) -> màn chấm công đúng tên', (await staff.locator('#checkin_name').innerText()).includes(HO_TEN));
   await safeScreenshot(staff, { path: path.join(OUT, '01_staff_checkin_screen.png') });
 

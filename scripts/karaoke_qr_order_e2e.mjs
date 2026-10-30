@@ -2,6 +2,7 @@
 //   node scripts/karaoke_qr_order_e2e.mjs      (CHỈ server local; dọn sạch sau khi chạy)
 import { chromium, devices } from 'playwright';
 import { execFileSync } from 'child_process';
+import { gotoRetry } from './lib/nail_nav.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5001';
 const EMAIL = 'demo.karaoke.071443@bitpawdemo.com', PW = 'DemoBitPaw2026!';
@@ -56,7 +57,7 @@ const postUrl = `/api/public/karaoke_order/${bid}/${ROOM}/${tok}`;
 // khách gọi khi phòng chưa mở -> 409; link giả -> 404
 const anon = await b.newContext(); const ap = await anon.newPage();
 const pub = (url, body) => ap.evaluate(async ([u, bd]) => { const r = await fetch(u, { method: bd ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' }, body: bd ? JSON.stringify(bd) : undefined }); let j = {}; try { j = await r.json(); } catch (e) {} return { status: r.status, ...j }; }, [url, body]);
-await ap.goto(BASE + '/landing');
+await gotoRetry(ap, BASE + '/login');   // chỉ cần 1 trang cùng origin để gọi fetch (landing nặng, chờ cả CDN ngoài)
 let r = await pub(postUrl, { items: [{ product_id: 229, qty: 1 }] });
 rec('Phòng chưa mở -> khách chưa gọi được (409)', r.status === 409);
 r = await pub(`/api/public/karaoke_order/${bid}/${ROOM}/0000000000000000`, { items: [{ product_id: 229, qty: 1 }] });
