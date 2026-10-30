@@ -1574,13 +1574,16 @@ _TOO_MANY_LOGIN_MSG = 'Too many failed sign-in attempts. Please wait 15 minutes 
 
 
 def _signup_region(form):
-    """{'country': 'AU', 'currency': 'AUD'} cho tiệm MỚI tự đăng ký (/register và Google/Facebook /auth/complete), hoặc {}.
+    """{'country': 'AU', 'currency': 'AUD'} / {'country': 'CA'} cho tiệm MỚI tự đăng ký (/register và Google/Facebook
+    /auth/complete), hoặc {}.
     Nước: ô "Quốc gia của tiệm" trên form (chọn sẵn theo header X-Vercel-IP-Country của Vercel); form cũ / gọi thẳng không có
     ô đó -> theo header; 'Nước khác', nước BitPaw chưa có luật, hoặc không có gì -> không lưu (ai_packs.shop_country = None:
-    số nội địa không bị đoán là số Mỹ / số Việt). Tiền tệ đi kèm theo đúng quy ước sẵn có cho tiệm có nước mà chưa có tiền
-    tệ (_shop_lang_currency, ai_copilot_tools.business_currency): VN -> VND, AU -> AUD, nước khác -> USD (gói chỉ bán USD/AUD,
-    format_money chỉ định dạng VND/USD/AUD) — tiệm Mỹ/Úc mới không còn rơi về VND mặc định của TenantEngine. Lỗi -> {}:
-    không bao giờ chặn việc đăng ký."""
+    số nội địa không bị đoán là số Mỹ / số Việt; TenantEngine: USD, không nước).
+    Tiền tệ CHỈ lưu khi app định dạng được nó (currency_utils.format_money + static/js/bp-currency.js: VND/USD/AUD): US -> USD,
+    AU -> AUD, VN -> VND. CA/NZ/GB: không lưu tiền tệ — từng module tự theo nước (hotel._currency, nail_turns.shop_currency,
+    retail: CAD/NZD/GBP; màn hình quản lý qua TenantEngine: '$' USD), không gắn cứng 'USD' cho tiệm không dùng USD.
+    Chọn nhầm lúc đăng ký: chủ tiệm sửa nước + tiền tệ ở Cài đặt thương hiệu (/api/business_region). Lỗi -> {}: không bao
+    giờ chặn việc đăng ký."""
     try:
         import ai_packs
         raw = form.get('country') if 'country' in form else request.headers.get('X-Vercel-IP-Country')
@@ -1590,7 +1593,8 @@ def _signup_region(form):
         country = None
     if not country:
         return {}
-    return {'country': country, 'currency': {'VN': 'VND', 'AU': 'AUD'}.get(country, 'USD')}
+    currency = {'US': 'USD', 'AU': 'AUD', 'VN': 'VND'}.get(country)
+    return {'country': country, **({'currency': currency} if currency else {})}
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -9157,6 +9161,98 @@ def api_brand_settings_save():
         }})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+# ---------------------------------------------------------------- Quốc gia & tiền tệ của tiệm (Cài đặt thương hiệu)
+# Nước chọn lúc đăng ký (chọn sẵn theo IP Vercel) trước đây KHÔNG sửa được ở đâu: tiệm Mỹ đăng ký từ IP Việt Nam để nguyên
+# 'Việt Nam' -> SĐT khách đọc theo luật VN, màn hình hiện '₫', Square bị chặn mãi (ai_packs.shop_country: nước đã lưu luôn
+# quyết định, múi giờ trang Nhắn tin không ghi đè được). Chủ tiệm (admin) tự sửa ở mục này; mỗi lần đổi ghi audit_logs.
+_REGION_CURRENCIES = ('USD', 'AUD', 'VND', 'CAD', 'NZD', 'GBP')
+
+
+def _business_region_view(business_id):
+    """Giá trị cho mục "Quốc gia & tiền tệ": country 'US'..'GB' | 'other' (đã lưu nước BitPaw chưa có luật) | '' (chưa lưu);
+    currency đã lưu | 'auto' (chưa lưu: mỗi module tự theo nước); phone_country = nước đang dùng để đọc SĐT
+    (ai_packs.shop_country, '' = chưa rõ); display_currency = tiền tệ các màn hình quản lý đang hiện (TenantEngine).
+    None khi tiệm chưa có hồ sơ businesses."""
+    import ai_packs
+    row = db.businesses.find_one({'id': business_id}, {'_id': 0, 'country': 1, 'currency': 1})
+    if row is None:
+        return None
+    stored = str(row.get('country') or '').strip()
+    return {
+        'country': ai_packs.country_code(stored) or ('other' if stored else ''),
+        'currency': str(row.get('currency') or '').strip().upper() or 'auto',
+        'phone_country': ai_packs.shop_country(dict(row, id=business_id)) or '',
+        'display_currency': (TenantEngine.get_region_config(business_id) or {}).get('currency') or 'USD',
+        'countries': list(ai_packs.SHOP_COUNTRIES) + ['other'],
+        'currencies': list(_REGION_CURRENCIES),
+    }
+
+
+@app.route('/api/business_region', methods=['GET'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_business_region_get():
+    business_id = session.get('business_id') or session['user_id']
+    try:
+        view = _business_region_view(business_id)
+    except Exception as e:
+        print(f"[business_region] read failed: {e}")
+        return jsonify({'success': False, 'message': _vi_en('Không tải được quốc gia & tiền tệ, vui lòng thử lại.',
+                                                            'Could not load country & currency. Please try again.')}), 500
+    if view is None:
+        return jsonify({'success': False, 'message': _vi_en('Không tìm thấy hồ sơ tiệm.', 'Business profile not found.')}), 404
+    return jsonify({'success': True, 'data': view})
+
+
+@app.route('/api/business_region', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_business_region_save():
+    """JSON {country: 'US'|'AU'|'VN'|'CA'|'NZ'|'GB'|'other', currency: 'USD'|'AUD'|'VND'|'CAD'|'NZD'|'GBP'|'auto'} cho ĐÚNG
+    tiệm trong phiên (không nhận business_id từ client). 'other' lưu 'OTHER' (ai_packs.shop_country -> None: số nội địa không
+    bị đoán theo múi giờ / tiền tệ); 'auto' xoá tiền tệ đã lưu (mỗi module tự theo nước — như đăng ký mới CA/NZ/GB). Không quy
+    đổi số tiền đã ghi. Có thay đổi -> audit_logs 'business_region_update' (cũ -> mới, ai đổi)."""
+    import ai_packs
+    business_id = session.get('business_id') or session['user_id']
+    data = request.get_json(silent=True)
+    data = data if isinstance(data, dict) else {}
+    raw_country = str(data.get('country') or '').strip()
+    country = 'OTHER' if raw_country.lower() == 'other' else ai_packs.country_code(raw_country)
+    if not country:
+        return jsonify({'success': False, 'message': _vi_en('Hãy chọn quốc gia của tiệm.', 'Please choose your shop country.')}), 400
+    currency = str(data.get('currency') or '').strip().upper()
+    if currency in ('', 'AUTO'):
+        currency = None
+    elif currency not in _REGION_CURRENCIES:
+        return jsonify({'success': False, 'message': _vi_en('Tiền tệ không hợp lệ (USD, AUD, VND, CAD, NZD, GBP).',
+                                                            'Unsupported currency (USD, AUD, VND, CAD, NZD, GBP).')}), 400
+    try:
+        old = db.businesses.find_one({'id': business_id}, {'_id': 0, 'country': 1, 'currency': 1})
+        if old is None:
+            return jsonify({'success': False, 'message': _vi_en('Không tìm thấy hồ sơ tiệm.', 'Business profile not found.')}), 404
+        before = {'country': old.get('country') or None, 'currency': old.get('currency') or None}
+        after = {'country': country, 'currency': currency}
+        if before != after:
+            update = {'$set': {'country': country, 'region_updated_at': datetime.now().isoformat()}}
+            if currency:
+                update['$set']['currency'] = currency
+            else:
+                update['$unset'] = {'currency': ''}
+            db.businesses.update_one({'id': business_id}, update)
+            _log_audit(business_id, 'business_region_update', 'business', business_id, old_value=before, new_value=after)
+            try:   # lễ tân AI + giờ đặt lịch đọc nước mới ngay (bộ nhớ đệm ~20 giây của booking_rules)
+                import booking_rules
+                for key in (('cc_business', business_id), ('tz', business_id)):
+                    booking_rules._CACHE.pop(key, None)
+            except Exception:
+                pass
+        view = _business_region_view(business_id)
+    except Exception as e:
+        print(f"[business_region] save failed: {e}")
+        return jsonify({'success': False, 'message': _vi_en('Không lưu được, vui lòng thử lại.', 'Could not save. Please try again.')}), 500
+    return jsonify({'success': True, 'changed': before != after, 'data': view})
 
 
 # ========== MỚI: ROUTE CHO CÁC TEMPLATE CÒN THIẾU ==========

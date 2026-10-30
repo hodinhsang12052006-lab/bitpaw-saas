@@ -291,6 +291,46 @@
                             </a>
                         </div>
                     </form>
+
+                    {# Quốc gia & tiền tệ của tiệm: sửa nước chọn nhầm lúc đăng ký (trang này chỉ dành cho admin). Lưu riêng qua
+                       /api/business_region (ghi audit_logs) — không gửi cùng form thương hiệu ở trên. #}
+                    <form id="regionForm" class="space-y-4 mt-8 pt-6 border-t border-white/10" novalidate>
+                        <div>
+                            <h2 class="text-sm font-bold text-white flex items-center gap-2"><i class="fas fa-globe text-cyan-400"></i> <span data-i18n="brand_settings_region_title">Country &amp; currency</span></h2>
+                            <p class="text-xs text-gray-400 mt-1 leading-relaxed" data-i18n="brand_settings_region_help">Used to read your clients' local phone numbers, label your prices and set your default time zone.</p>
+                        </div>
+                        <div>
+                            <label for="regionCountry" class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="brand_settings_region_country">Shop country</label>
+                            <select id="regionCountry" name="country" class="glass-input appearance-none cursor-pointer">
+                                <option value="" data-i18n="brand_settings_region_country_unset">Not set: choose your country</option>
+                                <option value="US" data-i18n="brand_settings_country_us">United States</option>
+                                <option value="AU" data-i18n="brand_settings_country_au">Australia</option>
+                                <option value="VN" data-i18n="brand_settings_country_vn">Vietnam</option>
+                                <option value="CA" data-i18n="brand_settings_country_ca">Canada</option>
+                                <option value="NZ" data-i18n="brand_settings_country_nz">New Zealand</option>
+                                <option value="GB" data-i18n="brand_settings_country_gb">United Kingdom</option>
+                                <option value="other" data-i18n="brand_settings_country_other">Other country</option>
+                            </select>
+                            <p id="regionCountryNote" class="text-[11px] text-gray-400 mt-1 ml-1 leading-relaxed hidden"></p>
+                        </div>
+                        <div>
+                            <label for="regionCurrency" class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 ml-1" data-i18n="brand_settings_region_currency">Currency</label>
+                            <select id="regionCurrency" name="currency" class="glass-input appearance-none cursor-pointer">
+                                <option value="auto" data-i18n="brand_settings_currency_auto">Match the country (automatic)</option>
+                                <option value="USD" data-i18n="brand_settings_currency_usd">USD - US dollar</option>
+                                <option value="AUD" data-i18n="brand_settings_currency_aud">AUD - Australian dollar</option>
+                                <option value="VND" data-i18n="brand_settings_currency_vnd">VND - Vietnamese dong</option>
+                                <option value="CAD" data-i18n="brand_settings_currency_cad">CAD - Canadian dollar</option>
+                                <option value="NZD" data-i18n="brand_settings_currency_nzd">NZD - New Zealand dollar</option>
+                                <option value="GBP" data-i18n="brand_settings_currency_gbp">GBP - British pound</option>
+                            </select>
+                            <p id="regionCurrencyPartial" class="text-[11px] text-amber-300 mt-1 ml-1 leading-relaxed hidden" data-i18n="brand_settings_currency_partial">Some reports and POS screens can only format VND, USD and AUD so far, so CAD, NZD or GBP amounts may look wrong there.</p>
+                            <p class="text-[11px] text-gray-400 mt-1 ml-1 leading-relaxed" data-i18n="brand_settings_currency_no_convert">Changing the currency does not convert amounts you have already recorded. It only changes the currency they are shown in.</p>
+                        </div>
+                        <button type="submit" id="regionSaveBtn" class="w-full bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
+                            <i class="fas fa-globe"></i> <span data-i18n="brand_settings_region_save">Save country &amp; currency</span>
+                        </button>
+                    </form>
                 </div>
 
                 <div class="flex-1 preview-card bg-black/30 p-4 rounded-2xl border border-white/10">
@@ -375,7 +415,35 @@
                 brand_settings_toast_saved: 'Đã lưu cài đặt thành công!',
                 brand_settings_toast_error_prefix: 'Lỗi: ',
                 brand_settings_fill_all_info: 'Vui lòng nhập đầy đủ thông tin',
-                brand_settings_support_sent: 'Yêu cầu đã được gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.'
+                brand_settings_support_sent: 'Yêu cầu đã được gửi! Chúng tôi sẽ liên hệ lại trong 15 phút.',
+                brand_settings_region_title: 'Quốc gia & tiền tệ',
+                brand_settings_region_help: 'Dùng để đọc đúng số điện thoại nội địa của khách, ghi tiền tệ trên giá và chọn múi giờ mặc định.',
+                brand_settings_region_country: 'Quốc gia của tiệm',
+                brand_settings_region_country_unset: 'Chưa chọn: hãy chọn quốc gia',
+                brand_settings_country_us: 'Hoa Kỳ (Mỹ)',
+                brand_settings_country_au: 'Úc',
+                brand_settings_country_vn: 'Việt Nam',
+                brand_settings_country_ca: 'Canada',
+                brand_settings_country_nz: 'New Zealand',
+                brand_settings_country_gb: 'Vương quốc Anh',
+                brand_settings_country_other: 'Nước khác',
+                brand_settings_region_currency: 'Tiền tệ',
+                brand_settings_currency_auto: 'Theo quốc gia (tự động)',
+                brand_settings_currency_usd: 'USD - Đô la Mỹ',
+                brand_settings_currency_aud: 'AUD - Đô la Úc',
+                brand_settings_currency_vnd: 'VND - Việt Nam đồng',
+                brand_settings_currency_cad: 'CAD - Đô la Canada',
+                brand_settings_currency_nzd: 'NZD - Đô la New Zealand',
+                brand_settings_currency_gbp: 'GBP - Bảng Anh',
+                brand_settings_currency_partial: 'Một số báo cáo và màn hình POS hiện mới định dạng được VND, USD và AUD, nên số tiền CAD, NZD hoặc GBP có thể hiển thị chưa đúng ở đó.',
+                brand_settings_currency_no_convert: 'Đổi tiền tệ không quy đổi các số tiền đã ghi, chỉ đổi đơn vị tiền hiển thị.',
+                brand_settings_region_save: 'Lưu quốc gia & tiền tệ',
+                brand_settings_region_saved: 'Đã lưu quốc gia và tiền tệ.',
+                brand_settings_region_pick: 'Hãy chọn quốc gia của tiệm.',
+                brand_settings_region_guess: 'Chưa lưu: hiện số điện thoại của khách đang được đọc theo {c} (suy ra từ múi giờ hoặc tiền tệ).',
+                brand_settings_region_unknown: 'Chưa lưu: số điện thoại nội địa của khách (không có mã nước +...) chưa đọc được cho tới khi bạn chọn quốc gia.',
+                brand_settings_region_other: 'Nước khác: số điện thoại của khách cần có mã nước (+...).',
+                brand_settings_region_load_error: 'Không tải được quốc gia & tiền tệ.'
             },
             en: {
                 brand_settings_label_store_name: 'Business Name', brand_settings_label_phone: 'Business phone', brand_settings_label_address: 'Address (shown to clients)',
@@ -402,7 +470,35 @@
                 brand_settings_toast_saved: 'Settings saved successfully!',
                 brand_settings_toast_error_prefix: 'Error: ',
                 brand_settings_fill_all_info: 'Please fill in all the information',
-                brand_settings_support_sent: 'Request sent! We will contact you back within 15 minutes.'
+                brand_settings_support_sent: 'Request sent! We will contact you back within 15 minutes.',
+                brand_settings_region_title: 'Country & currency',
+                brand_settings_region_help: "Used to read your clients' local phone numbers, label your prices and set your default time zone.",
+                brand_settings_region_country: 'Shop country',
+                brand_settings_region_country_unset: 'Not set: choose your country',
+                brand_settings_country_us: 'United States',
+                brand_settings_country_au: 'Australia',
+                brand_settings_country_vn: 'Vietnam',
+                brand_settings_country_ca: 'Canada',
+                brand_settings_country_nz: 'New Zealand',
+                brand_settings_country_gb: 'United Kingdom',
+                brand_settings_country_other: 'Other country',
+                brand_settings_region_currency: 'Currency',
+                brand_settings_currency_auto: 'Match the country (automatic)',
+                brand_settings_currency_usd: 'USD - US dollar',
+                brand_settings_currency_aud: 'AUD - Australian dollar',
+                brand_settings_currency_vnd: 'VND - Vietnamese dong',
+                brand_settings_currency_cad: 'CAD - Canadian dollar',
+                brand_settings_currency_nzd: 'NZD - New Zealand dollar',
+                brand_settings_currency_gbp: 'GBP - British pound',
+                brand_settings_currency_partial: 'Some reports and POS screens can only format VND, USD and AUD so far, so CAD, NZD or GBP amounts may look wrong there.',
+                brand_settings_currency_no_convert: 'Changing the currency does not convert amounts you have already recorded. It only changes the currency they are shown in.',
+                brand_settings_region_save: 'Save country & currency',
+                brand_settings_region_saved: 'Country and currency saved.',
+                brand_settings_region_pick: 'Please choose your shop country.',
+                brand_settings_region_guess: 'Not saved yet: client phone numbers are currently read as {c} (from your time zone or currency).',
+                brand_settings_region_unknown: "Not saved yet: clients' local phone numbers (without a +country code) can't be read until you choose a country.",
+                brand_settings_region_other: 'Other country: client phone numbers need their country code (+...).',
+                brand_settings_region_load_error: 'Could not load country & currency.'
             }
         };
         function t(key) {
@@ -422,6 +518,7 @@
             currentLang = lang;
             localStorage.setItem('bitpaw_lang', lang);
             applyStaticTranslations();
+            renderRegionNotes();
         }
         applyStaticTranslations();
         const langToggleBtn = document.getElementById('langToggleBtn');
@@ -552,8 +649,93 @@
         // CSKH track click + form hỗ trợ: gom về static/js/cskh_track.js (dùng chung,
         // gọi /api/cskh/click + /api/cskh/request qua Flask/MongoDB) — xem <script> nạp cuối trang.
 
+        // ========== QUỐC GIA & TIỀN TỆ (/api/business_region — chỉ admin, ghi audit_logs) ==========
+        const regionForm = document.getElementById('regionForm');
+        const regionCountry = document.getElementById('regionCountry');
+        const regionCurrency = document.getElementById('regionCurrency');
+        const regionCountryNote = document.getElementById('regionCountryNote');
+        const regionCurrencyPartial = document.getElementById('regionCurrencyPartial');
+        const regionSaveBtn = document.getElementById('regionSaveBtn');
+        let regionData = null;
+        let regionError = '';
+
+        function countryLabel(code) {
+            const opt = regionCountry.querySelector('option[value="' + code + '"]');
+            return opt ? opt.textContent.trim() : code;
+        }
+        function renderRegionNotes() {
+            if (!regionForm) return;
+            let note = '';
+            if (regionError) note = regionError;
+            else if (regionData && regionData.country === 'other') note = t('brand_settings_region_other');
+            else if (regionData && !regionData.country) {
+                note = regionData.phone_country
+                    ? t('brand_settings_region_guess').replace('{c}', countryLabel(regionData.phone_country))
+                    : t('brand_settings_region_unknown');
+            }
+            regionCountryNote.textContent = note;
+            regionCountryNote.classList.toggle('hidden', !note);
+            regionCurrencyPartial.classList.toggle('hidden', ['CAD', 'NZD', 'GBP'].indexOf(regionCurrency.value) === -1);
+        }
+        function applyRegion(d) {
+            regionData = d || {};
+            regionError = '';
+            regionCountry.value = regionData.country || '';
+            const cur = regionData.currency || 'auto';
+            if (!regionCurrency.querySelector('option[value="' + cur + '"]')) {   // tiền tệ cũ ngoài danh sách: hiện đúng, không tự đổi
+                const opt = document.createElement('option');
+                opt.value = cur;
+                opt.textContent = cur;
+                regionCurrency.appendChild(opt);
+            }
+            regionCurrency.value = cur;
+            renderRegionNotes();
+        }
+        async function loadRegion() {
+            try {
+                const res = await fetch('/api/business_region', { credentials: 'same-origin' });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json.success) throw new Error((json && json.message) || t('brand_settings_region_load_error'));
+                applyRegion(json.data);
+                regionSaveBtn.disabled = false;
+            } catch (err) {
+                console.error(err);
+                regionError = err.message || t('brand_settings_region_load_error');
+                regionSaveBtn.disabled = true;   // chưa biết giá trị hiện tại: không cho lưu đè
+                renderRegionNotes();
+            }
+        }
+        regionCurrency.addEventListener('change', renderRegionNotes);
+        regionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!regionCountry.value) {
+                showToast(t('brand_settings_region_pick'), true);
+                regionCountry.focus();
+                return;
+            }
+            regionSaveBtn.disabled = true;
+            try {
+                const res = await fetch('/api/business_region', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ country: regionCountry.value, currency: regionCurrency.value })
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json.success) throw new Error((json && json.message) || 'Request failed');
+                applyRegion(json.data);
+                showToast(t('brand_settings_region_saved'));
+            } catch (err) {
+                console.error(err);
+                showToast(t('brand_settings_toast_error_prefix') + err.message, true);
+            } finally {
+                regionSaveBtn.disabled = false;
+            }
+        });
+
         // Khởi tạo
         loadSettings();
+        loadRegion();
 
     </script>
     <script src="{{ url_for('static', filename='js/cskh_track.js') }}"></script>
