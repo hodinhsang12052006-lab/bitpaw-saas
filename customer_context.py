@@ -147,14 +147,35 @@ def info_line(business_id, rules=None, appointment=False):
     return head + ('; '.join(f"{k}: {v}" for k, v in items) if items else 'none published yet.')
 
 
+def _ampm(m):
+    h, mi = divmod(int(m) % (24 * 60), 60)
+    return f"{h % 12 or 12}:{mi:02d} {'am' if h < 12 else 'pm'}"
+
+
+def _day_hours(d, v):
+    """'Mon 09:00-19:00' / 'Tue closed'. A day open PAST midnight (closing time earlier than opening time — only reservation
+    venues can save it, booking_rules.save_rules allow_overnight) states the real close and the next day:
+    'Fri 6:00 pm – 2:00 am (Sat)'. Before: 'Fri 18:00-02:00', easy to read as closing at 2 am the SAME day."""
+    name = DAY_NAMES.get(d, d)
+    if not v:
+        return f"{name} closed"
+    try:
+        o, c = booking_rules._hm(v[0]), booking_rules._hm(v[1])
+    except (ValueError, IndexError, TypeError):
+        o = c = None
+    if o is not None and 0 < c < o and d in booking_rules.DAY_KEYS:
+        nxt = booking_rules.DAY_KEYS[(booking_rules.DAY_KEYS.index(d) + 1) % 7]
+        return f"{name} {_ampm(o)} – {_ampm(c)} ({DAY_NAMES[nxt]})"
+    return f"{name} {v[0]}-{v[1]}"
+
+
 def hours_lines(business_id, rules=None, include_defaults=False):
     """OPENING HOURS + RIGHT NOW. Default hours (9-19) are NOT the shop's real hours, so they are only shown where bookings
     are really checked against them (appointment pack, include_defaults=True)."""
     rules = rules or booking_rules.get_rules(business_id)
     if not rules.get('configured') and not include_defaults:
         return []
-    hours = ', '.join(f"{DAY_NAMES.get(d, d)} {v[0]}-{v[1]}" if v else f"{DAY_NAMES.get(d, d)} closed"
-                      for d, v in (rules.get('hours') or {}).items())
+    hours = ', '.join(_day_hours(d, v) for d, v in (rules.get('hours') or {}).items())
     out = [f"OPENING HOURS: {hours}."]
     try:
         st = booking_rules.open_status(business_id, rules)

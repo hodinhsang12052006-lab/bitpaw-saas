@@ -253,6 +253,23 @@ def _appointments(db, r, biz, industry, today):
            'công bố Lịch ca tuần — không có thì sức chứa = số thợ (có thể đặt cho thợ nghỉ)', required=False)
 
 
+def _auto_confirm_item(r, key, settings, sub_key, what):
+    """Tự xác nhận THẬT của AI đặt chỗ (= reservations_core.load_rules qua scenarios_common.auto_confirm_of, cùng luật với
+    giả lập): khối riêng > công tắc chung chỉ khi chủ đã lưu ở trang Cài đặt đặt chỗ > chờ duyệt."""
+    from scenarios_common import GENERAL_SAVED_MARK, auto_confirm_of
+    auto = auto_confirm_of(settings, sub_key)
+    sub = settings.get(sub_key) if isinstance(settings.get(sub_key), dict) else {}
+    if isinstance(sub.get('auto_confirm'), bool):
+        why = 'lựa chọn riêng ở mục Đặt chỗ'
+    elif 'auto_confirm' in settings and settings.get(GENERAL_SAVED_MARK):
+        why = 'theo công tắc chung chủ đã lưu'
+    elif settings.get('auto_confirm'):
+        why = 'công tắc chung chưa lưu ở trang Cài đặt đặt chỗ — auto_confirm=True của trang cũ (mặc định Nails) không tính'
+    else:
+        why = 'chưa bật'
+    r.add(INFO, key, f"tự xác nhận {what}: {auto} ({why}; False = chờ quán duyệt)")
+
+
 def _fnb(db, r, biz, ctx, today):
     tables = list(db.dining_tables.find({'business_id': biz}, {'_id': 0, 'id': 1, 'seats': 1, 'capacity': 1}))
     seated = [t for t in tables if _num(t.get('seats') or t.get('capacity')) > 0]
@@ -263,8 +280,7 @@ def _fnb(db, r, biz, ctx, today):
     r.need(bool(covers or seated), 'table_capacity',
            ('sức chứa: ' + '; '.join(cap)) if cap else 'chưa nhập sức chứa (số khách / khung giờ hoặc số ghế từng bàn)',
            'nhập sức chứa — không có thì AI chỉ ghi YÊU CẦU chờ duyệt, không bao giờ nói "còn bàn"', required=False)
-    auto = rs.get('auto_confirm') if isinstance(rs.get('auto_confirm'), bool) else ctx['settings'].get('auto_confirm')
-    r.add(INFO, 'table_auto_confirm', f"tự xác nhận đặt bàn: {auto!r} (None/False = chờ quán duyệt)")
+    _auto_confirm_item(r, 'table_auto_confirm', ctx['settings'], 'table_reservations', 'đặt bàn')
     menu = _active_products(db, biz)
     r.need(bool(menu), 'menu', f'{len(menu)} món đang bán', 'thêm thực đơn + giá', required=False)
     al = sum(1 for p in menu if p.get('allergens'))
@@ -285,6 +301,7 @@ def _karaoke(db, r, biz, ctx, today):
     rs = ctx['settings'].get('karaoke_reservations') if isinstance(ctx['settings'].get('karaoke_reservations'), dict) else {}
     r.need(bool(rs.get('hold_minutes')), 'release_policy', f"giữ phòng khi tới trễ: {rs.get('hold_minutes') or 'chưa công bố'}",
            'công bố số phút giữ phòng khi khách tới trễ', required=False)
+    _auto_confirm_item(r, 'karaoke_auto_confirm', ctx['settings'], 'karaoke_reservations', 'đặt phòng hát')
     menu = _active_products(db, biz)
     r.add(INFO, 'drinks_menu', f'{len(menu)} món đồ uống / đồ ăn (đặt trước = ghi chú cho nhân viên)')
 

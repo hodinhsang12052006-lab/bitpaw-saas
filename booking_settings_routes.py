@@ -39,6 +39,8 @@ _GENERAL_FIELDS = {   # ô của "Luật chung" (booking_rules.save_rules báo l
     'default_duration': ('Thời lượng mặc định', 'Default duration'),
     'capacity': ('Số khách cùng lúc', 'Clients at once'),
 }
+# Ô "Luật chung" chủ quán đặt chỗ được xoá trống (= chưa đặt): trang gửi null -> xoá giá trị đã lưu, AI về 0 phút / 366 ngày.
+_CLEARABLE = ('min_lead_minutes', 'max_advance_days')
 _DAY_NAMES = {'mon': ('Thứ 2', 'Monday'), 'tue': ('Thứ 3', 'Tuesday'), 'wed': ('Thứ 4', 'Wednesday'),
               'thu': ('Thứ 5', 'Thursday'), 'fri': ('Thứ 6', 'Friday'), 'sat': ('Thứ 7', 'Saturday'), 'sun': ('Chủ nhật', 'Sunday')}
 
@@ -149,15 +151,20 @@ def booking_settings_api():
     lang = _lang()
     kind = RESERVATION_KIND.get(_industry())   # None = lịch hẹn (Nails, Spa...): luật + hành vi cũ
     if request.method == 'POST':
-        data, extra = request.json or {}, None
+        data, extra, unset = request.json or {}, None, []
         if kind and isinstance(data, dict):
             data = dict(data)
+            # ô Đặt trước tối thiểu / tối đa để trống (null) = "chưa đặt": xoá giá trị đã lưu (trước: trang không gửi ô trống
+            # nên số đã lưu không bao giờ xoá được)
+            unset = [k for k in _CLEARABLE if k in data and data[k] in (None, '')]
+            for k in unset:
+                data.pop(k)
             if kind == 'hotel':
                 data.pop('auto_confirm', None)     # công tắc chung ẩn ở trang khách sạn: không lưu mặc định của Nails
             elif 'auto_confirm' in data:          # chủ quán lưu công tắc chung ở trang này -> "theo công tắc chung" mới tính
                 extra = {reservations_core.GENERAL_SAVED_MARK: datetime.now().isoformat()}
         try:
-            rules = booking_rules.save_rules(bid, data, allow_overnight=bool(kind), extra=extra)
+            rules = booking_rules.save_rules(bid, data, allow_overnight=bool(kind), extra=extra, unset=unset)
         except booking_rules.HoursError as e:
             return jsonify({'success': False, 'message': _hours_error_text(e, lang)}), 400
         except ValueError as e:

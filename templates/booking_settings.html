@@ -290,9 +290,10 @@
         Object.keys(INFO).forEach((k) => { info[k] = $('i_' + k).value; });
         const out = { hours, durations, info, slot_minutes: +$('slot').value, min_lead_minutes: +$('lead').value, max_advance_days: +$('adv').value,
                       default_duration: +$('dur').value, capacity: +$('cap').value, auto_confirm: $('autoc').value === '1' };
-        // Ngành đặt chỗ: ô để trống = chưa đặt — không gửi, để bấm Lưu không âm thầm ghi 0 / số mặc định thay cho "chưa đặt"
-        if (RK && $('lead').value === '') delete out.min_lead_minutes;
-        if (RK && $('adv').value === '') delete out.max_advance_days;
+        // Ngành đặt chỗ: ô để trống = chưa đặt — gửi null (máy chủ xoá số đã lưu), không âm thầm ghi 0 / số mặc định thay cho
+        // "chưa đặt". Trước: ô trống không được gửi nên số đã lưu rồi xoá trống không bao giờ bỏ được.
+        if (RK && $('lead').value === '') out.min_lead_minutes = null;
+        if (RK && $('adv').value === '') out.max_advance_days = null;
         return out;
     }
     function windowText(lead, adv) {
