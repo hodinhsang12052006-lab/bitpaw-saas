@@ -24,7 +24,9 @@ from mongo_client import db  # noqa: E402  (đọc .env, kết nối Mongo)
 BASE = os.environ.get('SIM_BASE', 'http://127.0.0.1:5001')
 assert re.match(r'^http://(127\.0\.0\.1|localhost)(:\d+)?$', BASE), 'Giả lập chỉ chạy với server local'
 DS_KEY = os.environ.get('DEEPSEEK_API_KEY')
-assert DS_KEY, 'Thiếu DEEPSEEK_API_KEY'
+# SIM_MOCK=1 (sim_receptionist.py --mock): chạy thử offline — khách/bot/giám khảo đều là câu soạn sẵn, không gọi DeepSeek
+MOCK = os.environ.get('SIM_MOCK') == '1'
+assert DS_KEY or MOCK, 'Thiếu DEEPSEEK_API_KEY'
 
 
 def browser_session():
@@ -67,6 +69,8 @@ class Pacer:
 
 def ds(messages, temperature=0.7, max_tokens=400, json_mode=False, retries=3):
     """Gọi DeepSeek trực tiếp (cho khách giả lập + giám khảo — không đi qua server BitPaw)."""
+    if MOCK or not DS_KEY:
+        raise RuntimeError('Chế độ --mock không gọi DeepSeek (lệnh trả phí)')
     body = {'model': 'deepseek-chat', 'messages': messages, 'temperature': temperature, 'max_tokens': max_tokens}
     if json_mode:
         body['response_format'] = {'type': 'json_object'}
@@ -155,11 +159,12 @@ def judge(persona, transcript, facts, db_check):
 DIMS = ['task_success', 'accuracy', 'honesty', 'language', 'empathy', 'efficiency', 'safety']
 
 
-def run_conversation(persona, bot_reply_fn, max_turns=8):
-    """bot_reply_fn(history, message) -> (text, latency_s, meta). Trả transcript + số liệu độ trễ."""
+def run_conversation(persona, bot_reply_fn, max_turns=8, customer_fn=None):
+    """bot_reply_fn(history, message) -> (text, latency_s, meta). Trả transcript + số liệu độ trễ.
+    customer_fn(persona, transcript) thay khách DeepSeek (chế độ --mock: tin soạn sẵn)."""
     transcript, latencies, metas = [], [], []
     for _ in range(max_turns):
-        msg = customer_next(persona, transcript)
+        msg = (customer_fn or customer_next)(persona, transcript)
         ended = '[END]' in (msg or '')
         msg = (msg or '').replace('[END]', '').strip()
         if not msg:
