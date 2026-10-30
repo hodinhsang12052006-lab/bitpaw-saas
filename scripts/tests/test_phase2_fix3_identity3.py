@@ -63,7 +63,8 @@ if not hasattr(core.FakeCollection, 'distinct'):
 # ---------------------------------------------------------------- route của app.py (lấy nguyên mã nguồn qua ast, bỏ decorator)
 _FUNCS = ('_portal_chat_token', '_resolve_portal_customer', '_portal_conversation', '_portal_stream_sig', '_portal_stream_key',
           '_portal_stream_owner', 'api_portal_messages_list', 'api_portal_messages_create', 'api_portal_upload',
-          'api_portal_stream', 'api_cskh_chat_send', '_assert_owns_bot_customer', 'api_bot_messages_create')
+          'api_portal_stream', 'api_cskh_chat_send', '_assert_owns_bot_customer', 'api_bot_messages_create',
+          '_web_device_labels', '_web_reply_stamp')   # identity4: đích trả lời + nhãn thiết bị (api_bot_messages_create gọi)
 _ASSIGNS = ('_PORTAL_STREAM_KEY_TTL',)
 SSE, UPLOADS = [], []
 
@@ -708,7 +709,7 @@ class HumanAgentSendTests(_Base):
     def test_send_errors_are_shown_and_no_stream_is_started(self):
         bad, good = self._real('sms:+61412345678'), self._real('0412 345 678')
         self.assertEqual((bad['status'], good['status']), (400, 200))
-        src = widget_src(self, 'handleHumanAgentSubmit', 'humanSendError')
+        src = widget_src(self, 'handleHumanAgentSubmit', 'humanSendError', 'getChatToken')   # identity4: gửi kèm mã chat (header)
         scenario = "await handleHumanAgentSubmit(D.msg, D.phone);"
         cases = {
             'ok': good,
@@ -761,8 +762,13 @@ class HumanAgentSendTests(_Base):
         lets = [js_line(s, r'^\s*let humanChatStream = [^\n]*$'), js_line(s, r'^\s*let renderedStaffMessageCount = [^\n]*$')]
         self.assertTrue(all(lets), lets)
         lets += [x for x in (js_line(s, r'^\s*let humanChatPhone = [^\n]*$'),) if x]   # trạng thái thêm của bản sửa (nếu có)
-        src = widget_src(self, 'handleHumanAgentSubmit', 'humanSendError', 'startHumanAgentStream', 'fetchHumanAgentReplies')
+        # identity4: kênh nghe 'Talk to Human Agent' mở bằng khoá ngắn hạn (stream_key) của GET /api/cskh/chat/messages, không chỉ SĐT
+        lets.append(js_line(s, r'^\s*let humanStreamKey = [^\n]*$'))
+        self.assertTrue(lets[-1], 'widget: thiếu trạng thái khoá nghe humanStreamKey')
+        src = widget_src(self, 'handleHumanAgentSubmit', 'humanSendError', 'startHumanAgentStream', 'fetchHumanAgentReplies',
+                         'openHumanAgentStream', 'renewHumanAgentStream', 'getChatToken')
         src = '\n'.join(lets + [src])
+        k1, k2 = '1700000600.' + 'ab' * 32, '1700000660.' + 'cd' * 32
         scenario = '''
           const tick = () => new Promise((r) => setImmediate(r));
           startHumanAgentStream('sms:+61412345678');
@@ -772,15 +778,19 @@ class HumanAgentSendTests(_Base):
           await handleHumanAgentSubmit('I need a demo', '0412 345 678');
           for (let i = 0; i < 5; i++) await tick();
         '''
-        staff = {'status': 200, 'body': {'success': True, 'messages': [
+        staff = {'status': 200, 'body': {'success': True, 'stream_key': k2, 'stream_key_ttl': 600, 'messages': [
             {'sender_type': 'customer', 'content': 'I need a demo'}, {'sender_type': 'staff', 'content': 'Hi! A demo link is on its way'}]}}
         for vi in (False, True):
-            out = run_node(self, src, scenario, vi=vi, responses=[{'status': 200, 'body': {'success': True, 'messages': []}},
-                                                                  bad, good, staff])
+            out = run_node(self, src, scenario, vi=vi, store={'bp_chat_token': TOKEN_W},
+                           responses=[{'status': 200, 'body': {'success': True, 'messages': [], 'stream_key': k1, 'stream_key_ttl': 600}},
+                                      bad, good, staff])
             self.assertEqual(out['extra']['afterBad'], 1)                           # lỗi -> không mở thêm kênh nào
             self.assertEqual([(st['url'], st['closed']) for st in out['streams']],
-                             [('/api/stream/cskh_chat?phone=sms%3A%2B61412345678', True),
-                              ('/api/stream/cskh_chat?phone=0412%20345%20678', False)])
+                             [('/api/stream/cskh_chat?phone=sms%3A%2B61412345678&stream_key=' + k1, True),
+                              ('/api/stream/cskh_chat?phone=0412%20345%20678&stream_key=' + k2, False)])
+            for c in out['calls']:                                                  # mã chat chỉ trong header, không trong URL
+                self.assertEqual(c['headers'].get('X-Chat-Token'), TOKEN_W, c)
+                self.assertNotIn(TOKEN_W, c['url'])
             texts = [t for _w, t in out['appended']]
             self.assertIn('CHƯA được gửi' if vi else 'NOT sent', texts[1])
             self.assertEqual(texts[-1], 'Hi! A demo link is on its way')            # trả lời của nhân viên hiện ra

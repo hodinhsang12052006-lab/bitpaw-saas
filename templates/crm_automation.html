@@ -351,6 +351,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                         </div>
                     </div>
 
+                    <div id="inboxReplyTargetBar" role="status" aria-live="polite" class="hidden px-4 pt-3 bg-black/60 border-t border-white/5 shrink-0 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-amber-200"></div>
                     <div class="p-4 bg-black/60 border-t border-white/5 shrink-0 backdrop-blur-md flex gap-3 items-center">
                         <button class="text-gray-400 hover:text-white transition-colors w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl"><i class="fas fa-paperclip text-lg"></i></button>
                         <input type="text" id="liveChatInput" placeholder="Nhập tin nhắn để tư vấn khách..." class="glass-input py-3.5" data-i18n-placeholder="crm_automation_placeholder_chat_input">
@@ -453,6 +454,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     <!-- Toast Notification -->
     <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3"></div>
 
+    <script src="/static/js/bp_reply_target.js?v={{ asset_v('js/bp_reply_target.js') }}"></script>
     <script>
         // UI Tabs
         function renderInboxTabBtnHTML() {
@@ -1101,6 +1103,19 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // gửi trả lời của staff), GET /api/stream/bot_chat (SSE báo hiệu, tự poll lại) ---
         let allBotCustomersCache = [];
         let currentInboxCustomerId = null;
+        // Hội thoại web: thiết bị nào gửi tin nào + trả lời tới đâu (static/js/bp_reply_target.js); inboxReplyPick = thiết bị nhân
+        // viên tự chọn ở thanh phía trên ô soạn tin (null = mặc định tin khách mới nhất đang hiện).
+        let inboxReplyPlan = null, inboxReplyPick = null;
+        function isInboxWebThread(customerId) {
+            const c = allBotCustomersCache.find(x => x.id === customerId);
+            return ((c && c.channel) || 'web') === 'web';
+        }
+        function renderInboxReplyBar() {
+            if (!window.BPReplyTarget) return;
+            BPReplyTarget.renderBar(document.getElementById('inboxReplyTargetBar'), inboxReplyPlan, inboxReplyPick, currentLang,
+                (d) => { inboxReplyPick = d; renderInboxReplyBar(); },
+                'bg-black/60 border border-amber-400/40 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none');
+        }
 
         async function loadInboxContacts() {
             const inboxList = document.getElementById('inboxList');
@@ -1142,6 +1157,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         async function openChat(customerId, name) {
             currentInboxCustomerId = customerId;
+            inboxReplyPick = null;
+            inboxReplyPlan = null;   // kế hoạch trả lời của hội thoại cũ không bao giờ dùng cho hội thoại này
+            renderInboxReplyBar();
             document.getElementById('activeChatName').innerText = name;
             const idStr = String(customerId);
             document.getElementById('activeChatPhone').innerText = idStr.includes(':') ? idStr.split(':').slice(1).join(':') : idStr;
@@ -1164,20 +1182,25 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 if (!result.success) throw new Error(result.message || 'error');
 
                 const data = result.data || [];
+                if (customerId !== currentInboxCustomerId) return;   // đã bấm sang hội thoại khác trong lúc chờ
+                inboxReplyPlan = window.BPReplyTarget ? BPReplyTarget.plan(data, isInboxWebThread(customerId)) : null;
+                renderInboxReplyBar();
                 if(data.length === 0) {
                     box.innerHTML = '<div class="text-center text-gray-500 text-xs mt-10 uppercase tracking-widest font-bold">' + t('crm_automation_no_chat_messages') + '</div>';
                     return;
                 }
 
+                const tags = !!(window.BPReplyTarget && inboxReplyPlan);
                 box.innerHTML = data.map(msg => {
                     const isBot = msg.sender_type === 'bot' || msg.sender_type === 'ai';
                     const isStaff = msg.sender_type === 'staff';
 
                     if (isBot || isStaff) {
+                        const toTag = tags && isStaff ? BPReplyTarget.staffTag(msg, inboxReplyPlan, currentLang) : '';
                         return `
                             <div class="flex justify-start animate-[fadeIn_0.3s_ease-out]">
                                 <div class="max-w-[75%]">
-                                    <p class="text-[9px] ${isBot ? 'text-fuchsia-400' : 'text-cyan-400'} font-black mb-1.5 ml-1 uppercase tracking-widest drop-shadow-sm"><i class="fas ${isBot ? 'fa-robot' : 'fa-headset'} mr-1"></i> ${isBot ? t('crm_automation_sender_bot') : t('crm_automation_sender_cskh')}</p>
+                                    <p class="text-[9px] ${isBot ? 'text-fuchsia-400' : 'text-cyan-400'} font-black mb-1.5 ml-1 uppercase tracking-widest drop-shadow-sm"><i class="fas ${isBot ? 'fa-robot' : 'fa-headset'} mr-1"></i> ${isBot ? t('crm_automation_sender_bot') : t('crm_automation_sender_cskh')}${toTag ? ` <span class="text-amber-200 normal-case tracking-normal" data-reply-device="1">${escapeHtml(toTag)}</span>` : ''}</p>
                                     <div class="${isBot ? 'bg-fuchsia-900/20 border-fuchsia-500/30' : 'bg-cyan-900/20 border-cyan-500/30'} border p-3.5 rounded-2xl rounded-tl-sm text-[13px] text-gray-200 shadow-sm leading-relaxed font-medium">
                                         ${escapeHtml(msg.content)}
                                     </div>
@@ -1185,10 +1208,11 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             </div>
                         `;
                     } else {
+                        const dev = tags ? BPReplyTarget.customerTag(msg, inboxReplyPlan, currentLang) : null;
                         return `
                             <div class="flex justify-end animate-[fadeIn_0.3s_ease-out]">
                                 <div class="max-w-[75%] flex flex-col items-end">
-                                    <p class="text-[9px] text-gray-400 font-black mb-1.5 mr-1 uppercase tracking-widest text-right">${t('crm_automation_sender_customer')}</p>
+                                    <p class="text-[9px] text-gray-400 font-black mb-1.5 mr-1 uppercase tracking-widest text-right">${t('crm_automation_sender_customer')}${dev ? ` <span class="ml-1 px-1.5 py-0.5 rounded-md bg-white/10 text-cyan-200 normal-case tracking-normal" data-device-tag="1" title="${escapeHtml(dev.title || '')}">${escapeHtml(dev.text)}</span>` : ''}</p>
                                     <div class="bg-black/60 border border-white/10 p-3.5 rounded-2xl rounded-tr-sm text-[13px] text-white shadow-[0_0_15px_rgba(255,255,255,0.05)] leading-relaxed font-medium">
                                         ${escapeHtml(msg.content)}
                                     </div>
@@ -1213,15 +1237,24 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             if(!text) return;
 
             input.value = '';
+            // Hội thoại web: trả lời tin khách đang hiện lúc bấm Gửi (mặc định tin mới nhất, hoặc thiết bị đã chọn) — server ghi trả
+            // lời kèm mã trình duyệt của ĐÚNG tin đó nên chỉ thiết bị đó thấy trên trang chat.
+            const plan = inboxReplyPlan;
+            const target = window.BPReplyTarget ? BPReplyTarget.target(plan, inboxReplyPick) : null;
+            const payload = { customer_id: currentInboxCustomerId, content: text };
+            if (target) payload.reply_to = target.reply_to;
 
             try {
                 const response = await fetch('/api/bot/messages', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customer_id: currentInboxCustomerId, content: text })
+                    body: JSON.stringify(payload)
                 });
                 const result = await response.json();
                 if (!result.success) throw new Error(result.message || 'error');
+                const note = window.BPReplyTarget ? BPReplyTarget.sentNote(result, plan, currentLang) : null;
+                if (note) showToast(escapeHtml(note.text), note.ok ? 'success' : 'error');
+                inboxReplyPick = null;
 
                 await loadInboxMessages(currentInboxCustomerId, { silent: true });
                 loadInboxContacts();

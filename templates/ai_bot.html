@@ -560,6 +560,7 @@
                     <a href="/inbox/channels" class="underline text-amber-100 whitespace-nowrap" data-cp="connectNow">Connect</a>
                 </div>
                 <div class="p-5 bg-black/60 border-t border-white/5 shrink-0 backdrop-blur-xl">
+                    <div id="replyTargetBar" role="status" aria-live="polite" class="hidden mb-3 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-amber-200"></div>
                     <form id="aiForm" class="flex items-center gap-3 relative" onsubmit="handleUserSubmit(event)">
                         <input type="text" id="userInput" placeholder="Message the customer..." autocomplete="off"
                             class="glass-input pl-5 pr-16 font-medium text-sm rounded-2xl">
@@ -578,6 +579,7 @@
         class="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-[440px] px-4 z-[9999] flex flex-col gap-2 pointer-events-none">
     </div>
 
+    <script src="/static/js/bp_reply_target.js?v={{ asset_v('js/bp_reply_target.js') }}"></script>
     <script>
         // Flask API wrapper (thay client BaaS cũ) — business_id đã được lọc ở server
         // theo session, client chỉ cần gọi thẳng các route /api/bot/*.
@@ -597,6 +599,9 @@
         let currentCustomerPhone = null;
         let conversationHistory = [];
         let lastLoadedMessages = []; // hội thoại thật đang mở (để Copilot biết tin cuối có phải của khách)
+        // Hội thoại web: thiết bị nào gửi tin nào + trả lời tới đâu (static/js/bp_reply_target.js). replyPick = thiết bị nhân viên
+        // tự chọn ở thanh phía trên ô soạn tin (null = mặc định tin khách mới nhất đang hiện).
+        let replyPlan = null, replyPick = null;
         let allCustomers = [];
         let isMockMode = false;
         let isDemoMode = false;
@@ -657,6 +662,8 @@
 
             // Step 1: wipe the chat window clean
             chatBox.innerHTML = '';
+            replyPlan = null;     // thanh chọn thiết bị của hội thoại thật trước đó không hiện trên live demo
+            renderReplyBar();
 
             const script = {
                 en: {
@@ -1220,6 +1227,9 @@
         async function onSelectCustomer(customer) {
             chatSessionToken++; // invalidates any in-flight startLiveDemo() timers from before
             currentCustomerId = customer.id;
+            replyPick = null;
+            replyPlan = null;     // kế hoạch trả lời của hội thoại cũ không bao giờ dùng cho hội thoại này
+            renderReplyBar();
             currentCustomerPhone = customer.phone || null; // để AI cá nhân hoá theo hạng/lịch sử chi tiêu nếu tra được
             conversationHistory = [];
             chatCustomerName.innerText = customer.full_name || 'Customer';
@@ -1244,6 +1254,8 @@
             }
             if (isMockMode || String(customerId).startsWith('mock-')) {
                 chatBox.innerHTML = '';
+                replyPlan = null;
+                renderReplyBar();
                 const msgs = mockMessages[customerId] || [{ sender_type: 'customer', content: 'Hi there! Could you advise on the best way to optimize our operations?', created_at: new Date().toISOString() }];
                 msgs.forEach(msg => {
                     if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at);
@@ -1255,18 +1267,22 @@
             try {
                 const body = await hrApi(`/api/bot/messages?customer_id=${encodeURIComponent(customerId)}`);
                 const data = body.data || [];
+                if (customerId !== currentCustomerId) return;   // nhân viên đã bấm sang khách khác trong lúc chờ
                 lastLoadedMessages = data;
+                replyPlan = window.BPReplyTarget ? BPReplyTarget.plan(data, isWebThread(customerId)) : null;
                 chatBox.innerHTML = '';
 
                 if (data.length === 0) {
                     appendSystemNote(cpLang() === 'vi' ? 'Chưa có tin nhắn nào trong cuộc trò chuyện này.' : 'No messages in this conversation yet.');
                 } else {
+                    const tags = window.BPReplyTarget && replyPlan;
                     data.forEach(msg => {
                         if (msg.sender_type === 'system') appendSystemNote(msg.content, msg.created_at);
-                        else if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at, msg.sender_type, msg.delivery);
-                        else appendAIMessageStatic(msg.content, msg.created_at);
+                        else if (msg.sender_type === 'staff' || msg.sender_type === 'ai') appendUserMessageStatic(msg.content, msg.created_at, msg.sender_type, msg.delivery, tags ? BPReplyTarget.staffTag(msg, replyPlan, cpLang()) : '');
+                        else appendAIMessageStatic(msg.content, msg.created_at, tags ? BPReplyTarget.customerTag(msg, replyPlan, cpLang()) : null);
                     });
                 }
+                renderReplyBar();
                 scrollToBottom();
             } catch (err) {
                 console.error(err);
@@ -1305,16 +1321,18 @@
             return `<i class="fas fa-check-double text-cyan-400" title="${escapeHtml(cpt('sent'))}"></i>`;
         }
 
-        function appendUserMessageStatic(text, time = null, senderType = 'staff', delivery = null) {
+        // toTag: thiết bị nhận trả lời trên hội thoại web ("→ Thiết bị A" / "→ không hiện trên trang chat của khách") — bp_reply_target.js
+        function appendUserMessageStatic(text, time = null, senderType = 'staff', delivery = null, toTag = '') {
             const timeStr = time ? new Date(time).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
             const who = senderType === 'ai'
                 ? '<i class="fas fa-robot text-purple-300"></i> AI'
                 : '<i class="fas fa-user-tie text-cyan-300"></i> ' + (cpLang() === 'vi' ? 'Nhân viên' : 'Staff');
+            const to = toTag ? ` <span class="text-amber-200/90" data-reply-device="1">${escapeHtml(toTag)}</span>` : '';
             const html = `
                 <div class="flex justify-end animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-end">
                         <div class="chat-user text-white font-medium">${richText(text)}</div>
-                        <p class="text-[11px] text-gray-500 mt-1.5 mr-2 font-bold text-right">${who} · ${deliveryMark(delivery)} ${timeStr}</p>
+                        <p class="text-[11px] text-gray-500 mt-1.5 mr-2 font-bold text-right">${who}${to} · ${deliveryMark(delivery)} ${timeStr}</p>
                     </div>
                 </div>`;
             chatBox.insertAdjacentHTML('beforeend', html);
@@ -1329,13 +1347,15 @@
                     <i class="fas ${urgent ? 'fa-triangle-exclamation' : 'fa-circle-info'} mr-1"></i>${richText(text)}${timeStr ? ` <span class="opacity-60 ml-1">${timeStr}</span>` : ''}</div></div>`);
         }
 
-        function appendAIMessageStatic(text, time = null) {
+        // deviceTag: { text, title } — trình duyệt / thiết bị đã gửi tin này trên hội thoại web (bp_reply_target.js), không bao giờ mã băm
+        function appendAIMessageStatic(text, time = null, deviceTag = null) {
             const timeStr = time ? new Date(time).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+            const dev = deviceTag ? ` <span class="ml-1 px-1.5 py-0.5 rounded-md bg-white/10 text-cyan-200 normal-case tracking-normal" data-device-tag="1" title="${escapeHtml(deviceTag.title || '')}">${escapeHtml(deviceTag.text)}</span>` : '';
             const html = `
                 <div class="flex justify-start gap-4 animate-[fadeIn_0.3s_ease-out] mb-4">
                     <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center font-black text-white shrink-0 border border-gray-600 mt-1"><i class="fas fa-user"></i></div>
                     <div class="max-w-[80%] lg:max-w-[70%] flex flex-col items-start">
-                        <p class="text-[11px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Customer</p>
+                        <p class="text-[11px] text-gray-400 mb-1 ml-1 font-black uppercase tracking-widest">Customer${dev}</p>
                         <div class="chat-ai text-gray-200 font-medium" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">${richText(text)}</div>
                         <p class="text-[10px] text-gray-500 mt-1.5 ml-2 font-bold">${timeStr}</p>
                     </div>
@@ -1391,6 +1411,21 @@
             if (indicator) indicator.remove();
         }
 
+        // Hội thoại web (khoá theo SĐT khách tự gõ) — nơi 2 trình duyệt có thể dùng chung 1 hội thoại
+        function isWebThread(customerId) {
+            const id = String(customerId || '');
+            if (!id || id.startsWith('mock-') || id.startsWith('live-demo-')) return false;
+            const c = allCustomers.find(x => x.id === customerId);
+            return ((c && c.channel) || 'web') === 'web';
+        }
+        // Thanh phía trên ô soạn tin: >= 2 thiết bị -> hiện rõ thiết bị nhận trả lời + cho chọn; tin không có mã trình duyệt -> cảnh báo
+        function renderReplyBar() {
+            if (!window.BPReplyTarget) return;
+            BPReplyTarget.renderBar(document.getElementById('replyTargetBar'), replyPlan, replyPick, cpLang(),
+                (d) => { replyPick = d; renderReplyBar(); },
+                'bg-black/60 border border-amber-400/40 rounded-lg px-2 py-1 text-[12px] text-white focus:outline-none focus:border-amber-300');
+        }
+
         // Gửi tin của NHÂN VIÊN cho khách. Trước đây sau mỗi tin, trang còn gọi thêm 1 "BitPaw AI Advisor" (persona
         // tư vấn BÁN PHẦN MỀM, ép tiếng Anh) coi chính tin của nhân viên là "tin mới của khách" rồi trả lời lại — vô
         // nghĩa với chủ tiệm. Giờ gợi ý trả lời nằm ở thẻ "Copilot gợi ý trả lời" phía trên (requestReplyDraft).
@@ -1400,8 +1435,12 @@
             if (!text) return;
             if (!currentCustomerId) { showToast(cpt('pickFirst'), 'error'); return; }
 
+            // Hội thoại web: trả lời tin khách đang hiện trên màn hình lúc bấm Gửi (mặc định tin mới nhất, hoặc thiết bị đã chọn) —
+            // server ghi trả lời kèm mã trình duyệt của ĐÚNG tin đó nên chỉ thiết bị đó thấy trên trang chat.
+            const plan = replyPlan;
+            const target = window.BPReplyTarget ? BPReplyTarget.target(plan, replyPick) : null;
             userInput.value = '';
-            appendUserMessageStatic(text, null, 'staff');
+            appendUserMessageStatic(text, null, 'staff', null, target ? BPReplyTarget.targetTag(target, cpLang()) : '');
             scrollToBottom();
             document.getElementById('aiClosingAlert').classList.add('hidden');
 
@@ -1409,9 +1448,14 @@
             const btnSend = document.getElementById('btnSend');
             if (btnSend) btnSend.disabled = true;
             try {
-                const res = await hrApi('/api/bot/messages', { method: 'POST', body: JSON.stringify({ customer_id: currentCustomerId, content: text }) });
+                const payload = { customer_id: currentCustomerId, content: text };
+                if (target) payload.reply_to = target.reply_to;
+                const res = await hrApi('/api/bot/messages', { method: 'POST', body: JSON.stringify(payload) });
                 if (res && res.delivery && res.delivery.status === 'failed') showToast(cpt('failedSend') + errText(res.delivery), 'error');
-                if (res && res.delivery) loadMessages(currentCustomerId, { silent: true });
+                const note = window.BPReplyTarget ? BPReplyTarget.sentNote(res, plan, cpLang()) : null;
+                if (note) showToast(escapeHtml(note.text), note.ok ? 'success' : 'error');
+                replyPick = null;
+                if (res && (res.delivery || plan)) loadMessages(currentCustomerId, { silent: true });
                 // Nhân viên đã nhận chat -> server tắt AI cho khách này (tránh khách nhận 2 câu trả lời chồng nhau)
                 renderAiMode(false);
                 const c = allCustomers.find(x => x.id === currentCustomerId);
