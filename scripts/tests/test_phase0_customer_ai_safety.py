@@ -27,6 +27,9 @@ from unittest.mock import MagicMock, patch
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, ROOT)
+# Phase 2: fnb/karaoke có gói đặt chỗ riêng (ai_packs/fnb.py, karaoke.py). Các test ở đây kiểm tra đường "ngành CHƯA có gói"
+# (hỏi đáp + chuyển nhân viên) -> tắt 2 gói đó bằng công tắc của ai_packs, để test vẫn đúng ý khi các gói đã được gộp vào.
+os.environ['BITPAW_AI_PACKS_OFF'] = 'fnb,karaoke'
 sys.path.insert(0, os.path.join(ROOT, 'scripts'))
 
 

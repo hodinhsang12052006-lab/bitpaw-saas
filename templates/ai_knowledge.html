@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="{{ default_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Kiến thức cho trợ lý AI' if default_lang == 'vi' else 'AI knowledge base' }} - BitPaw Software</title>
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
+    <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Kiến thức cho trợ lý AI (ai_knowledge.py). CSS tự chứa như trang Cài đặt đặt lịch. */
+        :root { --bg: #08061a; --panel: rgba(255,255,255,.035); --line: rgba(255,255,255,.09); --ink: #f1f5f9; --muted: #94a3b8; --accent: #a78bfa; --ok: #34d399; --warn: #fbbf24; --err: #fb7185; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--ink); margin: 0; }
+        .kb-main { flex: 1; min-width: 0; padding: 28px 28px 90px; max-width: 1080px; }
+        h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; }
+        .lead { color: var(--muted); margin: 0 0 20px; max-width: 72ch; line-height: 1.6; font-size: 14px; }
+        section.box { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 16px; }
+        section.box h2 { font-size: 16px; font-weight: 800; margin: 0 0 4px; display: flex; gap: 8px; align-items: center; }
+        section.box p.sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; line-height: 1.55; }
+        .how { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.7; color: #e2e8f0; }
+        .how b { color: var(--ink); }
+        label.f { display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin: 0 0 5px; }
+        .in { color-scheme: dark; width: 100%; box-sizing: border-box; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--ink); border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 14px; }
+        .in:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(167,139,250,.18); }
+        textarea.in { resize: vertical; min-height: 96px; line-height: 1.5; }
+        .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .row { margin-top: 12px; }
+        .count { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; font-variant-numeric: tabular-nums; }
+        .seg { display: inline-flex; background: rgba(0,0,0,.35); border: 1px solid var(--line); border-radius: 11px; padding: 3px; gap: 3px; }
+        .seg button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 8px; cursor: pointer; }
+        .seg button[aria-pressed="true"] { background: var(--accent); color: #150b2e; }
+        .sw { position: relative; width: 44px; height: 26px; display: inline-block; vertical-align: middle; }
+        .sw input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+        .sw span { position: absolute; inset: 0; border-radius: 999px; background: rgba(255,255,255,.15); transition: background .2s ease; }
+        .sw span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s cubic-bezier(.22,1,.36,1); }
+        .sw input:checked + span { background: var(--accent); } .sw input:checked + span::after { transform: translateX(18px); }
+        .sw input:focus-visible + span { outline: 2px solid #fff; outline-offset: 2px; }
+        .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+        .note { font-size: 13px; color: var(--muted); margin-right: auto; } .note.ok { color: var(--ok); } .note.err { color: var(--err); }
+        .btn { border: 0; border-radius: 11px; padding: 10px 16px; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; background: var(--accent); color: #150b2e; }
+        .btn.ghost { background: rgba(255,255,255,.07); color: var(--ink); border: 1px solid var(--line); }
+        .btn.sm { padding: 6px 10px; font-size: 12.5px; border-radius: 9px; }
+        .btn.danger { background: rgba(251,113,133,.12); color: #fecdd3; border: 1px solid rgba(251,113,133,.3); }
+        .btn[disabled] { opacity: .6; cursor: progress; }
+        .entry { border-top: 1px solid rgba(255,255,255,.06); padding: 12px 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+        .entry:first-child { border-top: 0; }
+        .entry.off { opacity: .55; }
+        .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 7px; background: rgba(167,139,250,.14); color: #ddd6fe; margin-right: 6px; }
+        .tag.pol { background: rgba(56,189,248,.14); color: #bae6fd; }
+        .tag.off { background: rgba(148,163,184,.15); color: #cbd5e1; }
+        .entry .q { font-weight: 700; font-size: 14px; margin: 6px 0 3px; }
+        .entry .a { font-size: 13.5px; color: #e2e8f0; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .entry .btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+        .empty { color: var(--muted); font-size: 13.5px; margin: 4px 0 0; }
+        .facts { margin: 0; padding: 0; list-style: none; font-size: 13.5px; line-height: 1.6; }
+        .facts li { padding: 4px 0; border-top: 1px solid rgba(255,255,255,.05); overflow-wrap: anywhere; } .facts li:first-child { border-top: 0; }
+        .facts b { color: #cbd5e1; font-weight: 600; }
+        .gaps { margin: 0; padding: 0; list-style: none; }
+        .gaps li { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 7px 0; border-top: 1px solid rgba(255,255,255,.05); font-size: 13.5px; }
+        .gaps li:first-child { border-top: 0; } .gaps small { color: var(--muted); font-size: 11px; margin-left: 6px; }
+        pre.preview { white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: rgba(0,0,0,.35); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 0; color: #e2e8f0; max-height: 360px; overflow: auto; }
+        a.link { color: #c4b5fd; }
+        @media (max-width: 640px) { .kb-main { padding: 72px 14px 90px; } .grid2 { grid-template-columns: 1fr; } .entry { grid-template-columns: 1fr; } .entry .btns { justify-content: flex-start; } }
+        @media (prefers-reduced-motion: reduce) { .sw span, .sw span::after { transition: none; } }
+    </style>
+</head>
+<body class="flex min-h-screen relative antialiased overflow-x-hidden">
+{% set vi = default_lang == 'vi' %}
+{% include 'components/app_sidebar.html' %}
+<main class="kb-main">
+    <h1><i class="fas fa-book-open" style="color: var(--accent)"></i> {{ 'Kiến thức cho trợ lý AI' if vi else 'AI knowledge base' }}</h1>
+    <p class="lead">{{ 'Những câu trả lời trợ lý AI dùng khi khách nhắn tin cho tiệm (trang đặt lịch, Messenger, Instagram, WhatsApp, Zalo, Viber, SMS). AI chỉ trả lời từ những gì bạn ghi ở đây và thông tin tiệm; câu nào không có, AI nói sẽ hỏi lại và chuyển cho nhân viên thay vì đoán.' if vi else 'The answers your AI receptionist gives customers who message you (booking page, Messenger, Instagram, WhatsApp, Zalo, Viber, SMS). The AI only answers from what you write here and your business info; anything else it passes to your team instead of guessing.' }}</p>
+
+    <section class="box" aria-labelledby="howH">
+        <h2 id="howH"><i class="fas fa-robot" style="color: var(--accent)"></i> {{ 'AI dùng trang này thế nào' if vi else 'How the AI uses this page' }}</h2>
+        <ul class="how">
+            {% if vi %}
+            <li><b>Mọi cuộc chat với khách</b> đều đọc các mục đang bật, đúng như khung "AI đọc gì" ở cuối trang.</li>
+            <li>Khách hỏi điều <b>không có ở đây</b>: AI nói sẽ hỏi lại, gửi câu hỏi cho nhân viên, và câu đó hiện ở mục "Khách đã hỏi mà AI chưa trả lời được" để bạn bổ sung.</li>
+            <li>Chỉ ghi <b>thông tin công khai</b> (đỗ xe, đặt cọc, huỷ lịch, dị ứng, trẻ em...). Không ghi thông tin khách, số riêng của nhân viên hay ghi chú nội bộ.</li>
+            {% else %}
+            <li><b>Every customer chat</b> reads the entries that are on, exactly as shown in "What the AI reads" at the bottom.</li>
+            <li>When a customer asks something <b>not covered here</b>, the AI says it will check, sends the question to your team, and it shows up under "Questions the AI could not answer" so you can add the answer.</li>
+            <li>Only write <b>public information</b> (parking, deposits, cancellations, allergies, kids...). No customer details, staff personal numbers or internal notes.</li>
+            {% endif %}
+        </ul>
+    </section>
+
+    <section class="box" aria-labelledby="factsH">
+        <h2 id="factsH"><i class="fas fa-store" style="color: #38bdf8"></i> {{ 'AI đã biết sẵn' if vi else 'Already used by the AI' }}</h2>
+        <p class="sub">{{ 'Từ hồ sơ tiệm và trang Cài đặt đặt lịch (giờ mở cửa, địa chỉ, cách thanh toán...).' if vi else 'From your business profile and Booking settings (opening hours, address, payment methods...).' }} <a class="link" href="/settings/booking">{{ 'Sửa ở Cài đặt đặt lịch' if vi else 'Edit in Booking settings' }}</a></p>
+        <ul class="facts" id="facts"></ul>
+    </section>
+
+    <section class="box" id="gapsBox" hidden aria-labelledby="gapsH">
+        <h2 id="gapsH"><i class="fas fa-circle-question" style="color: var(--warn)"></i> {{ 'Khách đã hỏi mà AI chưa trả lời được (30 ngày)' if vi else 'Questions the AI could not answer (last 30 days)' }}</h2>
+        <p class="sub">{{ 'Bấm "Trả lời" để thêm câu trả lời — lần sau AI tự trả lời, khách không phải chờ nhân viên.' if vi else 'Press "Answer" to add the answer — next time the AI answers on its own and the customer does not wait for staff.' }}</p>
+        <ul class="gaps" id="gaps"></ul>
+    </section>
+
+    <section class="box" aria-labelledby="formH" id="formBox">
+        <h2 id="formH"><i class="fas fa-pen-to-square" style="color: var(--ok)"></i> <span id="formTitle">{{ 'Thêm câu trả lời' if vi else 'Add an answer' }}</span></h2>
+        <div class="seg" role="group" aria-label="{{ 'Loại' if vi else 'Type' }}">
+            <button type="button" data-kind="faq" aria-pressed="true">{{ 'Hỏi - đáp' if vi else 'Question & answer' }}</button>
+            <button type="button" data-kind="policy" aria-pressed="false">{{ 'Chính sách' if vi else 'Policy' }}</button>
+        </div>
+        <div class="grid2 row">
+            <div><label class="f" for="topic">{{ 'Chủ đề' if vi else 'Topic' }}</label><select class="in" id="topic"></select></div>
+            <div><label class="f" for="active">{{ 'AI dùng mục này' if vi else 'The AI uses this' }}</label>
+                <label class="sw"><input type="checkbox" id="active" checked><span></span></label></div>
+        </div>
+        <div class="row"><label class="f" for="question" id="qLabel">{{ 'Câu hỏi của khách' if vi else 'Customer question' }}</label>
+            <input class="in" id="question" maxlength="200" autocomplete="off"></div>
+        <div class="row"><label class="f" for="answer">{{ 'Câu trả lời (AI nói đúng ý này, không thêm bớt)' if vi else 'Answer (the AI says exactly this, nothing more)' }}</label>
+            <textarea class="in" id="answer" maxlength="1200"></textarea><div class="count" id="count">0 / 1200</div></div>
+        <div class="actions">
+            <span class="note" id="note" role="status" aria-live="polite"></span>
+            <button class="btn ghost" type="button" id="cancelBtn" hidden>{{ 'Huỷ sửa' if vi else 'Cancel edit' }}</button>
+            <button class="btn" type="button" id="saveBtn"><i class="fas fa-floppy-disk"></i> <span id="saveTxt">{{ 'Thêm' if vi else 'Add' }}</span></button>
+        </div>
+    </section>
+
+    <section class="box" aria-labelledby="listH">
+        <h2 id="listH"><i class="fas fa-list-check" style="color: var(--accent)"></i> {{ 'Câu trả lời của tiệm' if vi else 'Your answers' }} <span id="countAll" style="color:var(--muted);font-weight:600;font-size:13px"></span></h2>
+        <div id="list"></div>
+    </section>
+
+    <section class="box" aria-labelledby="pvH">
+        <h2 id="pvH"><i class="fas fa-eye" style="color: #38bdf8"></i> {{ 'AI đọc gì' if vi else 'What the AI reads' }}</h2>
+        <p class="sub">{{ 'Đúng đoạn này được đưa vào mỗi cuộc chat với khách (cùng thông tin tiệm ở trên).' if vi else 'This exact text goes into every customer chat (together with the business info above).' }}</p>
+        <pre class="preview" id="preview"></pre>
+    </section>
+</main>
+<script>
+(function () {
+    const VI = {{ 'true' if vi else 'false' }};
+    const $ = (id) => document.getElementById(id);
+    const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    // Lỗi từ server viết "EN / VI" -> lấy đúng nửa theo ngôn ngữ trang
+    const msg = (m) => { const p = String(m || '').split(' / '); return p.length === 2 ? (VI ? p[1] : p[0]) : String(m || ''); };
+    const T = VI ? { faq: 'Hỏi - đáp', policy: 'Chính sách', off: 'Đang tắt', edit: 'Sửa', on: 'Bật', offB: 'Tắt', del: 'Xoá', answer: 'Trả lời',
+                     add: 'Thêm', save: 'Lưu thay đổi', addTitle: 'Thêm câu trả lời', editTitle: 'Sửa câu trả lời', saved: 'Đã lưu — AI dùng ngay từ tin nhắn tiếp theo.',
+                     deleted: 'Đã xoá.', confirmDel: 'Xoá mục này? AI sẽ không dùng nó nữa.', none: 'Chưa có câu trả lời nào. Thêm mục đầu tiên ở trên (vd: chỗ đỗ xe, đặt cọc, huỷ lịch).',
+                     noPreview: '(Chưa có mục nào đang bật — AI chỉ dùng thông tin tiệm ở trên.)', noFacts: 'Chưa có — thêm địa chỉ, giờ mở cửa... ở Cài đặt đặt lịch.',
+                     qFaq: 'Câu hỏi của khách', qPol: 'Tên chính sách (không bắt buộc)', of: 'mục' }
+                 : { faq: 'Q&A', policy: 'Policy', off: 'Off', edit: 'Edit', on: 'Turn on', offB: 'Turn off', del: 'Delete', answer: 'Answer',
+                     add: 'Add', save: 'Save changes', addTitle: 'Add an answer', editTitle: 'Edit answer', saved: 'Saved — the AI uses it from the next message.',
+                     deleted: 'Deleted.', confirmDel: 'Delete this entry? The AI will stop using it.', none: 'No answers yet. Add the first one above (e.g. parking, deposits, cancellations).',
+                     noPreview: '(Nothing is on yet — the AI only uses the business info above.)', noFacts: 'Nothing yet — add your address, opening hours... in Booking settings.',
+                     qFaq: 'Customer question', qPol: 'Policy name (optional)', of: 'entries' };
+    let state = null, editing = null, kind = 'faq';
+
+    async function api(url, method, body) {
+        const r = await fetch(url, { method: method || 'GET', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.success === false) throw new Error(msg(j.message) || ('HTTP ' + r.status));
+        return j;
+    }
+    function note(text, cls) { $('note').className = 'note' + (cls ? ' ' + cls : ''); $('note').textContent = text || ''; }
+    function setKind(k) {
+        kind = k;
+        document.querySelectorAll('.seg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.kind === k)));
+        $('qLabel').textContent = k === 'faq' ? T.qFaq : T.qPol;
+    }
+    function topicLabel(key) {
+        const t = (state.topics || []).find((x) => x.key === key) || { en: key, vi: key };
+        return VI ? t.vi : t.en;
+    }
+    function resetForm() {
+        editing = null; setKind('faq');
+        $('topic').value = 'other'; $('question').value = ''; $('answer').value = ''; $('active').checked = true;
+        $('formTitle').textContent = T.addTitle; $('saveTxt').textContent = T.add; $('cancelBtn').hidden = true; counter();
+    }
+    function counter() { $('count').textContent = `${$('answer').value.length} / ${state ? state.limits.answer : 1200}`; }
+    function render() {
+        $('topic').innerHTML = state.topics.map((t) => `<option value="${esc(t.key)}">${esc(VI ? t.vi : t.en)}</option>`).join('');
+        if (!editing) $('topic').value = $('topic').value || 'other';
+        $('facts').innerHTML = (state.info || []).length
+            ? state.info.map(([k, v]) => `<li><b>${esc(k)}:</b> ${esc(v)}</li>`).join('')
+            : `<li class="empty">${esc(T.noFacts)}</li>`;
+        const gaps = state.gaps || [];
+        $('gapsBox').hidden = !gaps.length;
+        $('gaps').innerHTML = gaps.map((g, i) => `<li><span>${esc(g.question)}<small>${esc(g.at)}</small></span>
+            <button class="btn sm ghost" type="button" data-gap="${i}">${esc(T.answer)}</button></li>`).join('');
+        const rows = state.entries || [];
+        $('countAll').textContent = `${rows.length} / ${state.limits.entries} ${T.of}`;
+        $('list').innerHTML = rows.length ? rows.map((e) => `<div class="entry${e.active ? '' : ' off'}" data-id="${esc(e.id)}">
+            <div><span class="tag${e.kind === 'policy' ? ' pol' : ''}">${esc(e.kind === 'policy' ? T.policy : T.faq)}</span><span class="tag">${esc(topicLabel(e.topic))}</span>${e.active ? '' : `<span class="tag off">${esc(T.off)}</span>`}
+                ${e.question ? `<div class="q">${esc(e.question)}</div>` : ''}<div class="a">${esc(e.answer)}</div></div>
+            <div class="btns"><button class="btn sm ghost" type="button" data-act="edit">${esc(T.edit)}</button>
+                <button class="btn sm ghost" type="button" data-act="toggle">${esc(e.active ? T.offB : T.on)}</button>
+                <button class="btn sm danger" type="button" data-act="del">${esc(T.del)}</button></div></div>`).join('')
+            : `<p class="empty">${esc(T.none)}</p>`;
+        $('preview').textContent = state.preview || T.noPreview;
+    }
+    async function load() {
+        try { state = await api('/api/ai/knowledge'); render(); resetForm(); }
+        catch (e) { note(e.message, 'err'); }
+    }
+    document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => setKind(b.dataset.kind)));
+    $('answer').addEventListener('input', counter);
+    $('cancelBtn').addEventListener('click', () => { resetForm(); note(''); });
+    $('gaps').addEventListener('click', (ev) => {
+        const b = ev.target.closest('button[data-gap]'); if (!b) return;
+        const g = state.gaps[+b.dataset.gap]; resetForm();
+        $('question').value = g.question; $('answer').focus();
+        $('formBox').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    });
+    $('list').addEventListener('click', async (ev) => {
+        const b = ev.target.closest('button[data-act]'); if (!b) return;
+        const id = b.closest('.entry').dataset.id;
+        const e = state.entries.find((x) => x.id === id); if (!e) return;
+        if (b.dataset.act === 'edit') {
+            editing = id; setKind(e.kind); $('topic').value = e.topic; $('question').value = e.question || ''; $('answer').value = e.answer || '';
+            $('active').checked = !!e.active; $('formTitle').textContent = T.editTitle; $('saveTxt').textContent = T.save; $('cancelBtn').hidden = false; counter();
+            $('formBox').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+            $('answer').focus();
+            return;
+        }
+        if (b.dataset.act === 'del' && !confirm(T.confirmDel)) return;
+        b.disabled = true;
+        try {
+            state = b.dataset.act === 'del' ? await api('/api/ai/knowledge/' + encodeURIComponent(id), 'DELETE')
+                                            : await api('/api/ai/knowledge/' + encodeURIComponent(id), 'PUT', { active: !e.active });
+            if (editing === id && b.dataset.act === 'del') resetForm();
+            render(); note(b.dataset.act === 'del' ? T.deleted : T.saved, 'ok');
+        } catch (err) { note(err.message, 'err'); b.disabled = false; }
+    });
+    $('saveBtn').addEventListener('click', async (ev) => {
+        const b = ev.currentTarget; b.disabled = true;
+        const body = { kind, topic: $('topic').value, question: $('question').value, answer: $('answer').value, active: $('active').checked };
+        try {
+            state = editing ? await api('/api/ai/knowledge/' + encodeURIComponent(editing), 'PUT', body)
+                            : await api('/api/ai/knowledge', 'POST', body);
+            render(); resetForm(); note(T.saved, 'ok');
+        } catch (e) { note(e.message, 'err'); }
+        b.disabled = false;
+    });
+    load();
+})();
+</script>
+</body>
+</html>

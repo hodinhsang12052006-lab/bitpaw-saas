@@ -90,8 +90,13 @@ class AIContextEngine:
         """
         customer_facing = audience == 'customer'
         if customer_facing:
-            include_private_data = False
-        base_prompt = "" if customer_facing else "Bạn là trợ lý AI CSKH của BitPaw Software."
+            # Phase 2: khách CUỐI -> chỉ dữ kiện công khai do customer_context dựng (tên + loại hình tiệm; bảng giá, giờ, địa chỉ,
+            # chính sách, kho câu trả lời của chủ nằm ở lớp "facts" của prompt). Không doanh thu, không PII, không vai BitPaw.
+            import customer_context
+            biz = customer_context.business(business_id) if (business_id and MONGO_STATUS == "CONNECTED") else {}
+            return {"prompt": customer_context.identity_block(business_id) if biz else "",
+                    "business_name": (biz or {}).get('name') or None}
+        base_prompt = "Bạn là trợ lý AI CSKH của BitPaw Software."
 
         industry_prompts = {
             "retail": "Bạn là chuyên gia tư vấn bán lẻ tối ưu hóa dòng sản phẩm, chiến dịch quảng cáo và thanh lý hàng tồn kho.",
