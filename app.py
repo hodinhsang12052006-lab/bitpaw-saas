@@ -7219,7 +7219,10 @@ def api_hotel_reservation_update(reservation_id):
     admin không thể tự soát bằng mắt như 1 danh sách trong ngày. Xếp phòng đi qua
     reservations_hotel.assign_room: giữ phòng-đêm nguyên tử bằng CÙNG phiếu giữ với trợ lý AI đặt
     phòng (trước đây chỉ kiểm trùng rồi ghi — AI đặt đúng lúc đó vẫn lọt vào cùng phòng/đêm). Mở lại
-    1 đặt phòng đã huỷ cũng kiểm lại phòng trống (sau khi huỷ, phòng có thể đã bán cho khách khác)."""
+    1 đặt phòng đã huỷ cũng kiểm lại phòng trống (sau khi huỷ, phòng có thể đã bán cho khách khác) và phải gửi rõ
+    reopen=true — màn này không có nút mở lại, nên "Duyệt" lên 1 đặt phòng khách vừa huỷ trong chat = bấm trên trang cũ.
+    from_status (nếu gửi) phải đúng trạng thái hiện tại. Mọi lần ghi đều CÓ ĐIỀU KIỆN theo bản vừa đọc (trạng thái, ngày,
+    phòng): chat AI ghi chen vào giữa (khách đổi ngày / huỷ) -> 409 tải lại trang, không đè."""
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     reservation = db.hotel_reservations.find_one({'id': reservation_id, 'business_id': business_id}, {'_id': 0})
@@ -7245,6 +7248,18 @@ def api_hotel_reservation_update(reservation_id):
     new_status = update_fields.get('status', old_status)
     room_id = update_fields.get('room_id', reservation.get('room_id'))
     reopening = old_status not in live and new_status in live
+    changed_elsewhere = _vi_en('Đặt phòng này vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại.',
+                               'This booking was just changed elsewhere — reload the page and try again.')
+    if 'from_status' in data and data.get('from_status') != old_status:
+        return jsonify({'success': False, 'message': changed_elsewhere}), 409
+    if reopening and data.get('reopen') is not True:
+        by_guest = reservation.get('cancelled_by') == 'customer_ai_chat'
+        return jsonify({'success': False, 'message': _vi_en(
+            ('Khách đã tự huỷ đặt phòng này trong chat AI' if by_guest else 'Đặt phòng này đã bị huỷ')
+            + ' — chưa duyệt gì. Tải lại trang; mở lại đặt phòng đã huỷ phải làm có chủ đích (reopen).',
+            ('The guest cancelled this booking in the AI chat' if by_guest else 'This booking was cancelled')
+            + ' — nothing was approved. Reload the page; reopening a cancelled booking must be done on purpose (reopen).')}), 409
+    assigned = False
     try:
         if reopening and room_id is None and not _hotel_request_has_room(business_id, reservation):
             return jsonify({'success': False, 'message': _vi_en(
@@ -7257,12 +7272,24 @@ def api_hotel_reservation_update(reservation_id):
                 # Mở lại TRƯỚC khi giữ phòng-đêm: phiếu giữ của 1 đặt phòng đã huỷ không được tính là còn hiệu lực.
                 return jsonify({'success': False, 'message': _vi_en('Đặt phòng này vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại.',
                                                                     'This booking was just changed elsewhere — reload the page and try again.')}), 409
-            if not reservations_hotel.assign_room(business_id, dict(reservation, status=new_status), room_id):
+            try:
+                ok = reservations_hotel.assign_room(business_id, dict(reservation, status=new_status), room_id)
+            except reservations_hotel.HotelRequestError:
+                ok = None   # khách vừa đổi ngày / phòng / huỷ trong chat giữa lúc đọc và ghi — phiếu vừa giữ đã trả lại
+            if not ok:
                 if reopening:
                     db.hotel_reservations.update_one({'id': reservation_id, 'business_id': business_id, 'status': new_status},
                                                      {'$set': {'status': old_status}})
+                if ok is None:
+                    return jsonify({'success': False, 'message': changed_elsewhere}), 409
                 return jsonify({'success': False, 'message': 'Phòng này đã có khách khác đặt trùng khoảng ngày này.'}), 409
-        db.hotel_reservations.update_one({'id': reservation_id, 'business_id': business_id}, {'$set': update_fields})
+            assigned = True
+        guard = {'id': reservation_id, 'business_id': business_id,
+                 'status': new_status if (reopening and assigned) else old_status,
+                 'room_id': room_id if assigned else reservation.get('room_id'),
+                 'checkin_date': reservation.get('checkin_date'), 'checkout_date': reservation.get('checkout_date')}
+        if db.hotel_reservations.update_one(guard, {'$set': update_fields}).matched_count == 0:
+            return jsonify({'success': False, 'message': changed_elsewhere}), 409
         if new_status not in live or room_id is None:
             reservations_hotel.release_claims(business_id, reservation_id)   # huỷ / bỏ xếp phòng -> trả phòng-đêm
         return jsonify({'success': True})

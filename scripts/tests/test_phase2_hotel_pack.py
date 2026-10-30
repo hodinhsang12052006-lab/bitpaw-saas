@@ -796,7 +796,7 @@ class TestCancel(Base):
         self.assertEqual(DB.hotel_reservations.find_one({'id': 30})['status'], 'confirmed')
         self.assertTrue(run('hotel_cancel_booking', {'booking_id': 31, 'customer_confirmed': True}, ctx('whatsapp'))['cancelled'])
 
-    def test_default_policy_until_day_before_and_pending_any_time(self):
+    def test_default_policy_until_day_before_and_pending_until_checkin_day(self):
         DB.booking_settings.update_one({'business_id': BID}, {'$set': {'info': {'cancellation_policy': 'One night charged within 24h'}}},
                                        upsert=True)
         DB.hotel_reservations.insert_many([resv(40, D(0), D(2), room_id=1, phone='+61412345678'),
@@ -804,7 +804,8 @@ class TestCancel(Base):
                                            resv(42, D(1), D(2), room_id=3, phone='+61412345678')])
         with self.assertRaises(PackError):
             run('hotel_cancel_booking', {'booking_id': 40, 'customer_confirmed': True}, ctx('whatsapp'))
-        self.assertTrue(run('hotel_cancel_booking', {'booking_id': 41, 'customer_confirmed': True}, ctx('whatsapp'))['cancelled'])
+        with self.assertRaises(PackError):   # 'pending' cũng vậy: từ ngày nhận phòng do quầy lễ tân xử lý (không huỷ giữa kỳ ở)
+            run('hotel_cancel_booking', {'booking_id': 41, 'customer_confirmed': True}, ctx('whatsapp'))
         r = run('hotel_cancel_booking', {'booking_id': 42, 'customer_confirmed': True}, ctx('whatsapp'))
         self.assertTrue(r['cancelled'])
         self.assertEqual(r['hotel_policy'], 'One night charged within 24h')

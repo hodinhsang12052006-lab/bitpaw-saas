@@ -65,11 +65,14 @@ TOOLS = [
          "customer_confirmed": {"type": "boolean", "description": "true only after the guest clearly confirmed cancelling this booking."}},
         ["booking_id", "customer_confirmed"]),
     _fn("hotel_change_dates",
-        "Move one of this guest's bookings to new dates (re-checks live availability; keeps the room if free, otherwise "
-        "another room of the same type). Confirm the new dates and price with the guest first, then call with customer_confirmed=true.",
+        "Move one of this guest's bookings to new dates or change the number of guests. Call FIRST without "
+        "customer_confirmed: it checks live availability for the new dates (the guest's own booking does not count as "
+        "taken) and returns the exact new total. Tell the guest, get a clear yes, then call again with "
+        "customer_confirmed=true and quoted_total. Keeps the room if free, otherwise another room of the same type.",
         {"booking_id": {"type": "integer"}, "new_checkin_date": _DATE, "new_checkout_date": _DATE,
          "guests": {"type": "integer", "description": "New number of guests (optional)."},
-         "customer_confirmed": {"type": "boolean", "description": "true only after the guest clearly confirmed the change."}},
+         "customer_confirmed": {"type": "boolean", "description": "true only after the guest clearly confirmed the change."},
+         "quoted_total": {"type": "string", "description": "The new_total the first call returned, which the guest agreed to."}},
         ["booking_id", "new_checkin_date", "new_checkout_date", "customer_confirmed"]),
 ]
 
@@ -88,7 +91,9 @@ PROMPT_RULES = {
         "booked. Special requests are passed to the hotel, never guaranteed.\n"
         "- Deposits, payment, invoices, refunds, discounts, early check-in or late check-out: use ask_team, never promise them.\n"
         "- Existing bookings only through hotel_my_bookings / hotel_change_dates / hotel_cancel_booking. Read the booking back "
-        "and get a clear yes before changing or cancelling. If a tool refuses, say what it says and reveal nothing else."),
+        "and get a clear yes before changing or cancelling. For a change, first call hotel_change_dates without "
+        "customer_confirmed: it checks the new dates (the guest's own booking is not counted as taken) and returns the exact "
+        "new total to quote. If a tool refuses, say what it says and reveal nothing else."),
     'vi': (
         "LƯU TRÚ KHÁCH SẠN (phòng tính theo đêm):\n"
         "- Trước khi báo giá hay hứa phòng, gọi hotel_check_availability với ngày nhận phòng, ngày trả phòng (YYYY-MM-DD, "
@@ -101,7 +106,9 @@ PROMPT_RULES = {
         "đặt xong. Yêu cầu đặc biệt chỉ chuyển cho khách sạn, không hứa chắc.\n"
         "- Đặt cọc, thanh toán, hoá đơn, hoàn tiền, giảm giá, nhận phòng sớm/trả phòng muộn: dùng ask_team, không tự hứa.\n"
         "- Đặt phòng đã có chỉ xem/sửa qua hotel_my_bookings / hotel_change_dates / hotel_cancel_booking. Đọc lại đặt phòng và "
-        "chờ khách đồng ý rõ ràng trước khi đổi hoặc huỷ. Công cụ từ chối thì nói đúng ý nó, không tiết lộ gì thêm."),
+        "chờ khách đồng ý rõ ràng trước khi đổi hoặc huỷ. Muốn đổi: gọi hotel_change_dates trước, không kèm "
+        "customer_confirmed — công cụ tự kiểm ngày mới (không tính đặt phòng của chính khách là bận) và trả đúng tổng tiền mới "
+        "để báo khách. Công cụ từ chối thì nói đúng ý nó, không tiết lộ gì thêm."),
 }
 
 
@@ -282,16 +289,20 @@ def _type_public(t, cur, c):
     return out
 
 
-def _nearby(c, ci, nights, guests, key, min_nights, cur):
-    """Vài khoảng ngày GẦN (cùng số đêm, lệch ±1..3 ngày) còn phòng — để gợi ý thật thay vì chỉ nói 'hết phòng'."""
+def _nearby(c, ci, nights, guests, key, min_nights, cur, ignore_id=None, skip=None):
+    """Vài khoảng ngày GẦN (cùng số đêm, lệch ±1..3 ngày) còn phòng — để gợi ý thật thay vì chỉ nói 'hết phòng'.
+    Đổi ngày 1 đặt phòng: ignore_id = chính nó (đêm của nó không tính là bận), skip = (nhận, trả) hiện tại (không phải 'đổi')."""
     found = []
     for shift in (1, -1, 2, -2, 3, -3):
         start = ci + timedelta(days=shift)
         if start < c.today:
             continue
         end = start + timedelta(days=nights)
+        if skip and (start.isoformat(), end.isoformat()) == tuple(skip):
+            continue
         try:
-            av = rh.availability(c.business_id, start, end, guests=guests, today=c.today, min_nights=min_nights)
+            av = rh.availability(c.business_id, start, end, guests=guests, today=c.today, min_nights=min_nights,
+                                 ignore_id=ignore_id)
         except rh.HotelRequestError:
             continue
         ok = [t for t in av['types'] if t['available'] and (key is None or t['key'] == key)]
@@ -302,6 +313,41 @@ def _nearby(c, ci, nights, guests, key, min_nights, cur):
         if len(found) >= 2:
             break
     return found
+
+
+def _same_total(given, total, cur):
+    """quoted_total AI gửi lại ('$450.00' / '450' / số) có đúng tổng tiền hiện tại không. total None (giá chưa công bố):
+    không có gì để so."""
+    if total is None:
+        return True
+    if isinstance(given, bool):
+        return False
+    if isinstance(given, (int, float)):
+        return abs(float(given) - float(total)) < 0.005
+    s = str(given).strip()
+    shown = _money(total, cur)
+    if s == shown:
+        return True
+    try:
+        if abs(float(re.sub(r'[^\d.,]', '', s).replace(',', '')) - float(total)) < 0.005:
+            return True
+    except ValueError:
+        pass
+    digits = re.sub(r'\D', '', s)
+    return bool(digits) and digits == re.sub(r'\D', '', shown)
+
+
+def _walkin_note(doc, av):
+    """(VI, EN) cho NHÂN VIÊN khi phòng vừa giữ đang có khách vãng lai chưa có ngày trả phòng (không bao giờ nói với khách
+    đang chat) — đặt phòng đó luôn 'pending' (reservations_hotel.open_walkins)."""
+    rid = doc.get('room_id')
+    if rid is None or rid not in (av.get('_walkins') or ()):
+        return '', ''
+    num = next((r.get('room_number') for r in av.get('_rooms') or () if r.get('id') == rid), None) or rid
+    return (f" Lưu ý: phòng {num} đang có khách vãng lai chưa có ngày trả phòng — kiểm tra khách đó trả phòng trước "
+            f"{doc.get('checkin_date')} rồi mới xác nhận.",
+            f" Note: room {num} has a walk-in guest with no check-out date — check they leave before "
+            f"{doc.get('checkin_date')} before confirming.")
 
 
 def _booking_public(r, cur, c):
@@ -364,6 +410,11 @@ def _check_availability(args, c):
            "room_types": [_type_public(t, cur, c) for t in shown],
            "booking_is": ('confirmed instantly when a room is free' if settings['auto_confirm'] else
                           'a request the hotel confirms (status pending)')}
+    if settings['auto_confirm']:
+        for pub, t in zip(out["room_types"], shown):
+            if t['_room'] is not None and t['_room']['id'] in av['_walkins']:
+                # phòng duy nhất còn lại đang có khách vãng lai chưa rõ ngày đi -> đặt sẽ là yêu cầu chờ khách sạn xác nhận
+                pub["booking_is"] = 'a request the hotel confirms (status pending)'
     if key is not None and not shown[0]['available']:
         others = [_type_public(t, cur, c) for t in av['types'] if t['key'] != key and t['available']]
         if others:
@@ -497,12 +548,15 @@ def _create_booking(args, c):
                 out["nearby_dates_free"] = near
         return out
 
+    status = doc.get('status') or status   # phòng có khách vãng lai chưa rõ ngày đi -> create_hold để 'pending'
+    walkin_vi, walkin_en = _walkin_note(doc, av)
     _tell_staff(c, f"🛏️ AI {'xác nhận' if status == 'confirmed' else 'nhận yêu cầu'} đặt phòng #{doc['id']}: {name} — "
                    f"{doc['room_type']}, {doc['checkin_date']} → {doc['checkout_date']} ({doc['nights']} đêm), {guests} khách"
-                   + ("" if status == 'confirmed' else " — cần xác nhận hoặc từ chối") + ". Xem tại Khách sạn > Đặt phòng.",
+                   + ("" if status == 'confirmed' else " — cần xác nhận hoặc từ chối") + ". Xem tại Khách sạn > Đặt phòng."
+                   + walkin_vi,
                 f"🛏️ New {'confirmed booking' if status == 'confirmed' else 'booking request'} #{doc['id']} from the chat: "
                 f"{name}, {doc['room_type']}, {doc['checkin_date']} to {doc['checkout_date']}, {guests} guest(s)"
-                + ("" if status == 'confirmed' else " — please confirm or decline on Hotel > Reservations."),
+                + ("" if status == 'confirmed' else " — please confirm or decline on Hotel > Reservations.") + walkin_en,
                 f"hotel_new_{doc['id']}")
     out = {"success": True, **_booking_public(doc, cur, c), "currency": cur, "say": _status_say(status, c)}
     if doc.get('rate_per_night'):
@@ -544,6 +598,10 @@ def _cancel_booking(args, c):
     if str(res.get('checkout_date') or '') <= c.today.isoformat():
         _refuse(c.t("This stay has already ended — the hotel handles it. ", "Kỳ lưu trú này đã kết thúc — khách sạn sẽ xử lý. ")
                 + _call_hotel(c))
+    if str(res.get('checkin_date') or '') <= c.today.isoformat():
+        # Giữa kỳ lưu trú (khách có thể đang ở phòng): huỷ qua chat sẽ trả các đêm còn lại để bán cho người khác.
+        _refuse(c.t("From the check-in day on, cancellations go through the front desk — the booking is NOT cancelled. ",
+                    "Từ ngày nhận phòng trở đi, huỷ phòng do quầy lễ tân xử lý — đặt phòng CHƯA bị huỷ. ") + _call_hotel(c))
     if not _yes(args.get('customer_confirmed')):
         return {"success": False, "needs_confirmation": True, "booking": _booking_public(res, cur, c),
                 "ask_customer": c.t("Read this booking back and ask the guest to confirm the cancellation.",
@@ -568,7 +626,7 @@ def _cancel_booking(args, c):
         policy = (booking_rules.get_rules(c.business_id).get('info') or {}).get('cancellation_policy')
     except Exception:
         policy = None
-    if policy and res.get('status') == 'confirmed':
+    if policy and (res.get('status') == 'confirmed' or res.get('was_confirmed')):
         out["hotel_policy"] = policy
         out["note"] = "Mention the hotel's written policy; don't say anything about refunds or fees beyond it."
     return out
@@ -585,6 +643,15 @@ def _change_dates(args, c):
         _refuse(c.t("Changes on or after the check-in day go through the front desk. ",
                     "Thay đổi từ ngày nhận phòng trở đi do quầy lễ tân xử lý. ") + _call_hotel(c))
     settings = rh.hotel_settings(c.business_id)
+    if res.get('status') == 'confirmed' or res.get('was_confirmed'):
+        # Đổi ngày / số khách đưa đặt phòng đã xác nhận về 'pending' (hoặc dời xa hơn): trong hạn huỷ mà vẫn cho đổi qua chat
+        # thì khách "đổi rồi huỷ" là thoát được hạn huỷ của khách sạn.
+        allowed, _why = rh.cancel_allowed(res, settings, c.now)
+        if not allowed:
+            _refuse(c.t("This booking was confirmed by the hotel and is now inside its cancellation window, so changes go "
+                        "through the hotel (fees may apply). Pass the request with ask_team — the booking is NOT changed.",
+                        "Đặt phòng này đã được khách sạn xác nhận và đã vào hạn huỷ, nên thay đổi lúc này do khách sạn xử lý "
+                        "(có thể mất phí). Chuyển yêu cầu bằng ask_team — đặt phòng CHƯA được đổi."))
     guests = _int_arg(args.get('guests'), c, 'guests', default=res.get('party_size') or 1, hi=rh.MAX_GUESTS)
     try:
         ci, co, nights = rh.check_stay(args.get('new_checkin_date'), args.get('new_checkout_date'), today=c.today,
@@ -593,44 +660,89 @@ def _change_dates(args, c):
         _hotel_error(c, e)
     if ci.isoformat() == res.get('checkin_date') and co.isoformat() == res.get('checkout_date') and guests == res.get('party_size'):
         return {"success": True, "unchanged": True, **_booking_public(res, cur, c)}
-    if not _yes(args.get('customer_confirmed')):
-        return {"success": False, "needs_confirmation": True, "booking": _booking_public(res, cur, c),
-                "new_dates": {"checkin_date": ci.isoformat(), "checkout_date": co.isoformat(), "nights": nights},
-                "ask_customer": c.t("Check the new dates with hotel_check_availability, tell the guest the new total and "
-                                    "get a clear yes, then call again with customer_confirmed=true.",
-                                    "Kiểm ngày mới bằng hotel_check_availability, báo khách tổng tiền mới và chờ khách đồng "
-                                    "ý rõ ràng, rồi gọi lại với customer_confirmed=true.")}
-    keep_confirmed = settings['auto_confirm'] and res.get('status') == 'confirmed'
+    # Báo giá bằng CHÍNH phương án change_dates sẽ ghi (không tính đặt phòng này là bận, giữ phòng hiện tại nếu còn trống):
+    # hotel_check_availability tính cả đêm của chính khách là đã bán và báo giá phòng rẻ nhất — sai cho việc đổi ngày.
     try:
-        doc, av = rh.change_dates(c.business_id, res, ci, co, guests=guests, today=c.today,
-                                  min_nights=settings['min_nights'], new_status=None if keep_confirmed else 'pending')
+        q = rh.quote_change(c.business_id, res, ci, co, guests=guests, today=c.today, min_nights=settings['min_nights'])
     except rh.HotelRequestError as e:
         _hotel_error(c, e)
-    if doc is None:
-        out = {"success": False, "reason": "no_rooms",
-               "message": c.t("No room of this type is free for the new dates — the booking was NOT changed.",
-                              "Không còn phòng loại này trống ngày mới — đặt phòng CHƯA được đổi."),
-               "booking_unchanged": _booking_public(res, cur, c)}
-        cur_key = rh.type_key(res.get('room_type'))
-        near = _nearby(c, ci, nights, guests, cur_key if cur_key in av['_types'] else None, settings['min_nights'], cur)
-        if near:
-            out["nearby_dates_free"] = near
+    if not q['available']:
+        return _change_unavailable(c, res, ci, nights, guests, q['key'], settings, cur, q['av'])
+    keep_confirmed = settings['auto_confirm'] and res.get('status') == 'confirmed'
+    new_total = _money(q['total'], cur) if q['total'] else None
+    if not _yes(args.get('customer_confirmed')):
+        out = {"success": False, "needs_confirmation": True, "booking": _booking_public(res, cur, c),
+               "new_dates": {"checkin_date": ci.isoformat(), "checkout_date": co.isoformat(), "nights": nights},
+               "guests": guests, "available": True,
+               "new_total": new_total or c.t("rate not published — the hotel confirms the price",
+                                             "chưa công bố giá — khách sạn sẽ báo giá"),
+               "ask_customer": c.t("These dates are free (the guest's own booking is not counted as taken). Tell the guest "
+                                   "new_total, get a clear yes, then call again with customer_confirmed=true and quoted_total "
+                                   "= new_total. No other availability check is needed.",
+                                   "Ngày mới còn phòng (không tính đặt phòng của chính khách là bận). Báo khách new_total, chờ "
+                                   "khách đồng ý rõ ràng, rồi gọi lại với customer_confirmed=true và quoted_total = new_total. "
+                                   "Không cần kiểm phòng trống thêm.")}
+        walkin_room = q['room'] is not None and q['room']['id'] in q['av']['_walkins']
+        if res.get('status') == 'confirmed' and (not keep_confirmed or walkin_room or not q['rate']):
+            out["after_change"] = c.t("The hotel re-confirms the new dates (status pending); the cancellation rules of a "
+                                      "confirmed booking still apply.",
+                                      "Khách sạn sẽ xác nhận lại ngày mới (status pending); luật huỷ của đặt phòng đã xác "
+                                      "nhận vẫn áp dụng.")
         return out
+    quoted = args.get('quoted_total')
+    if quoted not in (None, '') and not _same_total(quoted, q['total'], cur):
+        return {"success": False, "price_changed": True, "new_total": new_total,
+                "booking_unchanged": _booking_public(res, cur, c),
+                "ask_customer": c.t(f"The total for these dates is now {new_total}, not the amount quoted — the booking is "
+                                    f"NOT changed. Tell the guest, get a clear yes, then call again with "
+                                    f"customer_confirmed=true and quoted_total={new_total}.",
+                                    f"Tổng tiền những ngày này giờ là {new_total}, khác số đã báo — đặt phòng CHƯA được đổi. "
+                                    f"Báo khách, chờ khách đồng ý rõ ràng, rồi gọi lại với customer_confirmed=true và "
+                                    f"quoted_total={new_total}.")}
+    try:
+        doc, av = rh.change_dates(c.business_id, res, ci, co, guests=guests, today=c.today,
+                                  min_nights=settings['min_nights'], new_status=None if keep_confirmed else 'pending',
+                                  expect_rate=q['rate'])
+    except rh.HotelRequestError as e:
+        if e.code == 'price_changed':
+            _refuse(c.t("The price for these dates changed a moment ago (a room was just taken), so the booking was NOT "
+                        "changed. Call hotel_change_dates again without customer_confirmed to get the new total and check "
+                        "it with the guest.",
+                        "Giá những ngày này vừa thay đổi (1 phòng vừa có người giữ) nên đặt phòng CHƯA được đổi. Gọi lại "
+                        "hotel_change_dates không kèm customer_confirmed để lấy tổng tiền mới và hỏi lại khách."))
+        _hotel_error(c, e)
+    if doc is None:
+        return _change_unavailable(c, res, ci, nights, guests, q['key'], settings, cur, av)
     if keep_confirmed and not doc.get('rate_per_night'):
         db.hotel_reservations.update_one({'id': booking_id, 'business_id': c.business_id}, {'$set': {'status': 'pending'}})
         doc['status'] = 'pending'
     status = doc.get('status')
+    walkin_vi, walkin_en = _walkin_note(doc, av)
     _tell_staff(c, f"🛏️ Khách đổi ngày đặt phòng #{booking_id}: {res.get('checkin_date')} → {res.get('checkout_date')} thành "
                    f"{doc['checkin_date']} → {doc['checkout_date']} qua chat AI"
-                   + ("" if status == 'confirmed' else " — cần duyệt lại") + ".",
+                   + ("" if status == 'confirmed' else " — cần duyệt lại") + "." + walkin_vi,
                 f"🛏️ A guest moved booking #{booking_id} to {doc['checkin_date']} – {doc['checkout_date']} in the chat"
-                + ("." if status == 'confirmed' else " — please confirm the new dates on Hotel > Reservations."),
+                + ("." if status == 'confirmed' else " — please confirm the new dates on Hotel > Reservations.") + walkin_en,
                 f"hotel_change_{booking_id}_{doc['checkin_date']}")
     out = {"success": True, "changed": True, **_booking_public(doc, cur, c),
            "old_dates": {"checkin_date": res.get('checkin_date'), "checkout_date": res.get('checkout_date')},
            "say": _status_say(status, c)}
     if res.get('quoted_total') and doc.get('quoted_total') and res['quoted_total'] != doc['quoted_total']:
         out["old_total"] = _money(res['quoted_total'], res.get('currency') or cur)
+    return out
+
+
+def _change_unavailable(c, res, ci, nights, guests, key, settings, cur, av):
+    """Ngày mới không còn phòng: nói thật (đặt phòng CHƯA đổi) + vài khoảng ngày gần còn phòng — đêm của CHÍNH đặt phòng
+    này không tính là bận (dời / kéo dài trùng đêm cũ vẫn được)."""
+    out = {"success": False, "reason": "no_rooms",
+           "message": c.t("No room of this type is free for the new dates — the booking was NOT changed.",
+                          "Không còn phòng loại này trống ngày mới — đặt phòng CHƯA được đổi."),
+           "booking_unchanged": _booking_public(res, cur, c)}
+    near = _nearby(c, ci, nights, guests, key if key in av['_types'] else None, settings['min_nights'], cur,
+                   ignore_id=res['id'], skip=(res.get('checkin_date'), res.get('checkout_date')))
+    if near:
+        out["nearby_dates_free"] = near
     return out
 
 
@@ -727,17 +839,25 @@ def facts(business_id, lang, now_local):
         "được xác nhận ngay khi còn phòng (công cụ trả status 'confirmed')." if settings['auto_confirm'] else
         "là YÊU CẦU khách sạn sẽ xác nhận (status 'pending') — nói đã nhận yêu cầu, khách sạn sẽ xác nhận; không nói đã xác nhận.")))
     if settings['free_cancel_hours'] is not None:
-        cancel = T(f"confirmed bookings can be cancelled in this chat until {settings['free_cancel_hours']} hours before "
-                   "check-in; after that only the hotel can cancel (fees may apply).",
-                   f"đặt phòng đã xác nhận huỷ qua chat được tới {settings['free_cancel_hours']} giờ trước giờ nhận phòng; sau "
-                   "đó chỉ khách sạn huỷ được (có thể mất phí).")
+        h = settings['free_cancel_hours']
+        # cancel_allowed tính từ 00:00 ngày nhận phòng khi chủ chưa đặt giờ nhận phòng — nói đúng mốc đó
+        when = (T(f"{h} hours before check-in ({settings['checkin_time']})",
+                  f"{h} giờ trước giờ nhận phòng ({settings['checkin_time']})") if settings['checkin_time'] else
+                T(f"{h} hours before the start (00:00) of the check-in day", f"{h} giờ trước 0:00 (đầu ngày) của ngày nhận phòng"))
+        cancel = T(f"confirmed bookings can be cancelled in this chat until {when}; after that only the hotel can cancel "
+                   "(fees may apply).",
+                   f"đặt phòng đã xác nhận huỷ qua chat được tới {when}; sau đó chỉ khách sạn huỷ được (có thể mất phí).")
     else:
         cancel = T("confirmed bookings can be cancelled in this chat until the day before check-in; on or after the "
                    "check-in day only the hotel can cancel.",
                    "đặt phòng đã xác nhận huỷ qua chat được tới trước ngày nhận phòng; từ ngày nhận phòng trở đi chỉ khách "
                    "sạn huỷ được.")
-    lines.append(T("CANCELLATION: pending requests can be cancelled any time; ", "HUỶ PHÒNG: yêu cầu còn chờ xác nhận huỷ "
-                   "được bất cứ lúc nào; ") + cancel)
+    lines.append(T("CANCELLATION: pending requests can be cancelled in this chat until the day before check-in; ",
+                   "HUỶ PHÒNG: yêu cầu còn chờ xác nhận huỷ qua chat được tới trước ngày nhận phòng; ") + cancel
+                 + T(" A confirmed booking moved to new dates keeps these confirmed-booking rules while the hotel re-confirms "
+                     "it; inside the cancellation window, changes to a confirmed booking go through the hotel (ask_team).",
+                     " Đặt phòng đã xác nhận rồi đổi ngày vẫn theo luật của đặt phòng đã xác nhận trong lúc chờ khách sạn xác "
+                     "nhận lại; đã vào hạn huỷ thì thay đổi đặt phòng đã xác nhận do khách sạn xử lý (ask_team)."))
     try:
         import booking_rules
         rules = booking_rules.get_rules(business_id)

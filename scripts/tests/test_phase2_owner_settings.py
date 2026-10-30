@@ -635,30 +635,30 @@ class HotelStaffPatch(unittest.TestCase):
         other, _ = rh.create_hold(BID, checkin=D(9), checkout=D(10), guests=1, room_type_key='deluxe', guest_name='New Guest',
                                   guest_phone='0499999999', status='confirmed')
         self.assertEqual(other['room_id'], 3)
-        out, code = self.patch(20, {'status': 'confirmed'})
+        out, code = self.patch(20, {'status': 'confirmed', 'reopen': True})   # mở lại có chủ đích
         self.assertEqual((code, out['message']), (409, 'Phòng này đã có khách khác đặt trùng khoảng ngày này.'))
         self.assertEqual(self.doc(20)['status'], 'cancelled')        # không mở lại, không xếp trùng
         self.assertEqual(self.claims(20), [])
         rh.cancel(BID, other['id'], by='guest')
-        self.assertEqual(self.patch(20, {'status': 'confirmed'}), ({'success': True}, 200))
+        self.assertEqual(self.patch(20, {'status': 'confirmed', 'reopen': True}), ({'success': True}, 200))
         self.assertEqual((self.doc(20)['status'], self.doc(20)['room_id']), ('confirmed', 3))
         self.assertEqual(self.claims(20), [(3, D(8)), (3, D(9))])  # mở lại = giữ lại phòng-đêm
 
     def test_reopening_unassigned_request_rechecks_availability(self):
         DB.hotel_reservations.insert_one(resv(30, D(8), D(10), room_type='Deluxe', status='cancelled'))
         DB.hotel_reservations.insert_one(resv(31, D(9), D(10), room_type='Deluxe', room_id=3, status='confirmed'))
-        out, code = self.patch(30, {'status': 'pending'})
+        out, code = self.patch(30, {'status': 'pending', 'reopen': True})
         self.assertEqual(code, 409)
         self.assertEqual(out['message'], 'No room is free for these dates any more, so the booking was not reopened — '
                                          'change the dates or assign another room.')
         self.lang = 'vi'
-        self.assertIn('Không còn phòng trống', self.patch(30, {'status': 'pending'})[0]['message'])
+        self.assertIn('Không còn phòng trống', self.patch(30, {'status': 'pending', 'reopen': True})[0]['message'])
         self.assertEqual(self.doc(30)['status'], 'cancelled')
         # Chủ xếp luôn 1 phòng còn trống khi mở lại -> được (kiểm theo đúng phòng đó)
-        self.assertEqual(self.patch(30, {'status': 'pending', 'room_id': 1}), ({'success': True}, 200))
+        self.assertEqual(self.patch(30, {'status': 'pending', 'room_id': 1, 'reopen': True}), ({'success': True}, 200))
         self.assertEqual((self.doc(30)['status'], self.doc(30)['room_id']), ('pending', 1))
         DB.hotel_reservations.insert_one(resv(32, D(20), D(21), room_type='Deluxe', status='cancelled'))
-        self.assertEqual(self.patch(32, {'status': 'pending'}), ({'success': True}, 200))
+        self.assertEqual(self.patch(32, {'status': 'pending', 'reopen': True}), ({'success': True}, 200))
 
     def test_unchanged_messages_and_shape(self):
         self.assertEqual(self.patch(404, {'status': 'confirmed'}),
