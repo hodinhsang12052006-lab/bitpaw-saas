@@ -377,11 +377,12 @@ def _reserve(args, ctx):
     except rc.ReservationError as e:
         return {'success': False, 'reason': e.reason, 'message': rc.explain(e),
                 **_alternatives(bid, rules, rooms, day, hours, group, now, kind, room_type, want)}
-    dup = rc.find_duplicate(db.karaoke_room_reservations, bid, phone, start, rc.KARAOKE_ACTIVE, rc.ctx_country(ctx))
-    if dup:
-        return _dup_result(dup, ctx, name, args.get('note'), cur)
+    country = rc.ctx_country(ctx)
     stamp = rc.iso_slot(start)
     with rc.reservation_lock(bid, 'karaoke'):
+        dup = rc.find_duplicate(db.karaoke_room_reservations, bid, phone, start, rc.KARAOKE_ACTIVE, country)  # trong khoá
+        if dup:
+            return _dup_result(dup, ctx, name, args.get('note'), cur)
         fits, unknown = rc.karaoke_free(rules, rooms, rc.karaoke_rows(bid, day), start, hours, now, group, kind, room_type)
         room = _pick(fits, unknown, args.get('room_id'))
         if room is not None and rc.karaoke_overlaps(bid, room['id'], stamp, hours):  # đúng luật màn xếp phòng, lần cuối

@@ -542,15 +542,14 @@ def _token_proof(ctx):
 
 
 def _conversation_proof(ctx):
-    """ai_conversation_id chứng minh được chủ: kênh nền tảng (id người gửi do nền tảng ký), hoặc chat web dạng
-    '<thread>~<băm mã chat>' (không phải '~anon'). customer_id web kiểu cũ '<quán>:<SĐT>' ai gõ SĐT cũng có -> không tính."""
+    """ai_conversation_id chứng minh được chủ CHỈ trên kênh nền tảng (id người gửi do nền tảng ký). Chat web: customer_id là
+    '<quán>:<SĐT khách gõ>' — ai gõ SĐT đó cũng có -> không bao giờ tính (bằng chứng web = chat_token_hash), đúng
+    ai_packs.manage_filter."""
     cid = (ctx or {}).get('customer_id')
     if not cid:
         return None
     channel = str(ctx.get('channel') or 'web').lower()
-    if channel != 'web' or ('~' in str(cid) and '~anon' not in str(cid)):
-        return cid
-    return None
+    return cid if channel != 'web' else None
 
 
 def ctx_country(ctx):
@@ -561,7 +560,7 @@ def ctx_country(ctx):
 
 def is_owned(doc, ctx):
     """Đặt chỗ này CHỨNG MINH được là của cuộc chat đang nói chuyện: SĐT đã xác minh trùng, hoặc cùng mã chat web
-    (chat_token_hash), hoặc cùng hội thoại (xem _conversation_proof). Chat web không có mã: không gì cả.
+    (chat_token_hash), hoặc cùng hội thoại kênh nền tảng (xem _conversation_proof). Chat web không có mã: không gì cả.
     Cùng luật ai_packs.manage_filter của phần lõi."""
     if not doc or not ctx:
         return False

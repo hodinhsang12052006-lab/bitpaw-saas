@@ -534,6 +534,12 @@ class FnbCovers(Base):
         self.assertEqual(a['reservation_id'], b['reservation_id'])
         self.assertEqual(len(DB.table_reservations.docs), 1)
         self.assertEqual(DB.table_reservations.docs[0]['customer_name'], 'Mia Chen')
+        self.assertEqual(DB.reservation_locks.docs, [])                         # trả bản cũ cũng nhả khoá
+        # kiểm trùng nằm TRONG khoá: lượt gọi thứ 2 chạy song song (khoá đang bị giữ) bị báo bận, không tạo bàn thứ 2
+        DB.reservation_locks.insert_one({'_id': f"table|{BID}", 'until': 9e12, 'token': 'other'})
+        self.assertIn('busy', self.refuse(fnb, 'fnb_reserve_table', {'date': FRI, 'time': '19:00', 'party_size': 2,
+                                                                     'customer_name': 'Mia', 'phone': '0412345678'}))
+        self.assertEqual(len(DB.table_reservations.docs), 1)
 
     def test_same_phone_booked_elsewhere_is_not_revealed(self):
         settings(hours=FNB_HOURS, auto_confirm=True, table={'max_covers_per_slot': 30})
@@ -675,8 +681,8 @@ class FnbManage(Base):
 
 
 class OwnershipAndContact(Base):
-    """Cùng luật chứng minh chủ với lõi (ai_packs.manage_filter): mã 'anon:' không là bằng chứng, customer_id web dạng
-    '<thread>~<băm mã>' là bằng chứng, SĐT so theo nước quán (không so 'mấy số cuối'), contact_phone chỉ để liên lạc."""
+    """Cùng luật chứng minh chủ với lõi (ai_packs.manage_filter): mã 'anon:' không là bằng chứng, customer_id web
+    không bao giờ là bằng chứng (chỉ hội thoại kênh nền tảng), SĐT so theo nước quán (không so 'mấy số cuối'), contact_phone chỉ để liên lạc."""
 
     def setUp(self):
         super().setUp()
@@ -698,23 +704,41 @@ class OwnershipAndContact(Base):
         self.refuse(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, dict(anon))
         self.assertEqual(DB.table_reservations.find_one({'id': rid})['status'], 'confirmed')
 
-    def test_web_thread_conversation_id_is_proof_and_staff_note_goes_to_the_thread(self):
-        thread = f"{BID}:0412345678"
-        ctx = web_ctx(token='a' * 40, customer_id=thread + '~0123456789abcdef')
+    def test_web_conversation_id_is_never_proof_and_staff_note_goes_to_the_thread(self):
+        thread = f"{BID}:0412345678"                     # chat web: '<quán>:<SĐT khách gõ>' — ai gõ SĐT đó cũng có
+        ctx = web_ctx(token='a' * 40, customer_id=thread)
         rid = self.reserve(ctx)['reservation_id']
         row = DB.table_reservations.find_one({'id': rid})
-        self.assertEqual(row['ai_conversation_id'], thread + '~0123456789abcdef')
+        self.assertEqual((row['ai_conversation_id'], row['chat_token_hash'], row['source']), (thread, 'h-' + 'a' * 40, 'ai_bot'))
         self.assertTrue(any(m['customer_id'] == thread and '#%d' % rid in m['content'] for m in DB.bot_messages.docs))
-        # cùng hội thoại (cùng băm mã chat trong customer_id) dù chat_token_hash khác cách băm -> vẫn của mình
-        same_conv = web_ctx(token='b' * 40, customer_id=thread + '~0123456789abcdef')
-        self.assertEqual([x['reservation_id'] for x in self.call(fnb, 'fnb_my_reservations', {}, same_conv)['reservations']], [rid])
-        # cùng SĐT (thread cũ '<quán>:<SĐT>') nhưng trình duyệt khác -> không thấy, không huỷ được
-        stranger = web_ctx(token='c' * 40, customer_id=thread + '~fedcba9876543210')
+        # cùng thread (cùng SĐT đã gõ) nhưng trình duyệt khác (mã chat khác) -> không thấy, không huỷ / đổi được
+        stranger = web_ctx(token='c' * 40, customer_id=thread)
         self.assertEqual(self.call(fnb, 'fnb_my_reservations', {}, stranger)['reservations'], [])
         self.refuse(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, stranger)
-        explicit = web_ctx(token='a' * 40, customer_id=thread + '~0123456789abcdef', thread_id='thread-77')
+        self.refuse(fnb, 'fnb_change_reservation', {'reservation_id': rid, 'time': '20:00'}, stranger)
+        # chỉ có customer_id web, không mã chat, không SĐT xác minh -> không có gì để chứng minh
+        bare = web_ctx(token=None, customer_id=thread)
+        self.assertFalse(self.call(fnb, 'fnb_my_reservations', {}, bare)['verified'])
+        self.assertEqual(rc.ownership_query(bare), None)
+        # kể cả dạng cũ '<thread>~<băm>' trên web cũng không còn là bằng chứng (lõi chỉ tin mã chat / SĐT xác minh)
+        legacy = web_ctx(token=None, customer_id=thread + '~0123456789abcdef')
+        DB.table_reservations.update_one({'id': rid}, {'$set': {'ai_conversation_id': thread + '~0123456789abcdef'}})
+        self.refuse(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, legacy)
+        # cùng mã chat -> của mình; dòng báo chủ quán vào đúng thread_id khi có
+        explicit = web_ctx(token='a' * 40, customer_id=thread, thread_id='thread-77')
         self.call(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, explicit)
+        self.assertEqual(DB.table_reservations.find_one({'id': rid})['status'], 'cancelled')
         self.assertTrue(any(m['customer_id'] == 'thread-77' for m in DB.bot_messages.docs))
+
+    def test_platform_conversation_id_is_proof(self):
+        conv = f"{BID}:messenger:psid-123"
+        ctx = web_ctx(token=None, channel='messenger', customer_id=conv, chat_token_hash='conv:' + 'd' * 48)
+        rid = self.reserve(ctx)['reservation_id']
+        same_thread = dict(ctx, chat_token_hash='conv:' + 'e' * 48)   # cùng hội thoại nền tảng ký -> của mình
+        self.assertEqual([x['reservation_id'] for x in self.call(fnb, 'fnb_my_reservations', {}, same_thread)['reservations']], [rid])
+        other = web_ctx(token=None, channel='messenger', customer_id=f"{BID}:messenger:psid-999", chat_token_hash='conv:' + 'f' * 48)
+        self.assertEqual(self.call(fnb, 'fnb_my_reservations', {}, other)['reservations'], [])
+        self.refuse(fnb, 'fnb_cancel_reservation', {'reservation_id': rid}, other)
 
     def test_phone_match_follows_the_shop_country(self):
         self.assertTrue(rc.same_phone('0412 345 678', '+61 412 345 678', 'AU'))
@@ -927,6 +951,8 @@ class KaraokeBooking(KaraokeBase):
         b = self.reserve()
         self.assertEqual(a['reservation_id'], b['reservation_id'])
         self.assertEqual(len(DB.karaoke_room_reservations.docs), 1)
+        self.assertTrue(b['already_reserved'])
+        self.assertEqual(DB.reservation_locks.docs, [])
 
 
 class KaraokeStatus(KaraokeBase):

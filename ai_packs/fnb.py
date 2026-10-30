@@ -307,10 +307,11 @@ def _reserve(args, ctx):
     except rc.ReservationError as e:
         return {'success': False, 'reason': e.reason, 'message': rc.explain(e),
                 **_alternatives(bid, rules, tables, day, party, now, want)}
-    dup = rc.find_duplicate(db.table_reservations, bid, phone, when, rc.TABLE_ACTIVE, rc.ctx_country(ctx))
-    if dup:
-        return _dup_result(dup, ctx, name, note)
+    country = rc.ctx_country(ctx)
     with rc.reservation_lock(bid, 'table'):
+        dup = rc.find_duplicate(db.table_reservations, bid, phone, when, rc.TABLE_ACTIVE, country)  # trong khoá: 2 lượt gọi
+        if dup:                                                                                     # trùng không thành 2 bàn
+            return _dup_result(dup, ctx, name, note)
         ok, why, table_id = rc.table_fit(rules, tables, rc.table_rows(bid, day), when, party)
         if ok is not False:
             status, pending_reason = rc.table_status_for(rules, model, party, why)
