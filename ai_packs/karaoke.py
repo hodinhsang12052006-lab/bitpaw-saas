@@ -354,6 +354,15 @@ def _pick(fits, unknown, room_id):
     return next((r for r in cands if r['id'] == rid), None)
 
 
+def _same_booking(row, rooms, kind, chosen):
+    """Đặt phòng cũ cùng SĐT + cùng giờ có phải CHÍNH yêu cầu này (AI gọi lặp) không: khách chọn phòng và đặt cũ đã có phòng
+    -> cùng phòng; còn lại -> cùng loại (karaoke / bida; đặt cũ chưa xếp phòng theo rc.unassigned_kind)."""
+    if chosen is not None and row.get('room_id') is not None:
+        return str(row['room_id']) == str(chosen['id'])
+    room = next((r for r in rooms if str(r['id']) == str(row.get('room_id'))), None)
+    return (room['kind'] if room else rc.unassigned_kind(row, rooms)) == kind
+
+
 def _reserve(args, ctx):
     bid, rules, rooms, now, cur = _setup(ctx)
     name, phone = rc.booking_contact(args, ctx)
@@ -365,6 +374,7 @@ def _reserve(args, ctx):
     hours, _a = _hours(args.get('hours'), rules, required=True)
     group = rc.parse_party(args.get('group_size'), rules['max_party'])
     kind, room_type = _kind(args, rooms), args.get('room_type')
+    chosen = None
     if args.get('room_id') not in (None, ''):  # phòng khách chọn: đúng loại của chính phòng đó, không lọc theo từ khoá
         chosen = next((r for r in rooms if str(r['id']) == str(args['room_id']).strip()), None)
         if chosen is None:
@@ -380,10 +390,17 @@ def _reserve(args, ctx):
     country = rc.ctx_country(ctx)
     stamp = rc.iso_slot(start)
     with rc.reservation_lock(bid, 'karaoke'):
+        rows = rc.karaoke_rows(bid, day)
         dup = rc.find_duplicate(db.karaoke_room_reservations, bid, phone, start, rc.KARAOKE_ACTIVE, country)  # trong khoá
+        if dup and not _same_booking(dup, rooms, kind, chosen):
+            # 1 SĐT giữ được nhiều phòng cùng giờ (nhóm đông chia phòng, phòng karaoke + bàn bida): chỉ là gọi lặp khi trùng
+            # đúng phòng / loại — tìm trong các đặt phòng khác của SĐT này cùng giờ.
+            dup = next(({k: v for k, v in r.items() if k != '_start'} for r in rows
+                        if r['_start'].replace(second=0) == start and rc.same_phone(r.get('customer_phone'), phone, country)
+                        and _same_booking(r, rooms, kind, chosen)), None)
         if dup:
             return _dup_result(dup, ctx, name, args.get('note'), cur)
-        fits, unknown = rc.karaoke_free(rules, rooms, rc.karaoke_rows(bid, day), start, hours, now, group, kind, room_type)
+        fits, unknown = rc.karaoke_free(rules, rooms, rows, start, hours, now, group, kind, room_type)
         room = _pick(fits, unknown, args.get('room_id'))
         if room is not None and rc.karaoke_overlaps(bid, room['id'], stamp, hours):  # đúng luật màn xếp phòng, lần cuối
             room = None

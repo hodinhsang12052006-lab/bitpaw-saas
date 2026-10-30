@@ -6822,21 +6822,34 @@ def api_karaoke_reservation_update(reservation_id):
         if room_id is not None:
             if not db.karaoke_rooms.find_one({'id': room_id, 'business_id': business_id}, {'id': 1, '_id': 0}):
                 return jsonify({'success': False, 'message': 'Phòng không tồn tại.'}), 404
-            if _karaoke_reservation_overlaps(
-                business_id, room_id, reservation['reserved_time'],
-                float(reservation.get('duration_hours') or 2), exclude_id=reservation_id
-            ):
-                return jsonify({'success': False, 'message': 'Phòng này đã có khách khác đặt trùng giờ.'}), 409
         update_fields['room_id'] = room_id
     if not update_fields:
         return jsonify({'success': False, 'message': 'Không có gì để cập nhật.'}), 400
+    # Phòng mà lần sửa này bắt đầu giữ: xếp phòng, hoặc mở lại 1 đặt phòng đã huỷ / vắng mặt đang gắn phòng. Kiểm trùng giờ +
+    # ghi trong CÙNG khoá với trợ lý AI đặt phòng (reservations_core.reservation_lock) — không thì AI có thể giữ đúng phòng đó
+    # giữa lúc kiểm và lúc ghi. Đổi trạng thái đặt phòng đang hiệu lực / huỷ không giữ thêm phòng nào: không cần khoá.
+    import contextlib
+    import reservations_core
+    hold_room = update_fields.get('room_id')
+    if 'room_id' not in update_fields and update_fields.get('status') in reservations_core.KARAOKE_ACTIVE \
+            and reservation.get('status') not in reservations_core.KARAOKE_ACTIVE:
+        hold_room = reservation.get('room_id')
     try:
-        result = db.karaoke_room_reservations.update_one(
-            {'id': reservation_id, 'business_id': business_id}, {'$set': update_fields}
-        )
+        with (reservations_core.reservation_lock(business_id, 'karaoke') if hold_room is not None else contextlib.nullcontext()):
+            if hold_room is not None and _karaoke_reservation_overlaps(
+                business_id, hold_room, reservation['reserved_time'],
+                float(reservation.get('duration_hours') or 2), exclude_id=reservation_id
+            ):
+                return jsonify({'success': False, 'message': 'Phòng này đã có khách khác đặt trùng giờ.'}), 409
+            result = db.karaoke_room_reservations.update_one(
+                {'id': reservation_id, 'business_id': business_id}, {'$set': update_fields}
+            )
         if result.matched_count == 0:
             return jsonify({'success': False, 'message': 'Không tìm thấy yêu cầu đặt phòng.'}), 404
         return jsonify({'success': True})
+    except reservations_core.ReservationBusy:
+        return jsonify({'success': False, 'message': _vi_en('Hệ thống đặt phòng đang bận — vui lòng thử lại sau giây lát.',
+                                                            'The booking system is busy — please try again in a moment.')}), 409
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 

@@ -130,6 +130,9 @@ def facts(business_id, lang, now_local):
                         "(tables by number of seats)." if model == 'tables' else
                         f"(up to {rules['max_covers_per_slot']} guests arriving per {rules['slot_minutes']}-minute slot)."))
     big = (f"; groups over {rules['max_party_auto']} are requests the team confirms" if rules['max_party_auto'] else '')
+    if 0 < rules['max_covers_per_slot'] < rules['max_party']:
+        big += (f"; groups over {rules['max_covers_per_slot']} (the guests-per-slot limit) are requests the team confirms and "
+                "need a time slot with no other bookings")
     lines.append(f"GROUP SIZE: 1-{rules['max_party']} guests can book online{big}. Bigger groups: offer to pass the request "
                  "to the team.")
     status, _why = rc.table_status_for(rules, model, 1)
@@ -189,13 +192,15 @@ def _say(status, ctx):
     return 'Request received — the restaurant confirms it. Do NOT say confirmed, booked or held.'
 
 
-def _other_days(business_id, rules, tables, day, party, now):
+def _other_days(business_id, rules, tables, day, party, now, around=None):
+    around = None if rules['hours'] else around      # giờ mở cửa chưa công bố: chỉ kiểm được quanh giờ khách hỏi
     out = []
     for k in range(1, 15):
         d = day + timedelta(days=k)
-        times = rc.table_free_times(business_id, rules, tables, d, party, now)
+        times = rc.table_free_times(business_id, rules, tables, d, party, now, around=around)
         if times:
-            out.append({'date': d.isoformat(), 'weekday': d.strftime('%A'), 'first_times': times[:4]})
+            out.append({'date': d.isoformat(), 'weekday': d.strftime('%A'),
+                        'first_times': rc.nearest_times(times, around, 4) if around is not None else times[:4]})
         if len(out) >= 3:
             break
     return out
@@ -207,7 +212,7 @@ def _alternatives(business_id, rules, tables, day, party, now, want_min, exclude
     times = rc.table_free_times(business_id, rules, tables, day, party, now, exclude_id=exclude_id, around=want_min)
     out = {'other_times_same_day': rc.nearest_times(times, want_min)}
     if not times:
-        out['next_available'] = _other_days(business_id, rules, tables, day, party, now)
+        out['next_available'] = _other_days(business_id, rules, tables, day, party, now, around=want_min)
     return out
 
 
@@ -255,11 +260,16 @@ def _check(args, ctx):
             out['request_times'] = rc.nearest_times(ok_times, want, 8) if want is not None else rc.spread(ok_times, 8)
         out['note'] = ("No live table availability: a reservation here is a REQUEST the restaurant confirms. Never say a "
                        "table is free, held or confirmed.")
+    elif hrs == rc.UNKNOWN and want is None:
+        # Giờ mở cửa chưa công bố: chỉ kiểm được quanh 1 giờ khách nói — danh sách rỗng ở đây KHÔNG có nghĩa là kín chỗ.
+        out['available_times'] = []
+        out['note'] = ('Opening hours are not published — ask the customer for a time and check that time. Do not say the '
+                       'restaurant is full.')
     else:
         free = rc.table_free_times(bid, rules, tables, day, party, now, around=want, rows=rows)
         out['available_times'] = rc.nearest_times(free, want) if want is not None else rc.spread(free)
         if not free:
-            out['next_available'] = _other_days(bid, rules, tables, day, party, now)
+            out['next_available'] = _other_days(bid, rules, tables, day, party, now, around=want)
     status, why = rc.table_status_for(rules, model, party, fit_reason)
     out['if_booked_status'] = status
     if why:
