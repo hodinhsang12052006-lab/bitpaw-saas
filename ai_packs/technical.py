@@ -39,36 +39,78 @@ EMERGENCY_NUMBER = {'AU': '000', 'US': '911', 'CA': '911', 'NZ': '111', 'GB': '9
 MAX_DAYS_AHEAD = 90
 # Từ khoá khẩn cấp. Tiếng Việt CÓ DẤU cho chữ dễ nhầm ("chảy nước", "bóng đèn bị cháy" không phải hoả hoạn -> chỉ
 # "đang cháy / bốc cháy"), không dấu chỉ cho cụm không nhầm được ("dang chay" = "đang chạy" nên không dùng).
-# Tiếng Anh tránh từ đơn dễ nhầm: "flood light", "spark plug", "fire alarm" không phải khẩn cấp.
+# Tiếng Anh tránh từ đơn dễ nhầm: "flood light", "spark plug", "fire alarm", "smoke alarm / detector" không phải khẩn cấp;
+# "máy hút khói", "đầu báo khói" cũng không.
 _EMERGENCY_RE = re.compile(
-    r"\b(gas leak|leaking gas|smell(s|ing)? (of )?gas|gas smell|carbon monoxide|co alarm|flooding|flooded|burst pipe|"
-    r"water everywhere|sparks|sparking|electric(al)? shock|electrocut\w*|shock(ed)? me|burning smell|smell(s|ing)? (of )?burning|"
-    r"smoke (is )?coming|smoking|on fire|caught fire|fire in)\b"
+    r"\b(gas leak|leaking gas|gas (is )?leaking|smel(ls?|led|ling|t) (of |like )?(something )?(gas|burning|burnt|smoke)|gas smell|"
+    r"carbon monoxide|co alarm|flooding|flooded|burst pipe|"
+    r"water everywhere|sparks|sparking|sparked|a spark(?! plug)|electric(al)? shock|electrocut\w*|shock(ed|s)? me|zapped me|"
+    r"(got|get|getting|gave me|giving me) (a |an )?(electric(al)? )?shocks?|burning smell|burnt smell|smell(s|ing)? (of )?burning|"
+    r"smoke (is )?coming|smoke(?![\s-]*(alarm|detector))|smoky|smoking|on fire|caught fire|fire in|flames? (is |are )?coming|"
+    r"explo(ded|sion|ding))\b"
     r"|rò rỉ gas|rò gas|xì gas|mùi gas|ngập nước|nước ngập|bị ngập|đang ngập|ngập sàn|ngập nhà|ngập bếp|vỡ ống|chập điện|tia lửa|điện giật|giật điện|bốc khói|"
-    r"có khói|mùi khét|đang cháy|bốc cháy|cháy nổ|hỏa hoạn|hoả hoạn"
-    r"|\b(ro ri gas|xi gas|mui gas|chap dien|tia lua|dien giat|giat dien|vo ong nuoc|ngap nuoc|nuoc ngap|boc khoi|mui khet|boc chay)\b",
+    r"có khói|mùi khét|khét|mùi cháy|mùi khói|đang cháy|bốc cháy|cháy nổ|hỏa hoạn|hoả hoạn|phát nổ|bị nổ|nổ tung|tiếng nổ|nổ lớn|"
+    r"(?:thấy|ra|nhiều|xì|xịt|đầy|toàn|nghi) khói|(?<!hút )(?<!báo )khói|(?:mùi|rò|rò rỉ|xì|hở) ga\b|hở gas|"
+    r"rò điện|rò rỉ điện|dò điện|hở điện|tê tay|giật tê|bén lửa"
+    r"|\b(ro ri gas|xi gas|mui gas|chap dien|tia lua|dien giat|giat dien|vo ong nuoc|ngap nuoc|nuoc ngap|boc khoi|mui khet|boc chay|"
+    r"ro dien|ro ri dien|ho dien|phat no)\b",
     re.I)
-# Từ khoá bị PHỦ ĐỊNH trong cùng mệnh đề không phải khẩn cấp: AI hỏi sàng lọc nguy hiểm nên mô tả hay có "No burning smell
-# or sparks" / "không có mùi khét". Chỉ tính là phủ định khi giữa từ phủ định và từ khoá CHỈ có từ đệm (có, bị, thấy, any,
-# sign of...) hoặc 1 từ khoá khác nối bằng "or / hay"; mệnh đề cắt ở dấu câu và and / but / và / nhưng... — nên
-# "not cooling, burning smell", "không chạy có mùi khét" vẫn là KHẨN CẤP. Không chắc thì coi là khẩn cấp.
+# Từ khoá bị PHỦ ĐỊNH RÕ trong cùng mệnh đề không phải khẩn cấp: AI hỏi sàng lọc nguy hiểm nên mô tả hay có "No burning
+# smell or sparks" / "không có mùi khét" / "hết mùi gas". AN TOÀN TRƯỚC: bỏ sót nguy hiểm là chết người, báo nhầm chỉ phiền
+# -> chỉ tính là phủ định khi từ phủ định đứng NGAY trước từ khoá, giữa chỉ có từ đệm hẹp (a, any, sign of, been, có, bị,
+# thấy...) hoặc 1 từ khoá khác nối bằng "or / hay"; mệnh đề cắt ở dấu câu và and / but / và / nhưng... — nên "not cooling,
+# burning smell", "không chạy có mùi khét" vẫn là KHẨN CẤP. "never" KHÔNG phải phủ định ("never seen sparks like this" là
+# trải nghiệm). Không chắc thì coi là khẩn cấp.
 _NEGATIONS = frozenset((
-    "no", "not", "never", "without", "none", "nothing", "nor", "neither", "isn't", "aren't", "wasn't", "weren't", "don't",
+    "no", "not", "without", "none", "nothing", "nor", "neither", "isn't", "aren't", "wasn't", "weren't", "don't",
     "doesn't", "didn't", "haven't", "hasn't", "hadn't", "can't", "cannot", "couldn't", "isnt", "arent", "wasnt", "dont",
     "doesnt", "didnt", "havent", "hasnt", "cant", "couldnt",
-    "không", "chẳng", "chả", "chưa", "hông", "khong", "ko", "k", "kh", "hok", "chua"))
+    "không", "chẳng", "chả", "chưa", "hông", "khong", "ko", "k", "kh", "hok", "chua", "hết", "het"))
+# KHÔNG có đại từ / "there" / "is" / "the" / "seem" / "like": khách gõ thiếu dấu phẩy "no there is smoke", "no i smell gas",
+# "no the gas smell is strong" là báo NGUY HIỂM; "doesn't seem / look like a gas leak" là đoán, không phải phủ định.
 _NEG_FILLER = frozenset((
-    "a", "an", "the", "any", "sign", "signs", "evidence", "trace", "traces", "hint", "of", "there", "there's", "theres",
-    "is", "are", "was", "were", "be", "been", "it", "it's", "its", "i", "we", "they", "you", "do", "does", "did", "have",
-    "has", "had", "see", "seen", "saw", "notice", "noticed", "smell", "smelled", "smelt", "detect", "detected", "feel",
-    "felt", "hear", "heard", "seem", "seems", "seemed", "appear", "appears", "to", "look", "looks", "like", "real",
-    "actual", "obvious", "visible", "more", "longer", "other", "also", "either", "even", "at", "all", "kind", "sort",
+    "a", "an", "any", "sign", "signs", "evidence", "trace", "traces", "hint", "of", "be", "been", "have", "has", "had",
+    "more", "longer", "visible", "even", "at", "all",
     "có", "bị", "thấy", "gì", "dấu", "hiệu", "hiện", "tượng", "nào", "hề", "còn", "cũng", "ngửi", "nghe", "là", "phải",
     "bất", "kỳ", "kì", "tí", "chút", "co", "bi", "thay", "gi", "dau", "hieu", "nao", "he", "con", "cung", "ngui"))
-_NEG_JOIN = frozenset(("or", "nor", "hay", "hoặc", "hoac"))
+# Động từ giác quan chỉ là phủ định ở HIỆN TẠI ("I don't smell gas", "can't see any smoke") hoặc có "any" ngay trước từ
+# khoá ("haven't seen any sparks"); quá khứ thì không chắc: "I didn't notice the burning smell until now", "didn't see sparks".
+_NEG_SENSE = frozenset(("see", "seen", "saw", "notice", "noticed", "smell", "smelled", "smelt", "detect", "detected",
+                        "feel", "felt", "hear", "heard", "spot", "spotted"))
+_NEG_PRESENT = frozenset(("don't", "dont", "doesn't", "doesnt", "can't", "cant", "cannot"))
+# Từ ngay trước từ phủ định làm nó KHÔNG còn là "hiện không có": phủ định kép ("không phải không có khói", "vẫn chưa hết mùi
+# gas", "không hết mùi khét") hay "gần như" ("sắp hết mùi khét", "almost no smoke"). 'hết' chỉ là "không còn" ở đầu mệnh đề
+# hoặc sau đã / cũng / vừa...; sau động từ thì là "toàn bộ" ("nước tràn hết ngập nhà").
+_NEG_UNDO = frozenset(("sắp", "gần", "sap", "gan", "almost", "nearly"))
+_HET_OK = frozenset(("đã", "da", "cũng", "cung", "đều", "deu", "vừa", "vua", "mới", "moi", "hiện", "là", "la"))
+_NEG_JOIN = frozenset(("or", "nor", "hay", "hoặc", "hoac", "\x01"))
+# Danh sách CHỈ gồm từ khoá, đóng bằng "or / hay" rồi hết câu ("No gas smell, sparks or smoke."): dấu phẩy trong đó là "or"
+# (\x01) để phủ định đầu danh sách phủ cả danh sách. "No power, sparks or smoke from the board" không phải danh sách như vậy.
+_KW_LIST = re.compile(r"\x00+(?:[ \t]*,[ \t]*\x00+)+[ \t]*,?[ \t]+(?:or|nor|hay|hoặc|hoac)[ \t]+\x00+(?=\s*(?:[.;!?\n]|$))", re.I)
+_OXFORD_COMMA = re.compile(r",(?=[ \t]*(?:or|nor|hay|hoặc|hoac)\b)", re.I)
+# Phủ định cùng mệnh đề với chuyện LÚC TRƯỚC / trải nghiệm / điều kiện / câu hỏi an toàn thì KHÔNG phải "hiện không có":
+# 'no smoke until I switch it on', 'didn't see the sparks at first', 'no burning smell when it's off', 'is it safe if
+# there's no gas smell?', 'lúc đầu không có mùi khét', 'chưa thấy tia lửa như vầy', 'nếu không có khói thì có sao không'.
+_NOT_ABSENT = re.compile(
+    r"\b(?:until|till|til|at first|at the start|initially|before|earlier|previously|used to|like (?:this|that)|this bad|"
+    r"that bad|when|whenever|unless|except|if|in case|whether|danger|dangerous|safe|unsafe|"
+    r"lúc đầu|ban đầu|hồi đầu|lúc trước|trước đó|trước giờ|hồi nãy|lúc nãy|ban nãy|đến giờ|tới giờ|đến bây giờ|tới bây giờ|"
+    r"cho đến|cho tới|như vầy|như vậy|như thế|như này|bao giờ|khi|trừ khi|ngoại trừ|nếu|lỡ|nhỡ|liệu|nguy hiểm|an toàn|"
+    r"có sao|luc dau|ban dau|truoc do|truoc gio|den gio|toi gio|nhu vay|nhu the|nhu nay|bao gio|neu|nguy hiem|an toan|"
+    r"co sao)\b", re.I)
+_WINDOW_BREAK = re.compile(r"[.,;:!?\n()\[\]]|\s[-–—]\s|\b(?:and|but|however|although|though|yet|và|nhưng|mà|va|nhung)\b",
+                           re.I)
+# Câu sau LẬT LẠI phủ định mà không nhắc lại từ khoá: "There was no gas smell, but now there is", "không có mùi khét
+# nhưng giờ thì có rồi".
+_REVERSED = re.compile(
+    r"\bnow,? (?:there(?:'s| is| are)|i (?:can |could |do )?(?:smell|see|notice|hear|feel)|(?:it|they)(?:'s| is| are| does|"
+    r" do| has| did))(?: (?:some|one|it|them|something|again|a lot|more))?\s*(?:[.!?]|$)"
+    r"|\b(?:there(?:'s| is| are)|it(?:'s| is| does)|i can (?:smell|see) it) (?:some |one )?(?:again|now)\s*(?:[.!?]|$)"
+    r"|giờ(?: thì| lại| đã| mới)* (?:có|bị|thấy|ngửi thấy|nghe thấy)(?: (?:rồi|lại|nữa|ạ|á|à|luôn))*\s*(?:[.!?]|$)"
+    r"|\bgio(?: thi| lai)* (?:co|bi|thay)(?: (?:roi|lai|nua))*\s*(?:[.!?]|$)", re.I)
 _CLAUSE_BREAK = re.compile(r"[.,;:!?\n()\[\]]|\s[-–—]\s|\b(?:and|but|then|however|although|though|yet|now|và|nhưng|mà|"
                            r"rồi|thì|giờ|va|nhung|roi|thi|gio)\b", re.I)
-_WORD = re.compile(r"\x00|[^\W_]+(?:'[^\W_]+)?")
+_WORD = re.compile(r"\x00|\x01|[^\W_]+(?:'[^\W_]+)?")
 
 
 def _fn(name, desc, props, required=()):
@@ -118,29 +160,46 @@ def _err(msg):
     return ai_packs.PackError(msg)
 
 
-def _negated(text, start):
-    """Từ khoá bắt đầu ở vị trí start có bị PHỦ ĐỊNH trong cùng mệnh đề không ('no gas smell', 'không có mùi khét',
-    'No burning smell or sparks'). Từ khoá khác đứng trước trong mệnh đề được thay bằng dấu \\x00."""
+def _negated(text, start, end):
+    """Từ khoá ở text[start:end] có bị PHỦ ĐỊNH RÕ không ('no gas smell', 'không có mùi khét', 'hết mùi gas', 'No burning
+    smell or sparks'). Từ khoá khác đứng trước trong mệnh đề được thay bằng dấu \\x00. Không chắc -> False (= nguy hiểm)."""
     clause = _CLAUSE_BREAK.split(text[:start])[-1]
     toks = _WORD.findall(_EMERGENCY_RE.sub(' \x00 ', clause).lower())
     neg = max((i for i, t in enumerate(toks) if t in _NEGATIONS), default=-1)
-    if neg < 0 or len(toks) - neg - 1 > 6:
+    if neg < 0 or sum(t != '\x00' and t not in _NEG_JOIN for t in toks[neg + 1:]) > 4:
         return False
+    prev = [t for t in toks[:neg] if t not in ('phải', 'phai', 'là', 'la')][-1:]
+    if prev and (prev[0] in _NEGATIONS or prev[0] in _NEG_UNDO):
+        return False
+    if toks[neg] in ('hết', 'het') and toks[neg - 1:neg] and toks[neg - 1] not in _HET_OK:
+        return False
+    now = toks[neg] in _NEG_PRESENT or (toks[neg] == 'not' and neg > 0 and toks[neg - 1] in ('do', 'does', 'can'))
     joined = False   # vừa qua 1 từ khoá khác: chỉ "or / hay" mới nối tiếp phủ định ("No burning smell or sparks")
     for t in toks[neg + 1:]:
         if t == '\x00':
             joined = True
         elif joined and t in _NEG_JOIN:
             joined = False
-        elif joined or t not in _NEG_FILLER:
+        elif joined or not (t in _NEG_FILLER or (t in _NEG_SENSE and (now or toks[-1] == 'any'))):
             return False
-    return not joined
+    if joined:
+        return False
+    before = _WINDOW_BREAK.split(text[:start])[-1]
+    brk = _WINDOW_BREAK.search(text, end)
+    after = text[end:brk.start() if brk else len(text)]
+    if (brk and brk.group() == '?') or _NOT_ABSENT.search(before + ' | ' + after):
+        return False   # câu hỏi / lúc trước / điều kiện: nghiêng về an toàn
+    return not _REVERSED.search(text, end)
 
 
 def is_emergency(text):
-    """Có từ khoá nguy hiểm KHÔNG bị phủ định: 'sparks from the outlet' -> True; 'no sparks', 'không có mùi khét' -> False."""
+    """Có từ khoá nguy hiểm KHÔNG bị phủ định rõ: 'sparks from the outlet', 'never seen sparks like this', 'is it dangerous
+    if there is smoke?' -> True; 'no sparks', 'không có mùi khét', 'hết mùi gas' -> False."""
     t = unicodedata.normalize('NFC', str(text or '')).replace('\u2019', "'")
-    return any(not _negated(t, m.start()) for m in _EMERGENCY_RE.finditer(t))
+    mask = _EMERGENCY_RE.sub(lambda m: '\x00' * len(m.group()), t)   # cùng độ dài: vị trí giữ nguyên
+    for run in _KW_LIST.finditer(mask):
+        t = t[:run.start()] + _OXFORD_COMMA.sub(' ', t[run.start():run.end()]).replace(',', '\x01') + t[run.end():]
+    return any(not _negated(t, m.start(), m.end()) for m in _EMERGENCY_RE.finditer(t))
 
 
 def _clean(v, n):
@@ -276,9 +335,14 @@ def request_job(args, ctx):
     # Tạo nguyên tử theo khoá (cùng khách + cùng địa chỉ + cùng ngày): khách nói "gửi giúp em" 2 lần -> vẫn 1 việc trên bảng
     saved, created = _c.insert_once(db.tasks, bid, key, doc, key_field='ai_dedupe_key')
     emergency = urgency == 'emergency'
-    if not created and emergency and (saved or {}).get('trang_thai') == DONE:
-        # việc cũ cùng địa chỉ hôm nay đã XONG: nguy hiểm là việc MỚI trên bảng (khoá riêng: khách báo lại vẫn chỉ 1 việc)
-        saved, created = _c.insert_once(db.tasks, bid, key + ':emergency', doc, key_field='ai_dedupe_key')
+    ekey = key + ':emergency'
+    for _ in range(10):
+        if created or not emergency or (saved or {}).get('trang_thai') != DONE:
+            break
+        # việc cũ cùng địa chỉ hôm nay đã XONG (kể cả việc khẩn cấp trước đó): nguy hiểm là việc MỚI trên bảng + báo chủ.
+        # Khoá nối theo việc đã xong: khách báo lại vẫn chỉ 1 việc đang mở, không bao giờ trả về việc đã Hoàn Thành.
+        saved, created = _c.insert_once(db.tasks, bid, ekey, doc, key_field='ai_dedupe_key')
+        ekey = f"{key}:emergency:{(saved or {}).get('id')}"
     escalated = False
     if not created:
         old_id = (saved or {}).get('id')

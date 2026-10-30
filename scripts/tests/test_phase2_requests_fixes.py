@@ -211,7 +211,8 @@ class HeldQtyConcurrencyTests(unittest.TestCase):
 
     def test_recount_between_status_change_and_release_does_not_release_twice(self):
         hold(args={'product_id': 1, 'quantity': 2}, chat_token_hash='tokA')
-        b = hold(args={'product_id': 1, 'quantity': 1, 'phone': '0412 000 111', 'customer_name': 'Ben'}, chat_token_hash='tokB')
+        b = hold(args={'product_id': 1, 'quantity': 1, 'phone': '0412 000 111', 'customer_name': 'Ben'}, chat_token_hash='tokB',
+                 customer_id=f'{AU}:0412000111')                           # chat web thật: mã trình duyệt + đúng chat này
         self.assertEqual(product(1)['held_qty'], 3)
         # bộ đếm "cũ" (đứng yên lâu) -> nếu không có dấu "đang đổi", recount được phép sửa
         DB.products.update_one({'id': 1, 'business_id': AU}, {'$set': {'held_qty_at': time.time() - 3600}})
@@ -222,7 +223,8 @@ class HeldQtyConcurrencyTests(unittest.TestCase):
             return real_release(bid, h)
         retail._release = racing_release
         try:
-            out = retail.execute('retail_cancel_hold', {'hold_id': b['hold_id']}, ctx(chat_token_hash='tokB'))
+            out = retail.execute('retail_cancel_hold', {'hold_id': b['hold_id']},
+                                 ctx(chat_token_hash='tokB', customer_id=f'{AU}:0412000111'))
         finally:
             retail._release = real_release
         self.assertEqual(out['status'], 'cancelled')
@@ -252,10 +254,10 @@ class HeldQtyConcurrencyTests(unittest.TestCase):
 
     def test_every_counter_change_stamps_the_product(self):
         t0 = time.time()
-        a = hold(chat_token_hash='tokA')
+        a = hold(chat_token_hash='tokA', customer_id=f'{AU}:0412345678')
         self.assertGreaterEqual(product(1)['held_qty_at'], t0)
         DB.products.update_one({'id': 1, 'business_id': AU}, {'$set': {'held_qty_at': 0}})
-        retail.execute('retail_cancel_hold', {'hold_id': a['hold_id']}, ctx(chat_token_hash='tokA'))
+        retail.execute('retail_cancel_hold', {'hold_id': a['hold_id']}, ctx(chat_token_hash='tokA', customer_id=f'{AU}:0412345678'))
         self.assertGreaterEqual(product(1)['held_qty_at'], t0)
         self.assertEqual(product(1)['held_qty'], 0)
 
@@ -280,7 +282,8 @@ class UnknownCountryPhoneTests(unittest.TestCase):
 
     def test_hold_keeps_the_typed_number(self):
         out = retail.execute('retail_hold_for_pickup', {'product_id': 71, 'quantity': 1, 'customer_name': 'Lan',
-                                                        'phone': '0912 345 678'}, ctx(NC_RETAIL, chat_token_hash='tokN'))
+                                                        'phone': '0912 345 678'},
+                             ctx(NC_RETAIL, chat_token_hash='tokN', customer_id=f'{NC_RETAIL}:0912 345 678'))
         self.assertTrue(out['success'])
         h = DB.retail_holds.find_one({'id': out['hold_id']})
         self.assertEqual(h['customer_phone'], '0912345678')
@@ -288,7 +291,10 @@ class UnknownCountryPhoneTests(unittest.TestCase):
         self.assertNotIn('+1', str(h))
         self.assertNotIn('+10912345678', str(CALLS))
         self.assertIn('0912345678', alerts()[-1][3])
-        mine = retail.execute('retail_my_holds', {}, ctx(NC_RETAIL, chat_token_hash='tokN'))['holds']   # chủ = mã trình duyệt
+        mine = retail.execute('retail_my_holds', {}, ctx(NC_RETAIL, chat_token_hash='tokN',
+                                                         customer_id=f'{NC_RETAIL}:0912 345 678'))['holds']   # mã trình duyệt + đúng chat
+        with self.assertRaises(PackError):                                  # mã trình duyệt MỘT MÌNH không phải bằng chứng
+            retail.execute('retail_my_holds', {}, ctx(NC_RETAIL, chat_token_hash='tokN'))
         self.assertEqual([x['hold_id'] for x in mine], [out['hold_id']])
         # cùng SĐT ở trình duyệt khác: giới hạn hold / khách vẫn tính theo số khách gõ (khoá E.164 = None)
         args = {'product_id': 71, 'quantity': 1, 'customer_name': 'Lan', 'phone': '0912345678'}
