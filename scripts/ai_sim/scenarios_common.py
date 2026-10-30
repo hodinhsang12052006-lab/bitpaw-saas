@@ -152,13 +152,18 @@ def booking_settings(db, biz):
     return db.booking_settings.find_one({'business_id': biz}, {'_id': 0}) or {}
 
 
+# = reservations_core.GENERAL_SAVED_MARK: chủ quán đã lưu công tắc chung ở trang Cài đặt đặt chỗ. Trang Cài đặt đặt lịch CŨ
+# luôn ghi auto_confirm=True (mặc định Nails) cho mọi ngành — giá trị đó không phải lựa chọn của quán, AI không tính.
+GENERAL_SAVED_MARK = 'reservations_general_saved_at'
+
+
 def auto_confirm_of(bs, sub_key=None):
-    """Tự xác nhận theo đúng thứ tự gói đặt chỗ đọc (reservations_core.load_rules): khối riêng của loại chỗ > cài đặt chung
-    đã lưu > chưa lưu = chờ duyệt."""
+    """Tự xác nhận theo đúng thứ tự gói đặt chỗ đọc (reservations_core.load_rules): khối riêng của loại chỗ (True / False) >
+    công tắc chung CHỈ khi chủ đã lưu nó ở trang Cài đặt đặt chỗ (GENERAL_SAVED_MARK) > còn lại = chờ duyệt."""
     sub = bs.get(sub_key) if sub_key and isinstance(bs.get(sub_key), dict) else {}
     if isinstance(sub.get('auto_confirm'), bool):
         return sub['auto_confirm']
-    if 'auto_confirm' in bs:
+    if 'auto_confirm' in bs and bs.get(GENERAL_SAVED_MARK):
         return bool(bs['auto_confirm'])
     return False
 

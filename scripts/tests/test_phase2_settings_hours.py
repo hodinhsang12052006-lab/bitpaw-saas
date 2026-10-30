@@ -372,8 +372,10 @@ class PageScript(Base):
         body = out['posts'][0]['body']
         self.assertEqual(out['posts'][0]['url'], '/api/booking/settings')
         self.assertIs(body['auto_confirm'], False)
-        self.assertNotIn('min_lead_minutes', body)                          # ô trống = chưa đặt: không gửi 60 mặc định
-        self.assertNotIn('max_advance_days', body)
+        self.assertIsNone(body['min_lead_minutes'])                         # ô trống = chưa đặt: gửi null, không gửi 60 mặc định
+        self.assertIsNone(body['max_advance_days'])
+        self.assertNotIn('min_lead_minutes', self.stored())
+        self.assertNotIn('max_advance_days', self.stored())
         self.assertEqual((body['hours']['mon'], body['hours']['tue'][1], body['hours']['fri']), (None, '23:00', ['18:00', '02:00']))
         self.assertEqual(body['info']['parking'], 'Street parking after 6pm')
         self.assertEqual(out['posts'][1]['body']['auto_confirm'], 'follow')

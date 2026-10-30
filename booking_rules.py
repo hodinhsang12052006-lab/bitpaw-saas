@@ -119,9 +119,11 @@ def get_rules(business_id):
     return rules
 
 
-def save_rules(business_id, data, allow_overnight=False, extra=None):
+def save_rules(business_id, data, allow_overnight=False, extra=None, unset=()):
     """Lưu luật đặt lịch. allow_overnight: ngành đặt chỗ được lưu giờ đóng sau nửa đêm (xem OVERNIGHT_MAX_CLOSE); mặc định
-    (Nails/Spa) đúng luật cũ. extra: khoá $set thêm trong CÙNG lượt ghi (trang Cài đặt đặt chỗ đánh dấu công tắc chung)."""
+    (Nails/Spa) đúng luật cũ. extra: khoá $set thêm trong CÙNG lượt ghi (trang Cài đặt đặt chỗ đánh dấu công tắc chung).
+    unset: khoá luật XOÁ khỏi bản ghi trong cùng lượt ghi (trang Cài đặt đặt chỗ: chủ xoá trống ô Đặt trước tối thiểu / tối
+    đa = "chưa đặt" -> AI đặt chỗ quay về 0 phút / 366 ngày); khoá cũng có trong `data` thì giá trị trong data thắng."""
     clean = {}
     hours = data.get('hours')
     if isinstance(hours, dict):
@@ -172,7 +174,9 @@ def save_rules(business_id, data, allow_overnight=False, extra=None):
     if extra:
         clean.update(extra)
     clean['updated_at'] = datetime.now().isoformat()
-    db.booking_settings.update_one({'business_id': business_id}, {'$set': clean}, upsert=True)
+    drop = {k: '' for k in unset or () if k in DEFAULTS and k not in clean}
+    db.booking_settings.update_one({'business_id': business_id}, dict({'$set': clean}, **({'$unset': drop} if drop else {})),
+                                   upsert=True)
     _CACHE.pop(('rules', business_id), None)
     return get_rules(business_id)
 
