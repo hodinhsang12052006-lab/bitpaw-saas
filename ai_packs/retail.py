@@ -152,32 +152,50 @@ _CC = {'US': '1', 'CA': '1', 'AU': '61', 'NZ': '64', 'GB': '44', 'VN': '84'}
 
 
 def _e164_local(phone, country=None):
-    """Bản dự phòng của ai_packs.normalize_phone (cùng luật) khi registry chưa có hàm đó."""
+    """Bản dự phòng của ai_packs.normalize_phone khi registry chưa có hàm đó — BẢN SAO ĐÚNG luật đó (scripts/tests/
+    test_phase2_fix3_country.py so từng ca): chưa biết nước của tiệm -> số nội địa '' (KHÔNG đoán là số Mỹ / Việt); Mỹ /
+    Canada chỉ số NANP hợp lệ; số 0 trung kế ghi sau mã nước Úc / NZ / Anh / VN được bỏ."""
     raw = str(phone or '').strip()
-    d = re.sub(r'\D', '', raw)
-    if not d:
+    digits = re.sub(r'\D', '', raw)
+    if not digits:
         return ''
     if raw.startswith('+') or raw.startswith('00'):
-        d = d if raw.startswith('+') else d[2:]
+        d = digits if raw.startswith('+') else digits[2:]
+        cc = next((x for x in ('61', '64', '44', '84') if d.startswith(x + '0')), None)
+        if cc and len(d) - len(cc) - 1 >= 7:
+            d = cc + d[len(cc) + 1:]
         return '+' + d if 8 <= len(d) <= 15 else ''
-    c = str(country or '').upper()          # chưa biết nước của tiệm -> KHÔNG đoán là số Mỹ (+1)
-    cc = _CC.get(c)
+    c = str(country or '').strip().upper()
+    if not c:
+        return ''
     if c in ('US', 'CA'):
-        if len(d) == 10:
-            return '+1' + d
-        if len(d) == 11 and d.startswith('1'):
-            return '+' + d
-    elif cc:
-        if d.startswith('0') and 9 <= len(d) <= 11:
-            return '+' + cc + d[1:]
-        if c == 'AU' and len(d) == 9 and d[0] in '23478':
-            return '+61' + d
-        if c == 'VN' and len(d) == 9 and d[0] in '35789':
-            return '+84' + d
-        if d.startswith(cc) and 10 <= len(d) <= 13:
-            return '+' + d
-    if 11 <= len(d) <= 15:
-        return '+' + d
+        if len(digits) == 10 and digits[0] not in '01':
+            return '+1' + digits
+        if len(digits) == 11 and digits[0] == '1' and digits[1] not in '01':
+            return '+' + digits
+        if digits[0] == '1':
+            return ''   # +1 nhưng không phải số NANP hợp lệ
+    elif c == 'AU':
+        if len(digits) == 10 and digits.startswith('0'):
+            return '+61' + digits[1:]
+        if len(digits) == 9 and digits[0] in '23478':
+            return '+61' + digits
+        if len(digits) == 11 and digits.startswith('61'):
+            return '+' + digits
+    elif c == 'VN':
+        if len(digits) == 10 and digits.startswith('0'):
+            return '+84' + digits[1:]
+        if len(digits) == 9 and digits[0] in '35789':
+            return '+84' + digits
+        if len(digits) == 11 and digits.startswith('84'):
+            return '+' + digits
+    elif c in ('NZ', 'GB'):
+        if digits.startswith('0') and 9 <= len(digits) <= 11:
+            return '+' + _CC[c] + digits[1:]
+        if digits.startswith(_CC[c]) and 10 <= len(digits) <= 13:
+            return '+' + digits
+    if 11 <= len(digits) <= 15 and digits[0] != '0':
+        return '+' + digits
     return ''
 
 
@@ -267,7 +285,9 @@ def owner_filter(ctx):
     """Điều kiện Mongo cho bản ghi CHỨNG MINH được là của khách đang chat, hoặc None (không chứng minh được).
     Chat web: mã chat của đúng trình duyệt KÈM đúng chat này — cùng hội thoại web, hoặc đúng SĐT (NGUYÊN số) khách gõ ở đây:
     1 máy tính bảng quầy dùng chung 1 mã trình duyệt, khách kế tiếp gõ SĐT khác không thấy / huỷ được hàng giữ của người
-    trước. Id hội thoại web một mình ('<tiệm>:<SĐT tự gõ>', ai cũng gõ được) KHÔNG bao giờ là bằng chứng."""
+    trước. Id hội thoại web một mình ('<tiệm>:<SĐT tự gõ>', ai cũng gõ được) KHÔNG bao giờ là bằng chứng.
+    SĐT khách gõ không có khoá E.164 (tiệm chưa biết nước + số nội địa): so NGUYÊN mọi chữ số với SĐT lưu trên hold không có
+    khoá — cùng luật ai_packs.same_phone / token_owns, vẫn chỉ KÈM mã trình duyệt của chat này (không bao giờ một mình)."""
     ors = []
     k = phone_key(ctx.get('phone'), _country(ctx))
     if k:
@@ -278,9 +298,12 @@ def owner_filter(ctx):
         ors.append({'chat_token_hash': th})   # 'conv:<băm>' của hội thoại nền tảng
     elif th:
         mine = [{'ai_conversation_id': cid}] if cid else []
-        typed = phone_key(_typed_phone(ctx), _country(ctx))
+        typed_raw = _typed_phone(ctx)
+        typed = phone_key(typed_raw, _country(ctx))
         if typed:
             mine.append({'phone_key': typed})
+        elif _clean_phone(typed_raw):   # hold tạo bằng chính số đó cũng không có khoá: customer_phone = số đã làm sạch
+            mine.append({'phone_key': None, 'customer_phone': _clean_phone(typed_raw)})
         if mine:
             ors.append({'chat_token_hash': th, '$or': mine})
     if cid and ch in PLATFORM_CHANNELS and str(cid).startswith(f"{ctx.get('business_id')}:{ch}:"):

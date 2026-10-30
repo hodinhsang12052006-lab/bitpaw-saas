@@ -1571,6 +1571,26 @@ def _record_login_failure(email):
 _TOO_MANY_LOGIN_MSG = 'Too many failed sign-in attempts. Please wait 15 minutes and try again.'
 
 
+def _signup_region(form):
+    """{'country': 'AU', 'currency': 'AUD'} cho tiệm MỚI tự đăng ký (/register và Google/Facebook /auth/complete), hoặc {}.
+    Nước: ô "Quốc gia của tiệm" trên form (chọn sẵn theo header X-Vercel-IP-Country của Vercel); form cũ / gọi thẳng không có
+    ô đó -> theo header; 'Nước khác', nước BitPaw chưa có luật, hoặc không có gì -> không lưu (ai_packs.shop_country = None:
+    số nội địa không bị đoán là số Mỹ / số Việt). Tiền tệ đi kèm theo đúng quy ước sẵn có cho tiệm có nước mà chưa có tiền
+    tệ (_shop_lang_currency, ai_copilot_tools.business_currency): VN -> VND, AU -> AUD, nước khác -> USD (gói chỉ bán USD/AUD,
+    format_money chỉ định dạng VND/USD/AUD) — tiệm Mỹ/Úc mới không còn rơi về VND mặc định của TenantEngine. Lỗi -> {}:
+    không bao giờ chặn việc đăng ký."""
+    try:
+        import ai_packs
+        raw = form.get('country') if 'country' in form else request.headers.get('X-Vercel-IP-Country')
+        country = ai_packs.country_code(raw)
+    except Exception as e:
+        print(f"[signup] country: {e}")
+        country = None
+    if not country:
+        return {}
+    return {'country': country, 'currency': {'VN': 'VND', 'AU': 'AUD'}.get(country, 'USD')}
+
+
 @app.route('/register', methods=['GET', 'POST'])
 # Chỉ đếm lượt GỬI form (POST): trước đây GET cũng bị tính nên chỉ cần mở/tải lại trang 5 lần
 # (vd quay lại sau khi gõ sai) là bị 429 ngay cả khi chưa thử đăng nhập lần nào.
@@ -1667,6 +1687,7 @@ def register():
                 'owner_name': fullname,
                 'industry_code': business_type,
                 'created_at': datetime.now().isoformat(),
+                **_signup_region(request.form),   # nước + tiền tệ (ô "Quốc gia của tiệm" / header Vercel), không rõ -> không lưu
                 **({'plan': key_valid['plan']} if key_valid.get('plan') in plans.PLAN_ORDER else {}),
             })
             session['business_mode'] = business_type

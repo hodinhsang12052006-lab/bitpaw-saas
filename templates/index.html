@@ -1289,6 +1289,24 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                             </select>
                         </div>
 
+                        {# Nước của tiệm: đọc đúng SĐT nội địa của khách + tiền tệ (app._signup_region). Chọn sẵn theo header Vercel #}
+                        {% set reg_geo = (request.headers.get('X-Vercel-IP-Country') or '')|upper %}
+                        {% set reg_geo = 'GB' if reg_geo == 'UK' else reg_geo %}
+                        {% set reg_countries = [('US', 'Hoa Kỳ (Mỹ)', 'United States'), ('AU', 'Úc', 'Australia'), ('VN', 'Việt Nam', 'Vietnam'), ('CA', 'Canada', 'Canada'), ('NZ', 'New Zealand', 'New Zealand'), ('GB', 'Vương quốc Anh', 'United Kingdom')] %}
+                        <div>
+                            <label for="reg_country"
+                                class="block text-[10px] font-bold text-cyan-400 uppercase tracking-wider mb-1.5 ml-1"><i
+                                    class="fas fa-globe mr-1"></i> <span data-i18n="index_reg_country_label">Quốc gia của tiệm</span></label>
+                            <select name="country" id="reg_country"
+                                class="cyber-input w-full px-4 py-3 rounded-xl text-xs cursor-pointer">
+                                <option value="" class="bg-[#08061a] text-white" data-vi="Chọn quốc gia" data-en="Select country" {% if not reg_geo %}selected{% endif %}>{{ 'Chọn quốc gia' if default_lang == 'vi' else 'Select country' }}</option>
+                                {% for code, vi_name, en_name in reg_countries %}
+                                <option value="{{ code }}" class="bg-[#08061a] text-white" data-vi="{{ vi_name }}" data-en="{{ en_name }}" {% if reg_geo == code %}selected{% endif %}>{{ vi_name if default_lang == 'vi' else en_name }}</option>
+                                {% endfor %}
+                                <option value="other" class="bg-[#08061a] text-white" data-vi="Nước khác" data-en="Other" {% if reg_geo and reg_geo not in reg_countries|map('first') %}selected{% endif %}>{{ 'Nước khác' if default_lang == 'vi' else 'Other' }}</option>
+                            </select>
+                        </div>
+
                         <input type="email" id="regEmail" name="email" placeholder="Email quản trị"
                             data-i18n-placeholder="index_login_email_placeholder" required
                             class="cyber-input w-full px-5 py-3 rounded-xl text-sm">
@@ -1658,6 +1676,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 index_card_report_title: { vi: 'Doanh Thu & Dòng Tiền', en: 'Revenue & Cash Flow' },
                 index_card_report_desc: { vi: 'Tra cứu doanh số, lợi nhuận thực tế, chi phí đầu vào, thống kê dòng tiền chênh lệch theo thời gian thực.', en: 'Look up sales, actual profit, input costs, and real-time cash flow variance statistics.' },
                 index_reg_industry_label: { vi: 'Chọn Ngành Nghề', en: 'Select Industry' },
+                index_reg_country_label: { vi: 'Quốc gia của tiệm', en: 'Shop country' },
                 index_telemetry_secure_session: { vi: 'Secure Session', en: 'Secure Session' },
                 index_telemetry_multitenant: { vi: 'Multi-tenant Platform', en: 'Multi-tenant Platform' },
                 index_secure_note: { vi: 'Kết nối mã hoá HTTPS · Dữ liệu của bạn chỉ bạn xem được', en: 'Encrypted HTTPS connection · Only you can see your data' },
@@ -1704,7 +1723,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const t = i18n[lang];
                 currentLang = lang;
                 applyDataI18n(lang);
-                document.querySelectorAll('#reg_business_type option[data-vi]').forEach(o => { o.textContent = lang === 'vi' ? o.dataset.vi : o.dataset.en; });
+                document.querySelectorAll('#reg_business_type option[data-vi], #reg_country option[data-vi]').forEach(o => { o.textContent = lang === 'vi' ? o.dataset.vi : o.dataset.en; });
                 if (!t) return;
 
                 const wTxt = document.getElementById('txt_welcome');

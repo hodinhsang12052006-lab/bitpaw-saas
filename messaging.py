@@ -159,29 +159,53 @@ def save_settings(business_id, data):
 
 
 # ---------------------------------------------------------------- số điện thoại, giờ địa phương, từ chối
-def normalize_phone(phone, country='US'):
-    """Chuẩn E.164 (+1..., +61..., +84...). Trả '' nếu không hợp lệ."""
-    if not phone:
-        return ''
-    raw = str(phone).strip()
+def normalize_phone(phone, country=None):
+    """Chuẩn E.164 (+1..., +61..., +84...) hoặc '' — BẢN SAO ĐÚNG luật ai_packs.normalize_phone (scripts/tests/
+    test_phase2_fix3_country.py so từng ca): số nội địa theo nước của tiệm; CHƯA BIẾT nước -> '' (không còn mặc định Mỹ:
+    '0912 345 678' không phải +10912345678); Mỹ / Canada chỉ số NANP hợp lệ; '00' = '+'; số 0 trung kế ghi sau mã nước
+    Úc / NZ / Anh / VN được bỏ ('+61 (0)412 345 678' = +61412345678)."""
+    raw = str(phone or '').strip()
     digits = re.sub(r'\D', '', raw)
-    if raw.startswith('+'):
-        return '+' + digits if 8 <= len(digits) <= 15 else ''
-    c = (country or 'US').upper()
+    if not digits:
+        return ''
+    if raw.startswith('+') or raw.startswith('00'):
+        d = digits if raw.startswith('+') else digits[2:]
+        cc = next((x for x in ('61', '64', '44', '84') if d.startswith(x + '0')), None)
+        if cc and len(d) - len(cc) - 1 >= 7:
+            d = cc + d[len(cc) + 1:]
+        return '+' + d if 8 <= len(d) <= 15 else ''
+    c = str(country or '').strip().upper()
+    if not c:
+        return ''
     if c in ('US', 'CA'):
-        if len(digits) == 10:
+        if len(digits) == 10 and digits[0] not in '01':
             return '+1' + digits
-        if len(digits) == 11 and digits.startswith('1'):
+        if len(digits) == 11 and digits[0] == '1' and digits[1] not in '01':
             return '+' + digits
-    if c == 'AU':
+        if digits[0] == '1':
+            return ''   # +1 nhưng không phải số NANP hợp lệ
+    elif c == 'AU':
         if len(digits) == 10 and digits.startswith('0'):
             return '+61' + digits[1:]
         if len(digits) == 9 and digits[0] in '23478':
             return '+61' + digits
         if len(digits) == 11 and digits.startswith('61'):
             return '+' + digits
-    if c == 'VN' and len(digits) == 10 and digits.startswith('0'):
-        return '+84' + digits[1:]
+    elif c == 'VN':
+        if len(digits) == 10 and digits.startswith('0'):
+            return '+84' + digits[1:]
+        if len(digits) == 9 and digits[0] in '35789':
+            return '+84' + digits
+        if len(digits) == 11 and digits.startswith('84'):
+            return '+' + digits
+    elif c in ('NZ', 'GB'):
+        cc = {'NZ': '64', 'GB': '44'}[c]
+        if digits.startswith('0') and 9 <= len(digits) <= 11:
+            return '+' + cc + digits[1:]
+        if digits.startswith(cc) and 10 <= len(digits) <= 13:
+            return '+' + digits
+    if 11 <= len(digits) <= 15 and digits[0] != '0':
+        return '+' + digits
     return ''
 
 
