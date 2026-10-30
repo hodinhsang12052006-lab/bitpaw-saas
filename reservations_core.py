@@ -41,6 +41,7 @@ KARAOKE_MIN_HOURS, KARAOKE_MAX_HOURS = 0.5, 12.0            # route công khai k
 KARAOKE_IN_USE = 'Đang chơi'                                # db.karaoke_rooms.status khi phòng đang có khách
 DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 DAY_NAMES = {'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'}
+DAY_NAMES_VI = {'mon': 'T2', 'tue': 'T3', 'wed': 'T4', 'thu': 'T5', 'fri': 'T6', 'sat': 'T7', 'sun': 'CN'}
 
 SETTINGS_KEY = {'table': 'table_reservations', 'karaoke': 'karaoke_reservations'}
 TABLE_DEFAULTS = {
@@ -338,53 +339,134 @@ def _ampm(m):
     return f"{h % 12 or 12}:{mi:02d} {'am' if h < 12 else 'pm'}"
 
 
-def close_label(m):
-    """Giờ ĐÓNG cho AI nói đúng: '22:00', '24:00 (midnight)', '02:00 (2:00 am the next day)'."""
-    if m > 24 * 60:
-        return f"{fmt_min(m)} ({_ampm(m)} the next day)"
-    return '24:00 (midnight)' if m == 24 * 60 else fmt_min(m)
+# ---- 1 KIỂU giờ mở cửa duy nhất cho mọi chữ khách / AI đọc: dữ kiện gói (hours_text), ô opening_hours + lời giải thích
+# của công cụ (day_hours_text, check_window), prompt khách mọi kênh (customer_context.hours_lines) và
+# booking_rules.describe_for_ai.
+# EN 'Mon 11:00 am – 10:00 pm', 'Wed 4:00 pm – midnight', 'Fri 6:00 pm – 2:00 am (Sat)', 'Tue closed';
+# VI 'T2 11:00 – 22:00', 'T4 16:00 – 24:00', 'T6 18:00 – 02:00 (sáng T7)', 'T3 nghỉ'.
+# Trước đây cùng 1 prompt có tới 3 kiểu ('Mon 11:00-22:00', 'Fri 6:00 pm – 2:00 am (Sat)', 'Fri 18:00-02:00 (closes at
+# 2:00 am Sat, after midnight)') + '18:00-02:00 (2:00 am the next day)' trong công cụ — AI chép lại lộn xộn. Giờ BẮT ĐẦU
+# khách / AI truyền cho công cụ vẫn là 'HH:MM' 24 giờ (fmt_min, danh sách giờ trống).
+def day_label(day_key, lang='en'):
+    return (DAY_NAMES_VI if lang == 'vi' else DAY_NAMES).get(day_key, day_key)
 
 
-def day_hours_text(rules, day):
-    """Giờ mở cửa của 1 NGÀY LỊCH: '18:00-02:00 (2:00 am the next day)', kèm phần sau nửa đêm của ca hôm trước
-    ('00:00-02:00 (still open from Friday night) and ...'); 'closed'; None = chưa công bố."""
+def clock(m, lang='en'):
+    """1 mốc giờ mở / đóng: EN '6:00 pm', '2:00 am', 'midnight' (đóng đúng 24:00); VI '18:00', '02:00', '24:00'."""
+    m = int(m)
+    if lang == 'vi':
+        return fmt_min(m)
+    return 'midnight' if m and m % (24 * 60) == 0 else _ampm(m)
+
+
+def close_label(m, day_key=None, lang='en'):
+    """Giờ ĐÓNG của ca mở ngày `day_key` (phút tính từ 00:00 ngày đó, như hours_on): '10:00 pm', 'midnight', sau nửa đêm
+    kèm NGÀY đóng thật '2:00 am (Sat)' — VI '22:00', '24:00', '02:00 (sáng T7)'."""
+    text = clock(m, lang)
+    if m > 24 * 60 and day_key in DAY_KEYS:
+        nxt = day_label(DAY_KEYS[(DAY_KEYS.index(day_key) + 1) % 7], lang)
+        text += f" (sáng {nxt})" if lang == 'vi' else f" ({nxt})"
+    return text
+
+
+def span_text(day_key, opens, closes, lang='en'):
+    """1 ca mở cửa: 'Fri 6:00 pm – 2:00 am (Sat)' / 'T6 18:00 – 02:00 (sáng T7)'."""
+    return f"{day_label(day_key, lang)} {clock(opens, lang)} – {close_label(closes, day_key, lang)}"
+
+
+def closed_text(day_key, lang='en'):
+    return f"{day_label(day_key, lang)} {'nghỉ' if lang == 'vi' else 'closed'}"
+
+
+def _span_of(v):
+    """Giờ ĐÃ LƯU của 1 ngày -> (mở, đóng) phút, cùng luật hours_on (đóng <= mở = sáng hôm sau); None = nghỉ;
+    ValueError = không đọc được."""
+    if not v:
+        return None
+    try:
+        o, c = _hm_to_min(v[0]), _hm_to_min(v[1])
+    except (ValueError, IndexError, TypeError, KeyError):
+        raise ValueError(v)
+    return (o, c + 24 * 60) if c <= o else (o, c)
+
+
+def day_value_text(day_key, v, lang='en'):
+    """Giờ ĐÃ LƯU của 1 thứ theo kiểu chung; giá trị không đọc được in nguyên văn (không đoán, không vỡ prompt)."""
+    try:
+        span = _span_of(v)
+    except ValueError:
+        try:
+            return f"{day_label(day_key, lang)} {v[0]}-{v[1]}"
+        except (IndexError, TypeError, KeyError):
+            return f"{day_label(day_key, lang)} {v}"
+    return span_text(day_key, span[0], span[1], lang) if span else closed_text(day_key, lang)
+
+
+def week_hours_text(hours, lang='en'):
+    """Cả tuần thứ Hai -> Chủ nhật theo kiểu chung: 'Mon 11:00 am – 10:00 pm, Tue closed, ..., Fri 6:00 pm – 2:00 am (Sat)'.
+    Thứ không có trong `hours` = nghỉ (như hours_on / booking_rules.hours_on)."""
+    hours = hours if isinstance(hours, dict) else {}
+    return ', '.join(day_value_text(d, hours.get(d), lang) for d in DAY_KEYS)
+
+
+def day_hours_text(rules, day, lang='en'):
+    """Giờ mở cửa của 1 NGÀY LỊCH theo kiểu chung, kèm ca đêm hôm trước còn mở sang ngày này: 'Fri 6:00 pm – 2:00 am (Sat),
+    Sat 6:00 pm – 2:00 am (Sun)'; Chủ nhật nghỉ sau ca đêm thứ Bảy: 'Sat 6:00 pm – 2:00 am (Sun), Sun closed' (01:00 Chủ
+    nhật vẫn đặt được); 'Mon closed'; None = chưa công bố."""
     hrs = hours_on(rules, day)
     if hrs == UNKNOWN:
         return None
     parts = []
-    tail = overnight_tail(rules, day)
-    if tail:
-        parts.append(f"00:00-{fmt_min(tail)} (still open from {day - timedelta(days=1):%A} night)")
-    if hrs:
-        parts.append(f"{fmt_min(hrs[0])}-{close_label(hrs[1])}")
-    return ' and '.join(parts) or 'closed'
+    prev_day = day - timedelta(days=1)
+    if overnight_tail(rules, day):
+        prev = hours_on(rules, prev_day)
+        parts.append(span_text(DAY_KEYS[prev_day.weekday()], prev[0], prev[1], lang))
+    key = DAY_KEYS[day.weekday()]
+    parts.append(span_text(key, hrs[0], hrs[1], lang) if hrs else closed_text(key, lang))
+    return ', '.join(parts)
 
 
-def hours_text(rules):
-    """'Mon 11:00-22:00, Tue closed, Fri 18:00-02:00 (closes at 2:00 am Sat, after midnight), ...' hoặc None khi chưa
-    công bố. Có ngày mở qua nửa đêm thì nói rõ giờ sau nửa đêm thuộc NGÀY hôm sau (AI truyền đúng ngày cho công cụ)."""
+def hours_text(rules, lang='en'):
+    """Giờ mở cửa cả tuần cho dữ kiện gói (week_hours_text) hoặc None khi chưa công bố. Có ngày mở qua nửa đêm thì nhắc AI
+    giờ sau nửa đêm thuộc NGÀY hôm sau (truyền đúng ngày cho công cụ)."""
     if not rules.get('hours'):
         return None
-    out, late = [], False
-    for i, d in enumerate(DAY_KEYS):
-        v = rules['hours'].get(d)
-        if not v:
-            out.append(f"{DAY_NAMES[d]} closed")
-            continue
-        line = f"{DAY_NAMES[d]} {v[0]}-{v[1]}"
+    text = week_hours_text(rules['hours'], lang)
+    late = False
+    for d in DAY_KEYS:
         try:
-            o, c = _hm_to_min(v[0]), _hm_to_min(v[1])
-        except (ValueError, IndexError, TypeError):
-            o = c = None
-        if c is not None and 0 < c < o:
-            line += f" (closes at {_ampm(c)} {DAY_NAMES[DAY_KEYS[(i + 1) % 7]]}, after midnight)"
-            late = True
-        out.append(line)
-    text = ', '.join(out)
+            span = _span_of(rules['hours'].get(d))
+        except ValueError:
+            span = None
+        late = late or bool(span and span[1] > 24 * 60)
     if late:
         text += ("; a time after midnight is on the NEXT date (Friday night 01:00 = Saturday 01:00) — pass that date to the "
                  "tools")
     return text
+
+
+def right_now_text(rules, now, st, lang='en'):
+    """Dòng RIGHT NOW cho AI. Đang mở hay không + lần mở tới do booking_rules.open_status quyết định (`st`, tính với CÙNG
+    `now`); ở đây chỉ nói GIỜ theo kiểu chung: 'open until 2:00 am (Sat).', 'closed — next opening tomorrow 9:00 am. ...'
+    (VI: '02:00 (sáng T7)', 'ngày mai 09:00')."""
+    m = now.hour * 60 + now.minute
+    if st.get('open_now'):
+        until = None
+        hrs, prev_day = hours_on(rules, now.date()), now.date() - timedelta(days=1)
+        prev = hours_on(rules, prev_day)
+        if isinstance(hrs, tuple) and hrs[0] <= m < hrs[1]:
+            until = close_label(hrs[1], DAY_KEYS[now.weekday()], lang)
+        elif isinstance(prev, tuple) and m + 24 * 60 < prev[1]:    # 01:00 thứ Bảy vẫn là ca đêm thứ Sáu
+            until = close_label(prev[1], DAY_KEYS[prev_day.weekday()], lang)
+        return f"open until {until or st.get('closes_at')}."
+    nxt, i = st.get('next_open'), st.get('next_open_day')
+    if nxt and isinstance(i, int):
+        d = now.date() + timedelta(days=i)
+        h = hours_on(rules, d)
+        if isinstance(h, tuple):
+            words = ('hôm nay', 'ngày mai') if lang == 'vi' else ('today', 'tomorrow')
+            nxt = f"{words[i] if i < 2 else day_label(DAY_KEYS[d.weekday()], lang)} {clock(h[0], lang)}"
+    return f"closed — next opening {nxt or 'not set'}. A team member can reply when the business opens."
 
 
 def _hm_to_min(s):
@@ -402,10 +484,11 @@ def fmt_min(m):
     return f"{m // 60:02d}:{m % 60:02d}"
 
 
-def check_window(rules, when, now, minutes_after_start=0):
+def check_window(rules, when, now, minutes_after_start=0, lang='en'):
     """Raise ReservationError nếu `when` (giờ địa phương của quán) không đặt được theo luật thời gian: đã qua, sát quá,
     xa quá, quán nghỉ, ngoài giờ mở cửa, hoặc phần sau giờ bắt đầu (`minutes_after_start`: thời lượng phòng / khoảng nhận
-    đặt muộn nhất trước giờ đóng) vượt giờ đóng cửa."""
+    đặt muộn nhất trước giờ đóng) vượt giờ đóng cửa. `lang` = ngôn ngữ chat: giờ mở / đóng trong chi tiết lỗi theo đúng
+    kiểu giờ mở cửa của chat đó (day_hours_text, close_label)."""
     if when < now:
         raise ReservationError('in_the_past')
     if when < now + timedelta(minutes=rules['min_lead_minutes']):
@@ -418,21 +501,22 @@ def check_window(rules, when, now, minutes_after_start=0):
     start = when.hour * 60 + when.minute
     tail = overnight_tail(rules, when.date())
     if start < tail and not (hrs and hrs[0] <= start < hrs[1]):
-        # 00:30 thứ Bảy của quán mở 18:00-02:00 thứ Sáu: vẫn là ca đêm thứ Sáu (đã qua nửa đêm -> giờ đóng nói thẳng '02:00')
-        prev = hours_on(rules, when.date() - timedelta(days=1))
+        # 00:30 thứ Bảy của quán mở 18:00-02:00 thứ Sáu: vẫn là ca đêm thứ Sáu (giờ đóng '2:00 am (Sat)')
+        prev_day = when.date() - timedelta(days=1)
+        prev = hours_on(rules, prev_day)
         if start + 24 * 60 + minutes_after_start > prev[1]:
             latest = max(prev[0], prev[1] - minutes_after_start)
             raise ReservationError('too_close_to_closing', {
-                'closes_at': fmt_min(prev[1]),
+                'closes_at': close_label(prev[1], DAY_KEYS[prev_day.weekday()], lang),
                 'latest_start': fmt_min(latest % (24 * 60)) if latest >= 24 * 60 else f"{fmt_min(latest)} the evening before"})
         return
     if hrs is None:
         raise ReservationError('closed_that_day')
     if start < hrs[0] or start >= hrs[1]:
-        raise ReservationError('outside_opening_hours', {'opening_hours': day_hours_text(rules, when.date())})
+        raise ReservationError('outside_opening_hours', {'opening_hours': day_hours_text(rules, when.date(), lang)})
     if start + minutes_after_start > hrs[1]:
         latest = max(hrs[0], hrs[1] - minutes_after_start)
-        raise ReservationError('too_close_to_closing', {'closes_at': close_label(hrs[1]),
+        raise ReservationError('too_close_to_closing', {'closes_at': close_label(hrs[1], DAY_KEYS[when.weekday()], lang),
                                                          'latest_start': fmt_min(latest % (24 * 60))})
 
 

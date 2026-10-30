@@ -3523,7 +3523,16 @@ def _render_public_reservation(kind, business_id):
         return render_message_page(404, 'fa-store', 'Không tìm thấy cửa hàng', 'Business not found',
                                    'Đường dẫn đặt chỗ này không đúng hoặc đã ngừng hoạt động.',
                                    'This booking link is not valid or is no longer active.')
-    return render_template('public_reservation.html', kind=kind, business_id=business_id, **ctx)
+    # Karaoke: loại chỗ THẬT quán có (karaoke / billiards) -> form chỉ hỏi "phòng hát hay bàn bida" khi quán có cả 2
+    # (api_public_karaoke_reservation_create lưu room_kind). Lỗi đọc phòng: vẫn mở form, không hỏi.
+    room_kinds = []
+    if kind == 'karaoke':
+        try:
+            import reservations_core
+            room_kinds = sorted({r['kind'] for r in reservations_core.karaoke_rooms(business_id)})
+        except Exception as db_err:
+            print(f"MongoDB karaoke room kinds lookup failed: {str(db_err)}")
+    return render_template('public_reservation.html', kind=kind, business_id=business_id, room_kinds=room_kinds, **ctx)
 
 
 def _public_reservation_check(business_id, data):

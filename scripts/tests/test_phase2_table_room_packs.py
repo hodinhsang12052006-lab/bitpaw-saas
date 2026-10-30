@@ -382,8 +382,8 @@ class FnbFacts(Base):
                  info={'parking': 'Free parking at the back', 'cancellation_policy': 'Call 2h ahead'})
         DB.products.insert_one({'id': 1, 'business_id': BID, 'name': 'Phở bò', 'price': 65000, 'is_active': 1})
         f = fnb.facts(BID, 'vi', NOW)
-        self.assertIn('Mon 11:00-22:00', f)
-        self.assertIn('Sun closed', f)
+        self.assertIn('T2 11:00 – 22:00', f)                         # chat tiếng Việt: kiểu giờ VI (vòng 3)
+        self.assertIn('CN nghỉ', f)
         self.assertIn('up to 20 guests arriving per 15-minute slot', f)
         self.assertIn('CONFIRMED instantly', f)
         self.assertIn('groups over 8 are requests', f)
@@ -518,7 +518,7 @@ class FnbCovers(Base):
         self.assertIn('latest start that fits is 22:00', late['message'])
         early = self.call(fnb, 'fnb_check_tables', {'date': FRI, 'time': '09:00', 'party_size': 2})
         self.assertFalse(early['requested_time']['free'])
-        self.assertIn('11:00-23:00', early['requested_time']['why'])
+        self.assertIn('Fri 11:00 am – 11:00 pm', early['requested_time']['why'])
         self.assertEqual(DB.table_reservations.docs, [])
 
     def test_owner_min_lead_time_is_respected(self):
@@ -856,7 +856,7 @@ class KaraokeFacts(KaraokeBase):
         self.assertIn('VIP Room 1 (room_id 1, karaoke room) — $25.00/hour, size not listed', f)
         self.assertIn('Couple Room (2–4) (room_id 2, karaoke room) — $12.00/hour, up to 4 people', f)
         self.assertIn('Pool Table 1 (room_id 4, billiards table)', f)
-        self.assertIn('Mon 14:00-24:00', f)
+        self.assertIn('Mon 2:00 pm – midnight', f)
         self.assertIn('held 15 minutes', f)
         self.assertIn('CONFIRMED instantly', f)
         self.assertIn('Tiger beer — $8.00', f)

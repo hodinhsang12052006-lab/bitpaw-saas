@@ -118,7 +118,7 @@ def facts(business_id, lang, now_local):
     model = rc.table_model(rules, rc.tables_with_seats(business_id))
     lines = [f"TABLE RESERVATIONS — current local date/time at the restaurant: {now:%Y-%m-%d %H:%M} ({now:%A}). Resolve "
              "'tonight', 'Friday', 'tối mai'... from this and pass date YYYY-MM-DD + time HH:MM in local time."]
-    ht = rc.hours_text(rules)
+    ht = rc.hours_text(rules, lang)   # 1 kiểu giờ chung với customer_context + ô opening_hours (theo ngôn ngữ chat)
     lines.append(f"OPENING HOURS: {ht}. The last reservation starts {rules['last_booking_before_close']} min before closing."
                  if ht else "OPENING HOURS: not published — do not state opening hours.")
     if model == 'none':
@@ -153,6 +153,10 @@ def facts(business_id, lang, now_local):
 # ---------------------------------------------------------------- công cụ
 def _vi(ctx):
     return (ctx or {}).get('lang') == 'vi'
+
+
+def _lang(ctx):
+    return 'vi' if _vi(ctx) else 'en'
 
 
 def _when(day, minute):
@@ -227,14 +231,14 @@ def _check(args, ctx):
     model = rc.table_model(rules, tables)
     hrs = rc.hours_on(rules, day)
     out = {'success': True, 'date': day.isoformat(), 'weekday': day.strftime('%A'), 'party_size': party,
-           'opening_hours': rc.day_hours_text(rules, day) or 'not published',   # cả phần sau nửa đêm của ca hôm trước
+           'opening_hours': rc.day_hours_text(rules, day, _lang(ctx)) or 'not published',   # kèm ca đêm hôm trước
            'availability': 'request_only' if model == 'none' else 'live'}
     rows = rc.table_rows(bid, day) if model != 'none' else []
     fit_reason = None
     if want is not None:
         req = {'time': rc.fmt_min(want)}
         try:
-            rc.check_window(rules, _when(day, want), now, rules['last_booking_before_close'])
+            rc.check_window(rules, _when(day, want), now, rules['last_booking_before_close'], lang=_lang(ctx))
             ok, why, _tid = rc.table_fit(rules, tables, rows, _when(day, want), party)
             fit_reason = why
             if ok is None:
@@ -321,7 +325,7 @@ def _reserve(args, ctx):
     tables = rc.tables_with_seats(bid)
     model = rc.table_model(rules, tables)
     try:
-        rc.check_window(rules, when, now, rules['last_booking_before_close'])
+        rc.check_window(rules, when, now, rules['last_booking_before_close'], lang=_lang(ctx))
     except rc.ReservationError as e:
         return {'success': False, 'reason': e.reason, 'message': rc.explain(e),
                 **_alternatives(bid, rules, tables, day, party, now, want)}
@@ -434,7 +438,7 @@ def _change(args, ctx):
     tables = rc.tables_with_seats(bid)
     model = rc.table_model(rules, tables)
     try:
-        rc.check_window(rules, when, now, rules['last_booking_before_close'])
+        rc.check_window(rules, when, now, rules['last_booking_before_close'], lang=_lang(ctx))
     except rc.ReservationError as e:
         return {'success': False, 'reason': e.reason, 'message': rc.explain(e), 'reservation_unchanged': True,
                 **_alternatives(bid, rules, tables, day, party, now, want, exclude_id=rid)}

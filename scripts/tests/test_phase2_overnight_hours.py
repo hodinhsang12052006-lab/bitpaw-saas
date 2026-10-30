@@ -61,7 +61,7 @@ class OvernightWindow(unittest.TestCase):
         e = refused(r, at(FRI_D, 23, 30), 180)
         self.assertEqual(e.reason, 'too_close_to_closing')
         msg = rc.explain(e)
-        self.assertIn('It closes at 02:00 (2:00 am the next day)', msg)
+        self.assertIn('It closes at 2:00 am (Sat)', msg)                # giờ đóng thật + NGÀY đóng (kiểu giờ chung)
         self.assertIn('the latest start that fits is 23:00', msg)
         self.assertNotIn('00:00', msg)
 
@@ -74,8 +74,7 @@ class OvernightWindow(unittest.TestCase):
         e = refused(r, at(SAT_D, 3), 60)
         self.assertEqual(e.reason, 'outside_opening_hours')
         msg = rc.explain(e)
-        self.assertIn('00:00-02:00 (still open from Friday night)', msg)
-        self.assertIn('18:00-02:00 (2:00 am the next day)', msg)
+        self.assertIn('Fri 6:00 pm – 2:00 am (Sat), Sat 6:00 pm – 2:00 am (Sun)', msg)   # ca đêm thứ Sáu + ca thứ Bảy
 
     def test_closed_day_after_a_late_night(self):
         r = rules(dict(LATE, sun=None))
@@ -103,18 +102,19 @@ class OvernightWindow(unittest.TestCase):
         self.assertEqual(rc.table_candidate_times(fnb_r, FRI_D), list(range(660, 1380 - 60 + 1, 15)))
         self.assertEqual(rc.table_candidate_times(fnb_r, SUN_D), [])
         e = refused(ktv, at(FRI_D, 23, 30), 60)
-        self.assertIn('It closes at 24:00 (midnight); the latest start that fits is 23:00.', rc.explain(e))
+        self.assertIn('It closes at midnight; the latest start that fits is 23:00.', rc.explain(e))
         e = refused(ktv, at(FRI_D, 10), 60)
-        self.assertIn('Opening hours that day: 14:00-24:00', rc.explain(e))
+        self.assertIn('Opening hours that day: Fri 2:00 pm – midnight', rc.explain(e))
         self.assertEqual((rc.fmt_min(0), rc.fmt_min(1410), rc.fmt_min(1440), rc.fmt_min(1560)), ('00:00', '23:30', '24:00', '02:00'))
 
     def test_hours_text_states_the_real_closing_time(self):
         t = rc.hours_text(rules(dict(LATE, mon=['14:00', '24:00'], tue=None)))
-        self.assertIn('Mon 14:00-24:00, Tue closed', t)
-        self.assertIn('Fri 18:00-02:00 (closes at 2:00 am Sat, after midnight)', t)
-        self.assertIn('Sun 18:00-02:00 (closes at 2:00 am Mon, after midnight)', t)
+        self.assertIn('Mon 2:00 pm – midnight, Tue closed', t)
+        self.assertIn('Fri 6:00 pm – 2:00 am (Sat)', t)
+        self.assertIn('Sun 6:00 pm – 2:00 am (Mon)', t)
         self.assertIn('after midnight is on the NEXT date', t)
-        self.assertEqual(rc.hours_text(rules(T.KTV_HOURS)), ', '.join(f"{rc.DAY_NAMES[d]} 14:00-24:00" for d in rc.DAY_KEYS))
+        self.assertEqual(rc.hours_text(rules(T.KTV_HOURS)),
+                         ', '.join(f"{rc.DAY_NAMES[d]} 2:00 pm – midnight" for d in rc.DAY_KEYS))
 
 
 # ================================================================ booking_rules: lưu giờ + "đang mở không"
@@ -175,7 +175,7 @@ class KaraokeLateNight(T.KaraokeBase):
 
     def test_facts_state_the_2am_close(self):
         f = karaoke.facts(T.BID, 'en', T.NOW)
-        self.assertIn('Fri 18:00-02:00 (closes at 2:00 am Sat, after midnight)', f)
+        self.assertIn('Fri 6:00 pm – 2:00 am (Sat)', f)
         self.assertNotIn('00:00', f.split('OPENING HOURS:')[1].split('\n')[0])
 
     def test_books_a_session_that_runs_past_midnight(self):
@@ -194,7 +194,7 @@ class KaraokeLateNight(T.KaraokeBase):
     def test_too_late_states_the_real_close_and_real_alternatives(self):
         r = self.call(karaoke, 'karaoke_check_rooms', {'date': T.FRI, 'time': '23:30', 'hours': 3, 'group_size': 4})
         self.assertFalse(r['requested_time']['free'])
-        self.assertIn('closes at 02:00 (2:00 am the next day)', r['requested_time']['why'])
+        self.assertIn('closes at 2:00 am (Sat)', r['requested_time']['why'])
         self.assertIn('23:00', r['other_start_times_same_day'])
         self.assertNotIn('00:00', r['other_start_times_same_day'])          # 00:00 là ngày lịch thứ Bảy
 
@@ -215,7 +215,7 @@ class FnbLateNight(T.Base):
                                                     'customer_name': 'Leo', 'phone': '0412345679'})
         self.assertFalse(late['success'])
         self.assertEqual(late['reason'], 'too_close_to_closing')
-        self.assertIn('closes at 01:00', late['message'])
+        self.assertIn('closes at 1:00 am (Sat)', late['message'])
         self.assertIn('latest start that fits is 00:30', late['message'])
 
 
