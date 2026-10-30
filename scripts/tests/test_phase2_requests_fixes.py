@@ -211,7 +211,8 @@ class HeldQtyConcurrencyTests(unittest.TestCase):
 
     def test_recount_between_status_change_and_release_does_not_release_twice(self):
         hold(args={'product_id': 1, 'quantity': 2}, chat_token_hash='tokA')
-        b = hold(args={'product_id': 1, 'quantity': 1, 'phone': '0412 000 111', 'customer_name': 'Ben'}, chat_token_hash='tokB')
+        b = hold(args={'product_id': 1, 'quantity': 1, 'phone': '0412 000 111', 'customer_name': 'Ben'}, chat_token_hash='tokB',
+                 customer_id=f'{AU}:0412000111')                           # chat web thật: mã trình duyệt + đúng chat này
         self.assertEqual(product(1)['held_qty'], 3)
         # bộ đếm "cũ" (đứng yên lâu) -> nếu không có dấu "đang đổi", recount được phép sửa
         DB.products.update_one({'id': 1, 'business_id': AU}, {'$set': {'held_qty_at': time.time() - 3600}})
@@ -253,7 +254,7 @@ class HeldQtyConcurrencyTests(unittest.TestCase):
 
     def test_every_counter_change_stamps_the_product(self):
         t0 = time.time()
-        a = hold(chat_token_hash='tokA')
+        a = hold(chat_token_hash='tokA', customer_id=f'{AU}:0412345678')
         self.assertGreaterEqual(product(1)['held_qty_at'], t0)
         DB.products.update_one({'id': 1, 'business_id': AU}, {'$set': {'held_qty_at': 0}})
         retail.execute('retail_cancel_hold', {'hold_id': a['hold_id']}, ctx(chat_token_hash='tokA', contact_phone='0412 345 678'))
@@ -293,6 +294,8 @@ class UnknownCountryPhoneTests(unittest.TestCase):
         self.assertIn('0912345678', alerts()[-1][3])
         mine = retail.execute('retail_my_holds', {}, ctx(NC_RETAIL, chat_token_hash='tokN',   # chủ = mã trình duyệt
                                                          customer_id=web))['holds']             # + đúng chat này
+        with self.assertRaises(PackError):                                  # mã trình duyệt MỘT MÌNH không phải bằng chứng
+            retail.execute('retail_my_holds', {}, ctx(NC_RETAIL, chat_token_hash='tokN'))
         self.assertEqual([x['hold_id'] for x in mine], [out['hold_id']])
         # cùng SĐT ở trình duyệt khác: giới hạn hold / khách vẫn tính theo số khách gõ (khoá E.164 = None)
         args = {'product_id': 71, 'quantity': 1, 'customer_name': 'Lan', 'phone': '0912345678'}
