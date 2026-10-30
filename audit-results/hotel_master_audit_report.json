@@ -1,44 +1,46 @@
 {
-  "generatedAt": "2026-10-30T09:34:58.528Z",
+  "generatedAt": "2026-10-30T18:39:21.176Z",
   "summary": {
     "total": 5,
-    "pass": 5,
-    "warn": 0,
+    "pass": 4,
+    "warn": 1,
     "fail": 0
   },
   "results": [
     {
       "name": "1. Đăng nhập & Khởi tạo Sơ Đồ Phòng",
-      "status": "PASS",
-      "ms": 5005,
-      "note": "console_errors=0, network_5xx=0, rooms=7"
+      "status": "WARN",
+      "ms": 22390,
+      "note": "console_errors=1, network_5xx=0, rooms=7"
     },
     {
       "name": "2. Nhận Phòng, Thêm Phụ Thu & Trả Phòng",
       "status": "PASS",
-      "ms": 4410,
+      "ms": 4501,
       "note": "Phòng id=5. Checkin: HTTP 200. Thêm phụ thu 150,000: HTTP 200. Checkout: HTTP 200, room_total=162.5, extra_charges_total=150000 (kỳ vọng 150000), total_amount=150162.5."
     },
     {
       "name": "3. Dọn Phòng (Housekeeping)",
       "status": "PASS",
-      "ms": 1731,
+      "ms": 1621,
       "note": "Phòng id=5: HTTP 200, body={\"success\":true}"
     },
     {
       "name": "4. Đặt Phòng Công Khai QR + Hiện Trên Trang Quản Trị",
       "status": "PASS",
-      "ms": 4487,
-      "note": "POST /api/public/hotel_reservations/885e1075-9191-4b1e-91ee-d100e961257d: HTTP 200, id=30. Hiện trên /hotel/reservations: true. Console errors trang khách: 0."
+      "ms": 4597,
+      "note": "POST /api/public/hotel_reservations/885e1075-9191-4b1e-91ee-d100e961257d: HTTP 200, id=31. Hiện trên /hotel/reservations: true. Console errors trang khách: 0."
     },
     {
       "name": "5. Chấm Công Hotel + Module Dùng Chung",
       "status": "PASS",
-      "ms": 8676,
+      "ms": 8246,
       "note": "Chấm công: 1564 ký tự, 0 lỗi console mới. Shared: /customers=200, /ai_bot=200, /nhanvien=200, /report=200"
     }
   ],
   "findings": [],
-  "consoleErrorsSample": [],
+  "consoleErrorsSample": [
+    "Failed to load resource: net::ERR_CONNECTION_RESET"
+  ],
   "networkErrorsSample": []
 }
