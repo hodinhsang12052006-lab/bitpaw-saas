@@ -943,24 +943,11 @@ def execute(name, args, ctx):
 
 
 # ---------------------------------------------------------------- dữ kiện công khai cho prompt
-_DAY_ORDER = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
-
-
-def _after_midnight(day, hours, names, T):
-    """' (closes at 02:00 Sat, after midnight)' khi giờ đóng sau nửa đêm ('Fri 18:00-02:00'), không thì ''."""
-    try:
-        o, cl = ((int(str(x).split(':')[0]) * 60 + int(str(x).split(':')[1])) for x in (hours[0], hours[1]))
-    except (TypeError, ValueError, IndexError):
-        return ''
-    if not 0 < cl < o or day not in _DAY_ORDER:
-        return ''
-    nxt = names.get(_DAY_ORDER[(_DAY_ORDER.index(day) + 1) % 7], '')
-    return T(f" (closes at {hours[1]} {nxt}, after midnight)", f" (đóng lúc {hours[1]} sáng {nxt}, qua nửa đêm)")
-
-
 def facts(business_id, lang, now_local):
     """Dữ kiện THẬT cho prompt: loại phòng + giá/đêm (tiền của khách sạn), luật lưu trú, giờ nhận/trả phòng nếu chủ đã
-    đặt, cách xác nhận, chính sách huỷ, thông tin khách sạn chủ đã nhập. Phòng trống thì chỉ qua công cụ (không ở đây)."""
+    đặt, cách xác nhận, chính sách huỷ, thông tin khách sạn chủ đã nhập. Phòng trống thì chỉ qua công cụ (không ở đây).
+    Giờ mở cửa KHÔNG ở đây: customer_context.hours_lines thêm OPENING HOURS + RIGHT NOW cho mọi gói theo 1 kiểu giờ chung
+    (trước: dòng riêng 'Fri 18:00-02:00 (closes at 02:00 Sat, after midnight)' nằm cạnh dòng đó — 1 prompt nói 2 lần 2 kiểu)."""
     vi = lang == 'vi'
     T = (lambda en, v: v if vi else en)  # noqa: E731
     now = _local_now(business_id, now_local)
@@ -1062,11 +1049,4 @@ def facts(business_id, lang, now_local):
     lines.append(T("HOTEL INFO (only these facts are confirmed — anything else: ask_team): ",
                    "THÔNG TIN KHÁCH SẠN (chỉ những điều này là chắc chắn — điều khác: ask_team): ")
                  + ('; '.join(facts_) if facts_ else T('none published yet.', 'chưa có.')))
-    if rules.get('configured'):
-        names = ({'mon': 'T2', 'tue': 'T3', 'wed': 'T4', 'thu': 'T5', 'fri': 'T6', 'sat': 'T7', 'sun': 'CN'} if vi else
-                 {'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'})
-        lines.append(T("OPENING HOURS (as set by the hotel): ", "GIỜ MỞ CỬA (khách sạn tự đặt): ")
-                     + ', '.join(f"{names.get(d, d)} {v[0]}-{v[1]}" + _after_midnight(d, v, names, T) if v else
-                                 f"{names.get(d, d)} " + T('closed', 'nghỉ')
-                                 for d, v in (rules.get('hours') or {}).items()) + ".")
     return "\n".join(lines)

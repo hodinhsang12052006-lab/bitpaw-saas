@@ -270,10 +270,13 @@ class KaraokeAndFnbUseTheOneStyle(T.Base):
             en = customer_context.facts(BID, pack, '2026-10-26T15:00', 'Monday', lang='en')
         finally:
             customer_context.knowledge_block = orig
-        self.assertIn(f'OPENING HOURS: {WEEK_VI}.', vi)                     # customer_context.hours_lines theo ngôn ngữ chat
-        self.assertTrue(self.opening_line(vi).startswith(f'OPENING HOURS: {WEEK_VI};'))   # ... cùng kiểu với dữ kiện gói
+        # vòng 4: tuần nói ĐÚNG 1 lần — dòng của gói (kèm lưu ý ngày hôm sau) thắng, customer_context chỉ thêm RIGHT NOW
+        self.assertEqual((vi.count('OPENING HOURS'), vi.count(WEEK_VI)), (1, 1))
+        self.assertTrue(self.opening_line(vi).startswith(f'OPENING HOURS: {WEEK_VI};'))   # theo ngôn ngữ chat
+        self.assertIn('RIGHT NOW: ', vi)
         self.assertNotIn(' pm', vi)
-        self.assertIn(f'OPENING HOURS: {WEEK_EN}.', en)
+        self.assertEqual((en.count('OPENING HOURS'), en.count(WEEK_EN)), (1, 1))
+        self.assertTrue(self.opening_line(en).startswith(f'OPENING HOURS: {WEEK_EN};'))
         self.assertNotIn(WEEK_VI, en)
 
     def test_closing_time_in_refusals(self):

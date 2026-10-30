@@ -339,27 +339,29 @@ def available_slots(business_id, day, service_id=None, staff_id=None, limit=12, 
     return out
 
 
-def open_status(business_id, rules=None, now=None):
-    """Tiệm đang mở không, đóng lúc mấy giờ, lần mở tới là khi nào (để hẹn khách lúc nào nhân viên trả lời)."""
+def open_status(business_id, rules=None, now=None, lang='en'):
+    """Tiệm đang mở không, đóng lúc mấy giờ, lần mở tới là khi nào (để hẹn khách lúc nào nhân viên trả lời). Chữ giờ theo
+    1 kiểu giờ chung (reservations_core.close_label / next_open_text) theo `lang` của khách: closes_at '7:00 pm',
+    '2:00 am (Sat)' (mở qua nửa đêm — không phải '26:00'), next_open 'tomorrow 9:00 am'; VI '19:00', '02:00 (sáng T7)',
+    'ngày mai 09:00'. Trước: '02:00 (after midnight)' / 'today 18:00' (24 giờ) cạnh prompt 12 giờ."""
+    import reservations_core
     rules = rules or get_rules(business_id)
     now = now or local_now(business_id)
     m = now.hour * 60 + now.minute
     hrs = hours_on(rules, now.date())
     if hrs and hrs[0] <= m < hrs[1]:
-        if hrs[1] > 24 * 60:   # mở qua nửa đêm: '02:00 (after midnight)', không phải '26:00'
-            e = hrs[1] - 24 * 60
-            return {'open_now': True, 'closes_at': f"{e // 60:02d}:{e % 60:02d} (after midnight)", 'next_open': None}
-        return {'open_now': True, 'closes_at': f"{hrs[1] // 60:02d}:{hrs[1] % 60:02d}", 'next_open': None}
-    prev = hours_on(rules, now.date() - timedelta(days=1))
+        return {'open_now': True, 'closes_at': reservations_core.close_label(hrs[1], DAY_KEYS[now.weekday()], lang),
+                'next_open': None}
+    prev_day = now.date() - timedelta(days=1)
+    prev = hours_on(rules, prev_day)
     if prev and prev[1] > 24 * 60 and m + 24 * 60 < prev[1]:   # 01:00 thứ Bảy vẫn là ca đêm thứ Sáu (18:00-02:00)
-        e = prev[1] - 24 * 60
-        return {'open_now': True, 'closes_at': f"{e // 60:02d}:{e % 60:02d}", 'next_open': None}
+        return {'open_now': True, 'closes_at': reservations_core.close_label(prev[1], DAY_KEYS[prev_day.weekday()], lang),
+                'next_open': None}
     for i in range(0, 8):
         d = now.date() + timedelta(days=i)
         h = hours_on(rules, d)
         if h and (i > 0 or m < h[0]):
-            label = 'today' if i == 0 else ('tomorrow' if i == 1 else DAY_KEYS[d.weekday()].title())
-            return {'open_now': False, 'closes_at': None, 'next_open': f"{label} {h[0] // 60:02d}:{h[0] % 60:02d}",
+            return {'open_now': False, 'closes_at': None, 'next_open': reservations_core.next_open_text(d, h[0], now.date(), lang),
                     'next_open_day': i}
     return {'open_now': False, 'closes_at': None, 'next_open': None}
 

@@ -340,8 +340,9 @@ def _ampm(m):
 
 
 # ---- 1 KIỂU giờ mở cửa duy nhất cho mọi chữ khách / AI đọc: dữ kiện gói (hours_text), ô opening_hours + lời giải thích
-# của công cụ (day_hours_text, check_window), prompt khách mọi kênh (customer_context.hours_lines) và
-# booking_rules.describe_for_ai.
+# của công cụ (day_hours_text, check_window — cả check_availability Nails/Spa), prompt khách mọi kênh
+# (customer_context.hours_lines), booking_rules.describe_for_ai / open_status (-> lời hẹn giờ trả lời gửi khách
+# ai_function_tools.reply_expectation: next_open_text), lời từ chối của gói văn phòng (ai_packs/retail._hours_line).
 # EN 'Mon 11:00 am – 10:00 pm', 'Wed 4:00 pm – midnight', 'Fri 6:00 pm – 2:00 am (Sat)', 'Tue closed';
 # VI 'T2 11:00 – 22:00', 'T4 16:00 – 24:00', 'T6 18:00 – 02:00 (sáng T7)', 'T3 nghỉ'.
 # Trước đây cùng 1 prompt có tới 3 kiểu ('Mon 11:00-22:00', 'Fri 6:00 pm – 2:00 am (Sat)', 'Fri 18:00-02:00 (closes at
@@ -445,6 +446,15 @@ def hours_text(rules, lang='en'):
     return text
 
 
+def next_open_text(day, opens, today, lang='en'):
+    """Lần mở cửa tới (ngày `day`, mở lúc `opens` phút) theo kiểu chung: 'today 9:00 am', 'tomorrow 9:00 am', 'Wed 4:00 pm'
+    — VI 'hôm nay 09:00', 'ngày mai 09:00', 'T4 16:00'. Dùng chung cho booking_rules.open_status (lời hẹn giờ trả lời gửi
+    khách) và dòng RIGHT NOW (right_now_text) — trước đây lời gửi khách là 'today 18:00' / 'Wed 16:00' cả trong câu VI."""
+    i = (day - today).days
+    words = ('hôm nay', 'ngày mai') if lang == 'vi' else ('today', 'tomorrow')
+    return f"{words[i] if 0 <= i < 2 else day_label(DAY_KEYS[day.weekday()], lang)} {clock(opens, lang)}"
+
+
 def right_now_text(rules, now, st, lang='en'):
     """Dòng RIGHT NOW cho AI. Đang mở hay không + lần mở tới do booking_rules.open_status quyết định (`st`, tính với CÙNG
     `now`); ở đây chỉ nói GIỜ theo kiểu chung: 'open until 2:00 am (Sat).', 'closed — next opening tomorrow 9:00 am. ...'
@@ -464,8 +474,7 @@ def right_now_text(rules, now, st, lang='en'):
         d = now.date() + timedelta(days=i)
         h = hours_on(rules, d)
         if isinstance(h, tuple):
-            words = ('hôm nay', 'ngày mai') if lang == 'vi' else ('today', 'tomorrow')
-            nxt = f"{words[i] if i < 2 else day_label(DAY_KEYS[d.weekday()], lang)} {clock(h[0], lang)}"
+            nxt = next_open_text(d, h[0], now.date(), lang)
     return f"closed — next opening {nxt or 'not set'}. A team member can reply when the business opens."
 
 
@@ -488,7 +497,9 @@ def check_window(rules, when, now, minutes_after_start=0, lang='en'):
     """Raise ReservationError nếu `when` (giờ địa phương của quán) không đặt được theo luật thời gian: đã qua, sát quá,
     xa quá, quán nghỉ, ngoài giờ mở cửa, hoặc phần sau giờ bắt đầu (`minutes_after_start`: thời lượng phòng / khoảng nhận
     đặt muộn nhất trước giờ đóng) vượt giờ đóng cửa. `lang` = ngôn ngữ chat: giờ mở / đóng trong chi tiết lỗi theo đúng
-    kiểu giờ mở cửa của chat đó (day_hours_text, close_label)."""
+    kiểu giờ mở cửa của chat đó (day_hours_text, close_label). Giờ bắt đầu muộn nhất (latest_start) vẫn là 'HH:MM' khách /
+    AI truyền cho công cụ; thuộc tối hôm trước thì nói rõ: '23:00 the evening before' / VI '23:00 (tối T6)' (cùng cách
+    '02:00 (sáng T7)' của giờ đóng — trước: chat VI vẫn nhận chữ Anh 'the evening before')."""
     if when < now:
         raise ReservationError('in_the_past')
     if when < now + timedelta(minutes=rules['min_lead_minutes']):
@@ -508,7 +519,9 @@ def check_window(rules, when, now, minutes_after_start=0, lang='en'):
             latest = max(prev[0], prev[1] - minutes_after_start)
             raise ReservationError('too_close_to_closing', {
                 'closes_at': close_label(prev[1], DAY_KEYS[prev_day.weekday()], lang),
-                'latest_start': fmt_min(latest % (24 * 60)) if latest >= 24 * 60 else f"{fmt_min(latest)} the evening before"})
+                'latest_start': fmt_min(latest % (24 * 60)) if latest >= 24 * 60 else
+                f"{fmt_min(latest)} (tối {day_label(DAY_KEYS[prev_day.weekday()], 'vi')})" if lang == 'vi' else
+                f"{fmt_min(latest)} the evening before"})
         return
     if hrs is None:
         raise ReservationError('closed_that_day')

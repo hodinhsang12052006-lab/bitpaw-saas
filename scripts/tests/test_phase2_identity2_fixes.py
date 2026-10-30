@@ -9,7 +9,8 @@
      nước AU / NZ / GB / VN ('+61 (0)412...') vẫn là cùng 1 số; mã SMS 1 lần không bao giờ tới số +1 bịa ra.
   4. request_client_key: không có BITPAW_OTP_SECRET / FLASK_SECRET_KEY -> không có khoá mạng (HMAC khoá rỗng dò ngược được IP).
   5. reservations_core: lọc ứng viên trong Mongo (regex) và kiểm từng dòng (is_owned) nhận CÙNG các cách ghi của SĐT đã xác minh.
-  6. check_availability: giờ mở cửa qua đêm hiện '18:00-02:00 (next day)', không phải '26:00'.
+  6. check_availability: giờ mở cửa qua đêm hiện giờ đóng thật + NGÀY đóng, không phải '26:00' (vòng 4: theo 1 kiểu giờ chung
+     với prompt khách — 'Wed 6:00 pm – 2:00 am (Thu)', trước '18:00-02:00 (next day)').
 
 Dùng lại DB giả + stub của test_phase2_receptionist_core.py (nạp TRƯỚC mọi import): không import app.py thật, không MongoDB
 thật, không gọi mạng / DeepSeek / Twilio; hàm của app.py lấy nguyên mã nguồn qua ast.
@@ -452,13 +453,14 @@ class OwnershipSpellingTests(unittest.TestCase):
 # ================================================================ 6. giờ qua đêm
 class OvernightHoursTests(core._Base):
     def test_overnight_close_is_shown_as_next_day(self):
-        with patch.object(booking_rules, 'hours_on', return_value=(18 * 60, 26 * 60)), \
+        late = dict(booking_rules.get_rules(NAIL), hours={d: ['18:00', '02:00'] for d in booking_rules.DAY_KEYS})
+        with patch.object(booking_rules, 'get_rules', return_value=late), \
                 patch.object(booking_rules, 'available_slots', return_value=['18:00', '18:30']):
             out = T.check_availability(NAIL, f'{NAIL}:{PHONE}', date=core.DAY)
-        self.assertEqual(out['opening_hours'], '18:00-02:00 (next day)')
-        with patch.object(booking_rules, 'hours_on', return_value=(9 * 60, 19 * 60)), \
-                patch.object(booking_rules, 'available_slots', return_value=['09:00']):
-            self.assertEqual(T.check_availability(NAIL, f'{NAIL}:{PHONE}', date=core.DAY)['opening_hours'], '09:00-19:00')
+        self.assertEqual(out['opening_hours'], 'Wed 6:00 pm – 2:00 am (Thu)')    # vòng 4: kiểu giờ chung với prompt khách
+        with patch.object(booking_rules, 'available_slots', return_value=['09:00']):
+            self.assertEqual(T.check_availability(NAIL, f'{NAIL}:{PHONE}', date=core.DAY)['opening_hours'],
+                             'Wed 9:00 am – 7:00 pm')
 
 
 if __name__ == '__main__':

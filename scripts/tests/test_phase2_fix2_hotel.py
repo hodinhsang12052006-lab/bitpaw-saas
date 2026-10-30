@@ -406,12 +406,17 @@ class TestTruthTexts(hp.Base):
                                                     'sun': ['20:00', '01:00'], 'mon': ['08:00', '00:00']}},
                                     allow_overnight=True)
         hp.booking_rules._CACHE.clear()
-        en, vi = hotel.facts(BID, 'en', NOW), hotel.facts(BID, 'vi', NOW)
-        self.assertIn('Fri 18:00-02:00 (closes at 02:00 Sat, after midnight)', en)
-        self.assertIn('Sun 20:00-01:00 (closes at 01:00 Mon, after midnight)', en)
-        self.assertIn('Sat 09:00-17:00,', en)
-        self.assertIn('Mon 08:00-24:00,', en)                      # đóng lúc nửa đêm không phải "qua đêm"
-        self.assertIn('T6 18:00-02:00 (đóng lúc 02:00 sáng T7, qua nửa đêm)', vi)
+        # vòng 4: giờ mở cửa của prompt khách sạn chỉ còn 1 dòng (customer_context.hours_lines, kiểu giờ chung) — dữ kiện riêng
+        # của gói không còn dòng 'Fri 18:00-02:00 (closes at 02:00 Sat, after midnight)' thứ 2
+        import customer_context
+        rules = hp.booking_rules.get_rules(BID)
+        en, vi = customer_context.hours_lines(BID, rules)[0], customer_context.hours_lines(BID, rules, lang='vi')[0]
+        self.assertIn('Fri 6:00 pm – 2:00 am (Sat)', en)
+        self.assertIn('Sun 8:00 pm – 1:00 am (Mon)', en)
+        self.assertIn('Sat 9:00 am – 5:00 pm,', en)
+        self.assertIn('Mon 8:00 am – midnight,', en)              # đóng lúc nửa đêm không phải "qua đêm"
+        self.assertIn('T6 18:00 – 02:00 (sáng T7)', vi)
+        self.assertNotIn('OPENING HOURS', hotel.facts(BID, 'en', NOW))
 
 
 if __name__ == '__main__':

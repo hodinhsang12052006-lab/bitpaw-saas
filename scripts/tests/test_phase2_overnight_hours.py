@@ -153,18 +153,19 @@ class BookingRulesHours(unittest.TestCase):
 
     def test_open_status_across_midnight(self):
         r = {'hours': dict(LATE, sun=None)}
+        # vòng 4: chữ giờ theo 1 kiểu giờ chung (reservations_core) — trước '02:00 (after midnight)' / '02:00' / 'today 18:00'
         st = booking_rules.open_status('ktv-1', r, now=at(FRI_D, 23))
-        self.assertEqual((st['open_now'], st['closes_at']), (True, '02:00 (after midnight)'))
+        self.assertEqual((st['open_now'], st['closes_at']), (True, '2:00 am (Sat)'))
         st = booking_rules.open_status('ktv-1', r, now=at(SAT_D, 1, 15))
-        self.assertEqual((st['open_now'], st['closes_at']), (True, '02:00'))
+        self.assertEqual((st['open_now'], st['closes_at']), (True, '2:00 am (Sat)'))
         st = booking_rules.open_status('ktv-1', r, now=at(SAT_D, 3))
-        self.assertEqual((st['open_now'], st['next_open']), (False, 'today 18:00'))
+        self.assertEqual((st['open_now'], st['next_open']), (False, 'today 6:00 pm'))
         self.assertTrue(booking_rules.open_status('ktv-1', r, now=at(SUN_D, 1))['open_now'])
         self.assertFalse(booking_rules.open_status('ktv-1', r, now=at(MON_D, 1))['open_now'])
         nail = {'hours': booking_rules.DEFAULT_HOURS}
-        self.assertEqual(booking_rules.open_status('n', nail, now=at(FRI_D, 10))['closes_at'], '20:00')
+        self.assertEqual(booking_rules.open_status('n', nail, now=at(FRI_D, 10))['closes_at'], '8:00 pm')
         st = booking_rules.open_status('n', nail, now=at(SAT_D, 1))
-        self.assertEqual((st['open_now'], st['next_open']), (False, 'today 09:00'))
+        self.assertEqual((st['open_now'], st['next_open']), (False, 'today 9:00 am'))
 
 
 # ================================================================ gói AI thật (karaoke / F&B) với giờ qua nửa đêm

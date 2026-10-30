@@ -1067,8 +1067,9 @@ def load_shop(db, biz, industry):
 def common_facts(shop):
     lines = [f"Business: {shop['name']} ({shop['noun']}), currency {shop['currency']}, timezone {shop['tz']}. "
              f"Local time at the business when the chats ran: {shop['now']:%A %Y-%m-%d %H:%M}."]
-    if shop['hours']:
-        lines.append('Opening hours: ' + ', '.join(f"{d} {v[0]}-{v[1]}" if v else f'{d} closed' for d, v in shop['hours'].items()) + '.')
+    if shop['hours']:   # 1 kiểu giờ chung với prompt khách (reservations_core.week_hours_text), không còn 'mon 09:00-22:00'
+        import reservations_core
+        lines.append('Opening hours: ' + reservations_core.week_hours_text(shop['hours']) + '.')
     else:
         lines.append('Opening hours: NOT published by the owner (the assistant must not invent them).')
     lines.append(f"Address: {shop['address'] or 'NOT published'}. Phone: {shop['phone'] or 'NOT published'}.")

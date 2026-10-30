@@ -155,17 +155,24 @@ def info_line(business_id, rules=None, appointment=False):
     return head + ('; '.join(f"{k}: {v}" for k, v in items) if items else 'none published yet.')
 
 
-def hours_lines(business_id, rules=None, include_defaults=False, lang='en'):
+_STATED_HOURS_RE = re.compile(r'^OPENING HOURS\b', re.M)
+
+
+def hours_lines(business_id, rules=None, include_defaults=False, lang='en', stated=''):
     """OPENING HOURS + RIGHT NOW. Default hours (9-19) are NOT the shop's real hours, so they are only shown where bookings
     are really checked against them (appointment pack, include_defaults=True). Wording = the ONE hours style every customer /
     AI text uses (reservations_core.week_hours_text / right_now_text), in the chat language: 'Fri 6:00 pm – 2:00 am (Sat)',
     VI 'T6 18:00 – 02:00 (sáng T7)'. Before: same-day days in 24 h ('Mon 09:00-19:00') next to 12 h overnight days, and a
-    third style in the karaoke / F&B pack facts. No hours at all (rules could not be read) -> nothing, never 'closed'."""
+    third style in the karaoke / F&B pack facts. No hours at all (rules could not be read) -> nothing, never 'closed'.
+    `stated` = the pack's own facts already in the same prompt: when they carry their own OPENING HOURS line (F&B / karaoke:
+    the same helper text plus booking notes), the week is not stated a second time — only RIGHT NOW is added."""
     import reservations_core
     rules = rules or booking_rules.get_rules(business_id)
     if (not rules.get('configured') and not include_defaults) or not rules.get('hours'):
         return []
-    out = [f"OPENING HOURS: {reservations_core.week_hours_text(rules.get('hours'), lang)}."]
+    out = []
+    if not _STATED_HOURS_RE.search(stated or ''):
+        out.append(f"OPENING HOURS: {reservations_core.week_hours_text(rules.get('hours'), lang)}.")
     try:
         now = booking_rules.local_now(business_id)
         st = booking_rules.open_status(business_id, rules, now)
@@ -251,7 +258,7 @@ def facts(business_id, pack=None, now_str=None, weekday=None, lang='en'):
                                              "through the booking tools):")
                 if pl:
                     lines.append(pl)
-            hours = hours_lines(business_id, rules, include_defaults=pack.resource == 'appointment', lang=lang)
+            hours = hours_lines(business_id, rules, include_defaults=pack.resource == 'appointment', lang=lang, stated=pf)
             if hours:
                 lines.append("\n".join(hours))
             lines.append(info_line(business_id, rules, appointment=True))
