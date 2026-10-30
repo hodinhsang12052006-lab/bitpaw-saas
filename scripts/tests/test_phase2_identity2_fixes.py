@@ -16,6 +16,8 @@ thật, không gọi mạng / DeepSeek / Twilio; hàm của app.py lấy nguyên
 Chạy: python scripts/tests/test_phase2_identity2_fixes.py
 """
 import ast
+import hashlib
+import hmac
 import io
 import json
 import os
@@ -44,7 +46,8 @@ WEB_CID = f'{NAIL}:{WEB_PHONE}'
 
 # ---------------------------------------------------------------- route /api/portal/* + /api/cskh/chat/send của app.py
 _PORTAL_FUNCS = ('_portal_chat_token', '_resolve_portal_customer', '_portal_conversation', 'api_portal_messages_list',
-                 'api_portal_messages_create', 'api_portal_upload', 'api_portal_stream', 'api_cskh_chat_send')
+                 'api_portal_messages_create', 'api_portal_upload', 'api_portal_stream', 'api_cskh_chat_send',
+                 '_portal_stream_sig', '_portal_stream_key', '_portal_stream_owner')   # khoá nghe ngắn hạn (identity3)
 SSE, UPLOADS = [], []
 
 
@@ -63,7 +66,10 @@ NS.update({'_public_shop_context': lambda bid: {'shop_name': 'Rose Nails'}, '_ss
            'media_fs': _FakeFS(), 'secure_filename': lambda f: f, '_allowed_media_file': lambda f: True,
            '_safe_image_content_type': lambda f: 'image/gif', 'Response': Response,
            'url_for': lambda name, **kw: '/api/public/storage/file/' + str(kw.get('file_id')),
-           'BITPAW_LEADS_BUSINESS_ID': 'bitpaw_leads'})
+           'BITPAW_LEADS_BUSINESS_ID': 'bitpaw_leads', 'hmac': hmac, 'hashlib': hashlib})
+for _node in core._TREE.body:   # _PORTAL_STREAM_KEY_TTL
+    if isinstance(_node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == '_PORTAL_STREAM_KEY_TTL' for t in _node.targets):
+        exec(compile(ast.fix_missing_locations(ast.Module(body=[_node], type_ignores=[])), 'app.py', 'exec'), NS)
 for _name in _PORTAL_FUNCS:
     _node = next((n for n in core._TREE.body if isinstance(n, ast.FunctionDef) and n.name == _name), None)
     if _node is None:   # mã cũ chưa có hàm này
@@ -73,6 +79,7 @@ for _name in _PORTAL_FUNCS:
 
 APP = Flask('identity2')
 APP.secret_key = 'test'
+NS['app'] = APP   # khoá bí mật ký khoá nghe /api/portal/stream
 APP.add_url_rule('/api/ai/studio/generate', 'gen', NS['secure_ai_generate'], methods=['POST'])
 APP.add_url_rule('/api/portal/messages', 'portal_list', NS['api_portal_messages_list'], methods=['GET'])
 APP.add_url_rule('/api/portal/messages', 'portal_create', NS['api_portal_messages_create'], methods=['POST'])
@@ -170,12 +177,13 @@ class PortalTests(core._Base):
     def test_web_thread_opens_only_for_the_browser_that_chatted(self):
         self._chat(TOKEN_A)
         self.assertEqual({m['sender_type'] for m in DB.bot_messages.find({'customer_id': WEB_CID})}, {'customer', 'ai'})
-        for how in ('header', 'query'):
-            r = self._get(WEB_CID, TOKEN_A, how)
-            self.assertEqual(r.status_code, 200, how)
-            j = r.get_json()
-            self.assertEqual([m['sender_type'] for m in j['data']], ['customer', 'ai'])
-            self.assertEqual(j['shop_name'], 'Rose Nails')
+        r = self._get(WEB_CID, TOKEN_A, 'header')
+        self.assertEqual(r.status_code, 200)
+        j = r.get_json()
+        self.assertEqual([m['sender_type'] for m in j['data']], ['customer', 'ai'])
+        self.assertEqual(j['shop_name'], 'Rose Nails')
+        # mã chat gốc trong URL (lộ vào log truy cập) không còn được nhận (identity3)
+        self.assertEqual(self._get(WEB_CID, TOKEN_A, 'query').status_code, 404)
         # biết tiệm + SĐT (khoá cũ) là chưa đủ
         for tok in (None, TOKEN_B, 'short'):
             self.assertEqual(self._get(WEB_CID, tok).status_code, 404, tok)
@@ -201,7 +209,10 @@ class PortalTests(core._Base):
         # tín hiệu SSE: cần mã, và chỉ của ĐÚNG hội thoại này (không còn mọi thay đổi của cả tiệm)
         self.assertEqual(self.c.get('/api/portal/stream?customer_id=' + quote(WEB_CID, safe='')).status_code, 404)
         self.assertEqual(SSE, [])
-        r = self.c.get('/api/portal/stream?customer_id=' + quote(WEB_CID, safe='') + '&chat_token=' + TOKEN_A)
+        self.assertEqual(self.c.get('/api/portal/stream?customer_id=' + quote(WEB_CID, safe='') + '&chat_token=' + TOKEN_A).status_code,
+                         404)   # mã gốc trong URL: không (identity3 — trình duyệt dùng ?stream_key=)
+        self.assertEqual(SSE, [])
+        r = self.c.get('/api/portal/stream?customer_id=' + quote(WEB_CID, safe=''), headers={'X-Chat-Token': TOKEN_A})
         self.assertEqual(r.status_code, 200)
         stage = json.dumps(SSE[-1])
         self.assertIn(WEB_CID, stage)
@@ -242,8 +253,9 @@ const store = {};
 global.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
 global.window = { crypto: require('crypto').webcrypto };
 global.fetch = async (url, opts) => { calls.push({ url: String(url), opts: opts || {} });
-  return { ok: true, status: 200, json: async () => ({ success: true, data: [] }) }; };
-global.EventSource = function (url) { calls.push({ es: String(url) }); this.url = url; };
+  return { ok: true, status: 200, json: async () => ({ success: true, data: [], stream_key: '1700000600.' + 'ab'.repeat(32), stream_key_ttl: 600 }) }; };
+global.EventSource = function (url) { calls.push({ es: String(url) }); this.url = url; this.close = () => {}; };
+global.setTimeout = () => 0; global.clearTimeout = () => {};   // gia hạn khoá nghe: không chạy thật trong test này
 const CHAT_CONTEXT = 'customer_booking', BUSINESS_ID = 'biz1';
 let chatTokenMem = null, shopReplyStream = null, shopReplySeen = null;
 function appendMessage() {}
@@ -260,10 +272,12 @@ class WidgetAndPortalPageTests(unittest.TestCase):
     def test_widget_sends_its_browser_token_on_every_portal_call(self):
         s = read('static/js/cskh_widget.js')
         node_check(self, 'static/js/cskh_widget.js', s)
-        parts = [js_function(s, n) for n in ('getChatToken', 'fetchShopReplies', 'startShopReplyStream', 'keepThreadForTeam')]
+        parts = [js_function(s, n) for n in ('getChatToken', 'fetchShopReplies', 'startShopReplyStream', 'openShopReplyStream',
+                                             'renewShopReplyStream', 'keepThreadForTeam')]
         self.assertTrue(all(parts), 'widget functions not found')
         auth = re.search(r'^\s*const portalAuth = [^\n]*$', s, re.M)
-        src = '\n'.join(parts + ([auth.group(0)] if auth else []))
+        state = re.search(r'^\s*let shopStreamKey = [^\n]*$', s, re.M)
+        src = '\n'.join(parts + ([auth.group(0)] if auth else []) + ([state.group(0)] if state else []))
         r = subprocess.run(['node', '-e', NODE_WIDGET], capture_output=True, text=True, encoding='utf-8',
                            env=dict(os.environ, WIDGET_SRC=json.dumps(src)), timeout=60)
         out = json.loads((r.stdout.strip().splitlines() or ['{}'])[-1])
@@ -281,9 +295,11 @@ class WidgetAndPortalPageTests(unittest.TestCase):
         self.assertEqual(len(posts), 1, out['calls'])
         body = json.loads(posts[0]['opts']['body'])
         self.assertEqual((body['customer_id'], body['sender_type'], body.get('chat_token')), ('biz1:0412345678', 'customer', tok))
-        self.assertEqual(len(streams), 1, out['calls'])          # EventSource không gửi được header -> ?chat_token=
+        self.assertEqual(len(streams), 1, out['calls'])          # EventSource không gửi được header -> khoá nghe ngắn hạn
         self.assertIn('/api/portal/stream?customer_id=', streams[0])
-        self.assertIn('chat_token=' + tok, streams[0])
+        self.assertIn('stream_key=' + quote('1700000600.' + 'ab' * 32, safe=''), streams[0])
+        self.assertNotIn(tok, streams[0])                        # mã chat gốc không bao giờ nằm trong URL (identity3)
+        self.assertNotIn('chat_token', streams[0])
 
     def test_portal_page_uses_the_same_browser_token(self):
         s = read('templates/portal.html')
@@ -295,7 +311,7 @@ class WidgetAndPortalPageTests(unittest.TestCase):
                             r"chat_token: portalChatToken\(\) \}\)")
         self.assertIn("formData.append('chat_token', portalChatToken());", s)
         es = re.findall(r'new EventSource\(`/api/portal/stream[^\n]*', s)
-        self.assertTrue(len(es) == 1 and 'chat_token=${encodeURIComponent(portalChatToken())}' in es[0], es)
+        self.assertTrue(len(es) == 1 and 'stream_key=${encodeURIComponent(streamKey)}' in es[0] and 'chat_token' not in es[0], es)
         self.assertEqual(len(re.findall(r'^\s*portal_err_no_access:', s, re.M)), 2)   # VI + EN
         self.assertIn("res.status === 404 ? 'portal_err_no_access' : 'portal_err_load_history'", s)
         for i, m in enumerate(re.finditer(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', s, re.S)):

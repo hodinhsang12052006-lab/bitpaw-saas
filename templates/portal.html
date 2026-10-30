@@ -184,9 +184,12 @@
         let sentNoticeShown = false;
         let eventSource = null; // EventSource SSE thay cho realtime channel cũ
         let knownMessageCount = 0; // số tin nhắn đã render, dùng để chỉ append phần mới khi SSE báo có thay đổi
+        // Khoá nghe ngắn hạn (server ký HMAC, ~10 phút) do GET /api/portal/messages cấp — nằm trong URL của EventSource THAY cho mã chat
+        let streamKey = '', streamTtl = 600, streamTimer = null, streamRetries = 0;
         // Bằng chứng là người trong hội thoại: mã chat của trình duyệt (widget đặt lịch cùng trang web lưu ở localStorage
         // 'bp_chat_token'). Server chỉ mở hội thoại web cho đúng trình duyệt đã chat ở đó; hội thoại SMS / WhatsApp / Messenger...
         // không bao giờ mở ở trang công khai này. Không có mã -> không tải được (nói rõ lý do, không tự tạo mã mới).
+        // Mã chỉ đi trong header / body, KHÔNG BAO GIỜ trong URL (lộ vào log truy cập của máy chủ / proxy).
         function portalChatToken() {
             try {
                 const tok = localStorage.getItem('bp_chat_token') || '';
@@ -497,11 +500,12 @@
         // /api/portal/stream chỉ là tín hiệu "có gì mới", không mang dữ liệu — mỗi lần nhận
         // signal ta gọi lại /api/portal/messages rồi chỉ append phần tin nhắn mới (so với knownMessageCount).
         async function refreshFromServer() {
-            if (!currentCustomerId) return;
+            if (!currentCustomerId) return false;
             try {
                 const res = await fetch(`/api/portal/messages?customer_id=${encodeURIComponent(currentCustomerId)}`, { headers: portalHeaders() });
                 const json = await res.json();
-                if (!json.success || !Array.isArray(json.data)) return;
+                if (!json.success || !Array.isArray(json.data)) return false;
+                if (json.stream_key) { streamKey = String(json.stream_key); streamTtl = Number(json.stream_key_ttl) || 600; }
                 const newMessages = json.data.slice(knownMessageCount);
                 knownMessageCount = json.data.length;
                 newMessages.forEach(msg => {
@@ -514,20 +518,38 @@
                     renderStoredMessage(msg);
                 });
                 if (newMessages.length) scrollToBottom();
+                return true;
             } catch (e) {
                 console.warn('Lỗi refresh tin nhắn từ SSE:', e);
+                return false;
             }
         }
 
+        // Kênh nghe mở bằng khoá ngắn hạn mới nhất (KHÔNG BAO GIỜ mã chat trong URL), tự gia hạn ~2 phút trước khi khoá hết hạn:
+        // tải lại tin (kèm khoá mới), mở kênh mới rồi đóng kênh cũ. Server từ chối kênh (khoá đã hết hạn vì máy ngủ...) -> gia hạn ngay.
         function subscribeToRealtime() {
             if (!currentCustomerId) return;
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
-            }
-            eventSource = new EventSource(`/api/portal/stream?customer_id=${encodeURIComponent(currentCustomerId)}&chat_token=${encodeURIComponent(portalChatToken())}`);
-            eventSource.onmessage = () => { refreshFromServer(); };
-            eventSource.onerror = (e) => { console.warn('SSE lỗi kết nối:', e); };
+            clearTimeout(streamTimer);
+            const old = eventSource;
+            eventSource = null;
+            if (!streamKey) { if (old) old.close(); return; } // server không cấp khoá -> không nghe
+            const es = new EventSource(`/api/portal/stream?customer_id=${encodeURIComponent(currentCustomerId)}&stream_key=${encodeURIComponent(streamKey)}`);
+            es.onmessage = () => { refreshFromServer(); };
+            es.onerror = (e) => {
+                console.warn('SSE lỗi kết nối:', e);
+                if (es.readyState !== 2 || eventSource !== es) return;   // 2 = CLOSED: trình duyệt không tự nối lại nữa
+                clearTimeout(streamTimer);
+                streamTimer = setTimeout(renewRealtime, 3000);
+            };
+            eventSource = es;
+            if (old) old.close();
+            streamTimer = setTimeout(renewRealtime, Math.max(30, streamTtl - 120) * 1000);
+        }
+
+        async function renewRealtime() {
+            if (await refreshFromServer()) { streamRetries = 0; subscribeToRealtime(); return; }
+            streamRetries++;   // máy chủ / mạng lỗi lâu: thử thưa dần (30 giây, rồi 5 phút), không bỏ hẳn — trang này chỉ để chat
+            streamTimer = setTimeout(renewRealtime, streamRetries <= 5 ? 30000 : 300000);
         }
 
         // ========== LOAD LỊCH SỬ ==========
@@ -549,6 +571,7 @@
                 chatBox.innerHTML = '<div class="text-center text-red-400 py-10">' + t('portal_err_load_history') + '</div>';
                 return;
             }
+            if (json.stream_key) { streamKey = String(json.stream_key); streamTtl = Number(json.stream_key_ttl) || 600; }
             if (json.shop_name) {
                 shopName = String(json.shop_name);
                 const title = document.getElementById('portalTitle'), av = document.getElementById('portalAvatar');
