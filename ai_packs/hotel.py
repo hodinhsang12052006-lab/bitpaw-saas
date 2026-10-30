@@ -229,7 +229,7 @@ def _int_arg(value, c, field, default=None, lo=1, hi=None):
         return default
     try:
         n = int(float(value)) if isinstance(value, (int, float, str)) and not isinstance(value, bool) else None
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         n = None
     if n is None or n < lo or (hi is not None and n > hi):
         _refuse(c.t(f"{field} must be a whole number" + (f" from {lo} to {hi}." if hi else f" of at least {lo}."),

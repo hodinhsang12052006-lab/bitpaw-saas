@@ -489,6 +489,9 @@ class TestCheckAvailability(Base):
             ({'checkin_date': D(8), 'checkout_date': D(9), 'room_type': 'Penthouse'}, 'Room types: Standard, Deluxe, Suite'),
             ({'checkin_date': D(8), 'checkout_date': D(9), 'guests': 'many'}, 'whole number'),
             ({'checkin_date': D(8), 'checkout_date': D(9), 'guests': 0}, 'whole number'),
+            ({'checkin_date': D(8), 'checkout_date': D(9), 'guests': '1e999'}, 'whole number'),
+            ({'checkin_date': D(8), 'checkout_date': D(9), 'guests': float('inf')}, 'whole number'),
+            ({'checkin_date': D(8), 'checkout_date': D(9), 'guests': 'nan'}, 'whole number'),
         ]
         for args, msg in bad:
             with self.assertRaises(PackError, msg=str(args)) as cm:
@@ -813,6 +816,8 @@ class TestCancel(Base):
         self.assertIn('already ended', str(cm.exception))
         with self.assertRaises(PackError):
             run('hotel_cancel_booking', {'booking_id': 'abc', 'customer_confirmed': True}, ctx('whatsapp'))
+        with self.assertRaises(PackError):   # số quá lớn từ model -> từ chối gọn, không OverflowError
+            run('hotel_cancel_booking', {'booking_id': '1e999', 'customer_confirmed': True}, ctx('whatsapp'))
 
 
 # ================================================================ đổi ngày
@@ -960,6 +965,10 @@ class TestSharedLogic(Base):
         self.assertEqual((doc['status'], doc['room_id'], doc['room_type'], doc['note'], doc['source'], doc['party_size']),
                          ('pending', None, None, 'late', 'web', 3))
         self.assertEqual(DB.hotel_room_nights.count_documents({}), 0)   # form công khai không giữ phòng (nhân viên xếp)
+        ns['request'].json = {'name': 'Jo', 'phone': '0412345678', 'checkin_date': D(8), 'checkout_date': D(9),
+                              'party_size': float('inf')}   # JSON 'Infinity' -> 1 khách như số không hợp lệ, không lỗi 500
+        out = route(BID)
+        self.assertEqual(DB.hotel_reservations.find_one({'id': out['id']})['party_size'], 1)
 
         for data, vi, msg, code in (
                 ({'name': 'Jo', 'phone': '1', 'checkin_date': D(8)}, False, 'Please enter your name, phone number and dates.', 400),

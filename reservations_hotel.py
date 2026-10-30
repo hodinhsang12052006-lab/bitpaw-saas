@@ -130,7 +130,7 @@ def create_request(business_id, *, guest_name, guest_phone, checkin_date, checko
     check_stay(checkin, checkout)
     try:
         party_size = int(party_size or 1)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         party_size = 1
     if party_size < 1:
         party_size = 1
