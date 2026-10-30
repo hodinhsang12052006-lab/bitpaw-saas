@@ -660,6 +660,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     <div class="text-center text-gray-500 text-xs py-10" data-i18n="super_admin_chat_select_prompt">Chọn
                         1 hội thoại bên trái để xem chi tiết.</div>
                 </div>
+                <div id="chatReplyTargetBar" role="status" aria-live="polite" class="hidden pt-3 mt-3 border-t border-white/5 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-amber-200"></div>
                 <div class="pt-3 mt-3 border-t border-white/5 flex items-center gap-2">
                     <input type="text" id="chatReplyInput" onkeydown="if(event.key==='Enter'){event.preventDefault(); sendSuperAdminChatReply();}"
                         placeholder="Nhập tin nhắn trả lời khách..."
@@ -790,6 +791,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
     <!-- UI Toast Alert -->
     <div id="toast" class="toast"></div>
 
+    <script src="/static/js/bp_reply_target.js?v={{ asset_v('js/bp_reply_target.js') }}"></script>
     <script>
         // Realtime Clock Function
         function updateRuntimeClock() {
@@ -1131,6 +1133,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         // ==========================================
         let currentChatCustomerId = null;
         let chatConversationsCache = [];
+        // Hội thoại web (của tiệm hay lead landing): thiết bị nào gửi tin nào + trả lời tới đâu (static/js/bp_reply_target.js);
+        // chatReplyPick = thiết bị tự chọn ở thanh phía trên ô trả lời (null = mặc định tin khách mới nhất đang hiện).
+        let chatReplyPlan = null, chatReplyPick = null;
+        function renderChatReplyBar() {
+            if (!window.BPReplyTarget) return;
+            BPReplyTarget.renderBar(document.getElementById('chatReplyTargetBar'), chatReplyPlan, chatReplyPick, currentLang,
+                (d) => { chatReplyPick = d; renderChatReplyBar(); },
+                'bg-black/60 border border-amber-400/40 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none');
+        }
 
         function escapeHtml(str) {
             const div = document.createElement('div');
@@ -1306,6 +1317,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
 
         async function openChatConversation(encodedCustomerId) {
             const customerId = decodeURIComponent(encodedCustomerId);
+            if (customerId !== currentChatCustomerId) { chatReplyPick = null; chatReplyPlan = null; renderChatReplyBar(); }
             currentChatCustomerId = customerId;
             const box = document.getElementById('chatMessagesBox');
             box.innerHTML = `<div class="text-center text-gray-500 text-xs py-10"><i class="fas fa-spinner fa-spin mr-2"></i>${t('super_admin_loading_cloud_data')}</div>`;
@@ -1334,18 +1346,25 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 }
 
                 const messages = json.messages || [];
+                chatReplyPlan = window.BPReplyTarget ? BPReplyTarget.plan(messages, ((cust && cust.channel) || 'web') === 'web') : null;
+                renderChatReplyBar();
                 if (!messages.length) {
                     box.innerHTML = `<div class="text-center text-gray-500 text-xs py-10">${t('super_admin_chat_no_messages')}</div>`;
                 } else {
+                    const tags = !!(window.BPReplyTarget && chatReplyPlan);
                     box.innerHTML = messages.map(m => {
                         const isCustomer = m.sender_type === 'customer';
                         const align = isCustomer ? 'justify-start' : 'justify-end';
                         const bubbleColor = isCustomer ? 'bg-white/10 text-white' : (m.sender_type === 'ai' ? 'bg-purple-500/20 text-purple-100' : 'bg-cyan-500/20 text-cyan-100');
+                        const dev = tags ? BPReplyTarget.customerTag(m, chatReplyPlan, currentLang) : null;
+                        const toTag = tags ? BPReplyTarget.staffTag(m, chatReplyPlan, currentLang) : '';
+                        const devHtml = dev ? ` · <span data-device-tag="1" title="${escapeHtml(dev.title || '')}">${escapeHtml(dev.text)}</span>`
+                            : (toTag ? ` · <span data-reply-device="1">${escapeHtml(toTag)}</span>` : '');
                         return `
                             <div class="flex ${align}">
                                 <div class="max-w-[75%] ${bubbleColor} rounded-2xl px-4 py-2 text-xs">
                                     <div class="whitespace-pre-wrap break-words">${escapeHtml(m.content)}</div>
-                                    <div class="text-[9px] opacity-60 mt-1">${m.sender_type.toUpperCase()} · ${formatChatTime(m.created_at)}</div>
+                                    <div class="text-[9px] opacity-60 mt-1">${m.sender_type.toUpperCase()}${devHtml} · ${formatChatTime(m.created_at)}</div>
                                 </div>
                             </div>
                         `;
@@ -1372,15 +1391,24 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const sendBtn = document.getElementById('chatReplySendBtn');
             input.disabled = true;
             if (sendBtn) sendBtn.disabled = true;
+            // Hội thoại web: trả lời tin khách đang hiện lúc bấm Gửi (mặc định tin mới nhất, hoặc thiết bị đã chọn) — server ghi trả
+            // lời kèm mã trình duyệt của ĐÚNG tin đó nên chỉ thiết bị đó thấy trên trang chat / widget.
+            const plan = chatReplyPlan;
+            const target = window.BPReplyTarget ? BPReplyTarget.target(plan, chatReplyPick) : null;
+            const payload = { content };
+            if (target) payload.reply_to = target.reply_to;
             try {
                 const res = await fetch('/api/superadmin/chat/messages/' + encodeURIComponent(currentChatCustomerId), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content }),
+                    body: JSON.stringify(payload),
                 });
                 const json = await res.json();
                 if (!json.success) throw new Error(json.message);
                 input.value = '';
+                const note = window.BPReplyTarget ? BPReplyTarget.sentNote(json, plan, currentLang) : null;
+                if (note) showToast(note.text);
+                chatReplyPick = null;
                 await openChatConversation(encodeURIComponent(currentChatCustomerId));
             } catch (err) {
                 showToast(t('super_admin_err_load_data_prefix') + err.message);

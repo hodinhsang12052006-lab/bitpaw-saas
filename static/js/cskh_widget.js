@@ -629,6 +629,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let humanChatStream = null; // EventSource — chỉ mở 1 lần cho mỗi SĐT, xem startHumanAgentStream()
     let humanChatPhone = "";    // SĐT của kênh đang nghe (khách sửa SĐT -> mở lại kênh cho số mới)
     let renderedStaffMessageCount = 0; // đếm số tin nhắn staff đã render, tránh lặp khi poll lại
+    // Khoá nghe ngắn hạn (server ký, ~10 phút) do GET /api/cskh/chat/messages cấp cho ĐÚNG trình duyệt này — nằm trong URL của
+    // EventSource thay cho mã chat; humanStreamGen: lần mở kênh mới nhất (kết quả / hẹn giờ của lần cũ bị bỏ).
+    let humanStreamKey = null, humanStreamTtl = 600, humanStreamTimer = null, humanStreamRetries = 0, humanStreamGen = 0;
 
     // Sync state globally for quick reply handlers
     window.isLeadSubmittedGlobal = false;
@@ -719,32 +722,75 @@ document.addEventListener("DOMContentLoaded", () => {
     // reply. Poll lại /api/cskh/chat/messages mỗi khi nhận tín hiệu "có gì mới" từ SSE
     // /api/stream/cskh_chat (đúng pattern _sse_change_signal + EventSource đã dùng ở
     // super_admin.html/loadCskhLeads, chỉ khác đây là phía khách, không có session).
+    // Cùng bằng chứng như /api/portal/*: server chỉ mở hội thoại 'Talk to Human Agent' cho ĐÚNG trình duyệt đã nhắn ở đó (mã chat
+    // của trình duyệt trong header X-Chat-Token — KHÔNG BAO GIỜ trong URL); kênh nghe dùng khoá ngắn hạn server cấp (stream_key).
+    // Trước đây chỉ cần SĐT: ai gõ SĐT của người khác cũng đọc được cả hội thoại lẫn trả lời của nhân viên.
     async function fetchHumanAgentReplies(phone) {
         try {
-            const res = await fetch("/api/cskh/chat/messages?phone=" + encodeURIComponent(phone));
+            const res = await fetch("/api/cskh/chat/messages?phone=" + encodeURIComponent(phone), portalAuth());
             const json = await res.json();
-            if (!json.success || phone !== humanChatPhone) return;   // kết quả của số cũ (khách vừa sửa SĐT) -> bỏ
+            if (!json.success || phone !== humanChatPhone) return false;   // chưa nhắn ở số này / kết quả của số cũ -> bỏ
+            if (json.stream_key) { humanStreamKey = String(json.stream_key); humanStreamTtl = Number(json.stream_key_ttl) || 600; }
             const staffMessages = (json.messages || []).filter(m => m.sender_type !== "customer");
             if (staffMessages.length > renderedStaffMessageCount) {
                 staffMessages.slice(renderedStaffMessageCount).forEach(m => appendMessage("ai", m.content));
                 renderedStaffMessageCount = staffMessages.length;
             }
+            return true;
         } catch (err) {
             console.log("Fetching human agent replies deferred: ", err);
+            return false;
         }
     }
 
-    function startHumanAgentStream(phone) {
-        if (!phone || (humanChatStream && humanChatPhone === phone)) return;
+    async function startHumanAgentStream(phone) {
+        if (!phone || (humanChatStream && typeof humanChatStream === "object" && humanChatPhone === phone)) return;
         // Khách sửa SĐT (vd sau lỗi "số điện thoại không hợp lệ") -> đóng kênh của số cũ, nghe đúng hội thoại của số mới. Trước
         // đây kênh mở 1 lần cho số đầu tiên (kể cả số sai, lúc bấm "Talk to Human Agent") rồi giữ mãi -> trả lời không hiện ra.
-        if (humanChatStream) humanChatStream.close();
-        humanChatPhone = phone;
-        renderedStaffMessageCount = 0;
-        fetchHumanAgentReplies(phone); // lấy ngay lịch sử/reply đã có trước khi mở kênh SSE
-        humanChatStream = new EventSource("/api/stream/cskh_chat?phone=" + encodeURIComponent(phone));
-        humanChatStream.onmessage = () => fetchHumanAgentReplies(phone);
-        humanChatStream.onerror = () => { /* EventSource tự reconnect, không cần xử lý thêm */ };
+        const gen = ++humanStreamGen;
+        clearTimeout(humanStreamTimer);
+        if (humanChatStream && typeof humanChatStream === "object") humanChatStream.close();
+        if (humanChatPhone !== phone) { humanChatPhone = phone; renderedStaffMessageCount = 0; }
+        humanChatStream = "pending";
+        humanStreamKey = null;
+        humanStreamRetries = 0;
+        // lấy ngay lịch sử/reply đã có (kèm khoá nghe) trước khi mở kênh SSE; chưa từng nhắn ở số này -> server 404, chưa nghe gì
+        // (lần gửi tin thành công tiếp theo gọi lại hàm này)
+        const ok = await fetchHumanAgentReplies(phone);
+        if (gen !== humanStreamGen) return;
+        if (!ok) { humanChatStream = null; return; }
+        openHumanAgentStream(phone);
+    }
+
+    // Mở kênh nghe bằng khoá ngắn hạn mới nhất và tự gia hạn ~2 phút trước khi khoá hết hạn (lấy lại tin kèm khoá mới, mở kênh mới
+    // rồi đóng kênh cũ). Server từ chối kênh (khoá hết hạn vì máy ngủ...) -> gia hạn ngay. Cùng cách với openShopReplyStream.
+    function openHumanAgentStream(phone) {
+        clearTimeout(humanStreamTimer);
+        const old = humanChatStream && typeof humanChatStream === "object" ? humanChatStream : null;
+        if (!humanStreamKey) { if (old) old.close(); humanChatStream = null; return; }   // server không cấp khoá -> không nghe
+        const gen = humanStreamGen;
+        const es = new EventSource("/api/stream/cskh_chat?phone=" + encodeURIComponent(phone)
+                                   + "&stream_key=" + encodeURIComponent(humanStreamKey));
+        es.onmessage = () => fetchHumanAgentReplies(phone);
+        es.onerror = () => {  // readyState 2 = CLOSED: trình duyệt không tự nối lại nữa
+            if (es.readyState !== 2 || humanChatStream !== es) return;
+            clearTimeout(humanStreamTimer);
+            humanStreamTimer = setTimeout(() => renewHumanAgentStream(phone, gen), 3000);
+        };
+        humanChatStream = es;
+        if (old) old.close();
+        humanStreamTimer = setTimeout(() => renewHumanAgentStream(phone, gen), Math.max(30, humanStreamTtl - 120) * 1000);
+    }
+
+    async function renewHumanAgentStream(phone, gen) {
+        if (gen !== humanStreamGen) return;
+        const ok = await fetchHumanAgentReplies(phone);
+        if (gen !== humanStreamGen) return;
+        if (ok) { humanStreamRetries = 0; openHumanAgentStream(phone); return; }
+        if (++humanStreamRetries <= 5) { humanStreamTimer = setTimeout(() => renewHumanAgentStream(phone, gen), 30000); return; }
+        if (humanChatStream && typeof humanChatStream === "object") humanChatStream.close();
+        humanChatStream = null;   // bỏ cuộc: lần gửi tin tiếp theo của khách mở lại kênh (handleHumanAgentSubmit)
+        humanStreamRetries = 0;
     }
 
     // 6d. Nhân viên tiệm trả lời khách NGAY trong widget đặt lịch. BUG THẬT đã vá (đo thật 10/2026): chủ
@@ -921,9 +967,11 @@ document.addEventListener("DOMContentLoaded", () => {
         // chủ (5xx) hay mất mạng đều im lặng mở kênh nghe -> khách tưởng tin đã tới và chờ mãi.
         let status = 0;
         try {
+            // mã chat của trình duyệt (header, không bao giờ trong URL): server lưu mã băm trên tin -> chỉ trình duyệt này đọc lại
+            // được hội thoại + trả lời của nhân viên (/api/cskh/chat/messages)
             const res = await fetch("/api/cskh/chat/send", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "X-Chat-Token": getChatToken() },
                 body: JSON.stringify({ phone: phoneVal, content: msgVal }),
             });
             const json = await res.json().catch(() => ({}));

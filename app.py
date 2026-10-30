@@ -12314,12 +12314,14 @@ def _persist_chat_turn(business_id, customer_phone, content, sender_type='custom
     """Lưu 1 lượt chat vào CRM (bot_customers/bot_messages) theo đúng business_id của tenant,
     best-effort — không bao giờ được phép làm gãy luồng chat nếu MongoDB lỗi/offline.
     chat_token_hash: mã băm của mã chat riêng trình duyệt (widget đặt lịch) — để dựng lại lịch sử chat PHÍA SERVER đúng
-    của trình duyệt đó (_booking_chat_history), không tin lượt 'assistant' do client gửi lên."""
+    của trình duyệt đó (_booking_chat_history), không tin lượt 'assistant' do client gửi lên.
+    Trả True khi tin ĐÃ được lưu, False khi không (thiếu dữ liệu / không có DB / DB lỗi) — route công khai nhận tin của khách
+    (/api/cskh/chat/send) dựa vào đó để báo lỗi thật thay vì success:true khi không lưu gì."""
     if not content or not business_id or not customer_phone or db is None:
-        return
+        return False
     if ':' in str(customer_phone):
         # '<tiệm>:sms:+614...' là id hội thoại kênh nền tảng (SMS/WhatsApp/Messenger...) — chat web không bao giờ ghi vào đó
-        return
+        return False
     try:
         customer_id = f"{business_id}:{customer_phone}"
         now_iso = datetime.now().isoformat()
@@ -12347,8 +12349,9 @@ def _persist_chat_turn(business_id, customer_phone, content, sender_type='custom
         if chat_token_hash:
             msg['chat_token_hash'] = chat_token_hash
         db.bot_messages.insert_one(msg)
+        return True
     except Exception:
-        pass
+        return False
 
 
 def _booking_chat_history(business_id, customer_phone, chat_token_hash, client_history, limit=12):
@@ -12404,8 +12407,10 @@ BITPAW_LEADS_BUSINESS_ID = "bitpaw_leads"
 @limiter.limit("120 per hour;15 per minute")
 def api_cskh_chat_send():
     """Public — khách bấm 'Talk to Human Agent' rồi gửi tin nhắn. Không có session (khách vãng
-    lai), khoá hội thoại theo SĐT khách nhập. Tái dùng _persist_chat_turn() best-effort y hệt
-    luồng AI/tenant, chỉ khác business_id là sentinel BITPAW_LEADS_BUSINESS_ID."""
+    lai), khoá hội thoại theo SĐT khách nhập. Tái dùng _persist_chat_turn() y hệt luồng AI/tenant, chỉ khác business_id là
+    sentinel BITPAW_LEADS_BUSINESS_ID. Tin lưu kèm mã băm mã chat của trình duyệt (header X-Chat-Token — widget luôn gửi; không
+    bao giờ qua URL): chỉ ĐÚNG trình duyệt đó đọc lại được hội thoại + trả lời của nhân viên (/api/cskh/chat/messages,
+    /api/stream/cskh_chat). Không lưu được (không có DB / DB lỗi) -> 503 (trước đây vẫn success:true, khách tưởng tin đã tới)."""
     data = request.json or {}
     raw_phone, raw_content = data.get('phone'), data.get('content')
     # SĐT gửi dạng số (vd 412345678) -> chấp nhận; kiểu khác (object/mảng) -> 400. Trước đây int.strip() ném lỗi -> 503.
@@ -12422,42 +12427,83 @@ def api_cskh_chat_send():
     if not (re.fullmatch(r'\+?[0-9(][0-9 ().-]{5,31}', phone) and 6 <= len(re.sub(r'\D', '', phone)) <= 15):
         return jsonify({"success": False, "message": _vi_en("Số điện thoại không hợp lệ — vui lòng nhập lại số của bạn.",
                                                              "That phone number isn't valid — please enter your number again.")}), 400
-    _persist_chat_turn(BITPAW_LEADS_BUSINESS_ID, phone, content[:2000], sender_type='customer')
+    import ai_function_tools
+    chat_token = _portal_chat_token()
+    token_hash = ai_function_tools.chat_token_hash(chat_token) if chat_token is not None else None
+    if not _persist_chat_turn(BITPAW_LEADS_BUSINESS_ID, phone, content[:2000], sender_type='customer', chat_token_hash=token_hash):
+        return jsonify({"success": False, "message": _vi_en(
+            "Tin nhắn CHƯA được gửi: hệ thống chưa lưu được tin của bạn. Vui lòng thử lại sau ít phút.",
+            "Your message was NOT sent: we couldn't save it right now. Please try again in a few minutes.")}), 503
     return jsonify({"success": True})
+
+
+def _cskh_lead_conversation(phone):
+    """('bitpaw_leads:<SĐT>', mã băm) khi trình duyệt đang gọi chứng minh được là người đã nhắn trong hội thoại 'Talk to Human
+    Agent' này — cùng bằng chứng như /api/portal/*: mã chat của trình duyệt (header X-Chat-Token / body, KHÔNG BAO GIỜ qua URL)
+    có mã băm trên ít nhất 1 tin của hội thoại (đã nhắn ở đây qua /api/cskh/chat/send). Không thì (None, None) — không phân
+    biệt "chưa có hội thoại" với "có nhưng không phải của bạn" (không dò được SĐT nào đang chat)."""
+    import ai_function_tools
+    phone = phone.strip()[:32] if isinstance(phone, str) else ''
+    chat_token = _portal_chat_token()
+    token_hash = ai_function_tools.chat_token_hash(chat_token) if chat_token is not None else None
+    if not phone or not token_hash or db is None:
+        return None, None
+    customer_id = f"{BITPAW_LEADS_BUSINESS_ID}:{phone}"
+    if not db.bot_messages.find_one({'customer_id': customer_id, 'chat_token_hash': token_hash}, {'_id': 1}):
+        return None, None
+    return customer_id, token_hash
 
 
 @app.route('/api/cskh/chat/messages', methods=['GET'])
 @limiter.limit("600 per hour")  # khoá theo SĐT (đoán được) -> làm chậm việc dò SĐT đọc hội thoại
 def api_cskh_chat_messages():
-    """Public — widget poll lại route này (sau khi nhận tín hiệu từ /api/stream/cskh_chat) để
-    lấy toàn bộ lịch sử, bao gồm cả reply mới của Admin (sender_type='staff'). Khoá theo SĐT
-    trong query string — CHÚ Ý: cùng hạn chế đã có ở /api/portal/messages, khoá theo 1 giá trị
-    có thể đoán được (SĐT) chứ không phải bí mật thật sự; chấp nhận đánh đổi để khách vãng lai
-    không cần đăng nhập/token vẫn chat được."""
-    phone = (request.args.get('phone') or '').strip()
-    if not phone or db is None:
-        return jsonify({"success": True, "messages": []})
-    customer_id = f"{BITPAW_LEADS_BUSINESS_ID}:{phone}"
+    """Public — widget poll lại route này (sau khi nhận tín hiệu từ /api/stream/cskh_chat) để lấy lịch sử + trả lời mới của
+    nhân viên BitPaw (sender_type='staff').
+    BUG THẬT đã vá (review Phase 2 vòng 3): trước đây chỉ khoá theo SĐT trong URL -> ai gõ SĐT của người khác cũng đọc được trọn
+    hội thoại 'bitpaw_leads:<SĐT>', kể cả trả lời của nhân viên. Giờ cùng bằng chứng như /api/portal/messages
+    (_cskh_lead_conversation): thiếu / sai mã chat -> 404. Chỉ trả tin của CHÍNH trình duyệt này (tin của nó + trả lời của nhân
+    viên gửi cho nó — superadmin_chat_send_message ghi kèm mã băm của tin được trả lời) + trả lời cũ không có trường mã băm ghi
+    SAU lúc trình duyệt này bắt đầu nhắn. Kèm stream_key: khoá nghe ngắn hạn cho /api/stream/cskh_chat (EventSource không gửi
+    được header -> không bao giờ đưa mã chat gốc vào URL)."""
+    customer_id, token_hash = _cskh_lead_conversation(request.args.get('phone'))
+    if not customer_id:
+        return jsonify({"success": False, "message": _vi_en("Không tìm thấy hội thoại này.", "Conversation not found.")}), 404
     try:
-        messages = list(db.bot_messages.find({'customer_id': customer_id}, {'_id': 0}).sort('created_at', 1))
-        return jsonify({"success": True, "messages": messages})
+        first = list(db.bot_messages.find({'customer_id': customer_id, 'chat_token_hash': token_hash},
+                                          {'_id': 0, 'created_at': 1}).sort('created_at', 1).limit(1))
+        since = str((first[0].get('created_at') if first else '') or '')
+        messages = list(db.bot_messages.find(
+            {'customer_id': customer_id, '$or': [{'chat_token_hash': token_hash},
+                                                 {'sender_type': 'staff', 'chat_token_hash': {'$exists': False},
+                                                  'created_at': {'$gte': since}}]},
+            {'_id': 0, 'chat_token_hash': 0}).sort('created_at', 1))
+        return jsonify({"success": True, "messages": messages,
+                        "stream_key": _portal_stream_key(customer_id, token_hash), "stream_key_ttl": _PORTAL_STREAM_KEY_TTL})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route('/api/stream/cskh_chat', methods=['GET'])
 def stream_cskh_chat():
-    """SSE public — chỉ báo tín hiệu "có gì mới" cho ĐÚNG 1 khách (lọc theo customer_id đầy đủ,
-    không chỉ business_id — vì mọi khách landing page đều dùng chung 1 sentinel business_id, lọc
-    theo business_id sẽ khiến tín hiệu của khách A làm khách B tự fetch lại không cần thiết),
-    KHÔNG mang nội dung — giống hệt pattern /api/portal/stream (không dùng _sse_tenant_match()
-    vì route này không có session)."""
-    phone = (request.args.get('phone') or '').strip()
-    if not phone or db is None:
-        return Response('', mimetype='text/event-stream')
-    customer_id = f"{BITPAW_LEADS_BUSINESS_ID}:{phone}"
+    """SSE public — chỉ báo tín hiệu "có gì mới" (KHÔNG mang nội dung) cho ĐÚNG 1 trình duyệt trong ĐÚNG 1 hội thoại
+    'bitpaw_leads:<SĐT>' — giống hệt pattern /api/portal/stream (không dùng _sse_tenant_match() vì route này không có session).
+    Trước đây chỉ cần SĐT -> ai gõ SĐT của người khác cũng nghe được nhịp nhắn tin / trả lời của nhân viên. Giờ mở kênh bằng
+    ?stream_key= (khoá ký ngắn hạn do GET /api/cskh/chat/messages cấp cho đúng trình duyệt + hội thoại này, xem
+    _portal_stream_key) hoặc mã chat qua header X-Chat-Token; không bao giờ bằng mã chat gốc trong URL. Sai / thiếu -> 404."""
+    phone = (request.args.get('phone') or '').strip()[:32]
+    customer_id, token_hash = _cskh_lead_conversation(phone)
+    if not customer_id and phone and db is not None:
+        cid = f"{BITPAW_LEADS_BUSINESS_ID}:{phone}"
+        token_hash = _portal_stream_owner(cid, request.args.get('stream_key'))
+        customer_id = cid if token_hash else None
+    if not customer_id:
+        return jsonify({"success": False, "message": _vi_en("Không tìm thấy hội thoại này.", "Conversation not found.")}), 404
+    # Chỉ tín hiệu của ĐÚNG trình duyệt này: tin mang mã băm của nó (tin của nó + trả lời của nhân viên dành cho nó) + trả lời cũ
+    # của nhân viên chưa có trường mã băm (GET vẫn chỉ trả trả lời ghi sau lúc trình duyệt vào).
     match = {'$match': {'$or': [
-        {'fullDocument.customer_id': customer_id},
+        {'fullDocument.customer_id': customer_id, 'fullDocument.chat_token_hash': token_hash},
+        {'fullDocument.customer_id': customer_id, 'fullDocument.sender_type': 'staff',
+         'fullDocument.chat_token_hash': {'$exists': False}},
         {'operationType': 'delete'},
     ], 'ns.coll': 'bot_messages'}}
     return _sse_change_signal(db, match)
@@ -12498,13 +12544,53 @@ def api_bot_messages_list():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+def _web_device_labels(customer_id):
+    """Nhãn ngắn, ổn định cho từng trình duyệt trong 1 hội thoại web: {mã băm: 'A' | 'B' | ...} theo thứ tự tin khách ĐẦU TIÊN
+    của mỗi trình duyệt (hội thoại web khoá theo SĐT tự gõ -> 2 trình duyệt gõ cùng 1 số dùng chung 1 hội thoại). Hộp thư
+    (ai_bot.html, crm_automation.html, super_admin.html qua static/js/bp_reply_target.js) dựng đúng nhãn này từ cùng các tin để
+    hiện "Thiết bị A / B" — không bao giờ hiện mã băm. Từ trình duyệt thứ 27: '27', '28'..."""
+    labels = {}
+    for m in db.bot_messages.find({'customer_id': customer_id, 'sender_type': 'customer'},
+                                  {'_id': 0, 'chat_token_hash': 1, 'created_at': 1}).sort('created_at', 1):
+        h = m.get('chat_token_hash')
+        if isinstance(h, str) and h and h not in labels:
+            n = len(labels)
+            labels[h] = chr(65 + n) if n < 26 else str(n + 1)
+    return labels
+
+
+def _web_reply_stamp(customer_id, reply_to):
+    """Đích của 1 trả lời nhân viên trên hội thoại web (chủ tiệm /api/bot/messages, super admin /api/superadmin/chat/messages):
+    ({'chat_token_hash', 'device', 'reply_to'}, None), hoặc (None, (mã HTTP, câu VI, câu EN)) khi reply_to sai.
+    reply_to = created_at của tin khách đang được trả lời — hộp thư luôn gửi (tin khách mới nhất đang hiện trên màn hình lúc bấm
+    Gửi, hoặc thiết bị nhân viên chọn khi >= 2 thiết bị cùng nhắn); không gửi = tin khách mới nhất. Trả lời mang mã băm của tin
+    đó -> chỉ ĐÚNG trình duyệt đó đọc được qua trang công khai (/api/portal/*, /api/cskh/chat/*). device: nhãn thiết bị nhận
+    ('A', 'B'...), None khi tin đó không có mã trình duyệt (widget cũ) -> mã '' = không trình duyệt nào đọc được trả lời này,
+    hộp thư báo rõ cho nhân viên thay vì im lặng như đã gửi tới khách."""
+    q = {'customer_id': customer_id, 'sender_type': 'customer'}
+    if reply_to is not None:
+        if not isinstance(reply_to, str) or not reply_to:
+            return None, (400, "Tin nhắn được trả lời (reply_to) không hợp lệ.", "Invalid reply_to message.")
+        q['created_at'] = reply_to
+    answered = db.bot_messages.find_one(q, {'_id': 0, 'chat_token_hash': 1, 'created_at': 1}, sort=[('created_at', -1)])
+    if reply_to is not None and not answered:
+        return None, (404, "Không tìm thấy tin nhắn của khách mà bạn đang trả lời.",
+                      "The customer message you're replying to wasn't found.")
+    h = (answered or {}).get('chat_token_hash')
+    h = h if isinstance(h, str) else ''
+    return {'chat_token_hash': h, 'device': _web_device_labels(customer_id).get(h) if h else None,
+            'reply_to': (answered or {}).get('created_at')}, None
+
+
 @app.route('/api/bot/messages', methods=['POST'])
 @login_required
 def api_bot_messages_create():
     """Staff (chủ tiệm) tự trả lời khách trong console ai_bot.html — sender_type='staff',
     KHÁC với sender_type='ai'/'customer' do _persist_chat_turn() ghi tự động từ widget
     landing page. Dùng chung 1 collection, chỉ khác nhãn người gửi.
-    reply_to (tuỳ chọn, hội thoại web): created_at của tin khách mà nhân viên đang trả lời; không gửi = tin khách mới nhất."""
+    reply_to (hội thoại web): created_at của tin khách mà nhân viên đang trả lời — hộp thư (ai_bot.html, crm_automation.html)
+    luôn gửi; không gửi = tin khách mới nhất (_web_reply_stamp). Phản hồi kèm device = thiết bị nhận trả lời ('A', 'B'...;
+    None = trả lời KHÔNG hiện trên trang chat của khách) + reply_to = tin khách đã được trả lời."""
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     customer_id = data.get('customer_id', '')
@@ -12517,7 +12603,7 @@ def api_bot_messages_create():
         now_iso = datetime.now().isoformat()
         bc = db.bot_customers.find_one({'id': customer_id}, {'_id': 0, 'channel': 1, 'ext_user_id': 1}) or {}
         channel = bc.get('channel') or 'web'
-        delivery = None
+        delivery = stamp = None
         if channel != 'web' and bc.get('ext_user_id'):
             # Hộp thư chung: tin đi ngược về đúng Messenger/Zalo/WhatsApp/Viber/SMS của khách (inbox_channels.deliver ghi
             # tin trước rồi gửi, kèm trạng thái giao tin THẬT — kênh chưa nối thì báo rõ "chưa gửi được").
@@ -12529,22 +12615,13 @@ def api_bot_messages_create():
             }
             if channel == 'web':
                 # Hội thoại web khoá theo SĐT TỰ GÕ: 2 trình duyệt gõ cùng 1 số dùng chung 1 hội thoại. Trả lời chỉ tới ĐÚNG trình
-                # duyệt nó trả lời (/api/portal/* lọc theo mã băm): mã băm của tin khách được trả lời (reply_to), mặc định tin
-                # khách MỚI NHẤT. Tin đó không có mã (widget cũ / trang không phải đặt lịch) -> '' = không trình duyệt nào đọc
-                # được qua trang công khai (trước đây: mọi trình duyệt đã vào hội thoại từ trước, kể cả người gõ SĐT của người khác).
-                answered_q = {'customer_id': customer_id, 'sender_type': 'customer'}
-                reply_to = data.get('reply_to')
-                if reply_to is not None:
-                    if not isinstance(reply_to, str) or not reply_to:
-                        return jsonify({"success": False, "message": _vi_en("Tin nhắn được trả lời (reply_to) không hợp lệ.",
-                                                                           "Invalid reply_to message.")}), 400
-                    answered_q['created_at'] = reply_to
-                answered = db.bot_messages.find_one(answered_q, {'_id': 0, 'chat_token_hash': 1}, sort=[('created_at', -1)])
-                if reply_to is not None and not answered:
-                    return jsonify({"success": False, "message": _vi_en("Không tìm thấy tin nhắn của khách mà bạn đang trả lời.",
-                                                                       "The customer message you're replying to wasn't found.")}), 404
-                answered_hash = (answered or {}).get('chat_token_hash')
-                msg['chat_token_hash'] = answered_hash if isinstance(answered_hash, str) else ''
+                # duyệt nó trả lời (/api/portal/* lọc theo mã băm): mã băm của tin khách được trả lời (reply_to — hộp thư gửi tin
+                # đang hiện / thiết bị nhân viên chọn), mặc định tin khách MỚI NHẤT. Tin đó không có mã (widget cũ) -> '' = không
+                # trình duyệt nào đọc được qua trang công khai, và phản hồi báo device=None để hộp thư nói rõ cho nhân viên.
+                stamp, err = _web_reply_stamp(customer_id, data.get('reply_to'))
+                if err:
+                    return jsonify({"success": False, "message": _vi_en(err[1], err[2])}), err[0]
+                msg['chat_token_hash'] = stamp['chat_token_hash']
             db.bot_messages.insert_one(msg)
         # Nhân viên đã nhảy vào trả lời -> AI ngừng tự trả lời khách này (chủ tiệm bật lại bằng công tắc), để
         # khách không nhận 2 câu trả lời chồng nhau (1 của người, 1 của AI) cho cùng 1 tin.
@@ -12553,7 +12630,10 @@ def api_bot_messages_create():
             {'$set': {'last_message': content[:500], 'last_message_time': now_iso, 'ai_paused': True, 'handoff_by_ai': False,
                       'needs_human': False}}
         )
-        return jsonify({"success": True, "ai_paused": True, "channel": channel, "delivery": delivery})
+        out = {"success": True, "ai_paused": True, "channel": channel, "delivery": delivery}
+        if stamp:
+            out.update(device=stamp['device'], reply_to=stamp['reply_to'])
+        return jsonify(out)
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -13771,7 +13851,12 @@ def superadmin_chat_send_message(customer_id):
     sender_type='staff' cho ĐÚNG customer_id đang mở (business_id:phone hoặc
     BITPAW_LEADS_BUSINESS_ID:phone nếu là lead từ landing page marketing). Widget CSKH phía
     khách (cskh_widget.js) đang lắng nghe /api/stream/cskh_chat trên đúng customer_id này nên
-    tin nhắn xuất hiện gần như ngay lập tức bên phía khách, không cần khách tự bấm refresh."""
+    tin nhắn xuất hiện gần như ngay lập tức bên phía khách, không cần khách tự bấm refresh.
+    BUG THẬT đã vá (review Phase 2 vòng 3): trả lời ghi KHÔNG có mã băm -> rơi vào luật cũ "trả lời ghi sau lúc trình duyệt vào"
+    -> MỌI trình duyệt đã gõ SĐT đó (kể cả người gõ SĐT của người khác) đọc được trả lời của super admin. Giờ hội thoại web (của
+    tiệm hay lead landing) theo ĐÚNG luật của /api/bot/messages (_web_reply_stamp): reply_to = tin khách đang được trả lời (trang
+    super_admin.html luôn gửi), trả lời mang mã băm của tin đó; phản hồi báo device = thiết bị nhận (None = không hiện trên trang
+    chat của khách)."""
     if not _is_superadmin():
         return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     data = request.json or {}
@@ -13779,18 +13864,28 @@ def superadmin_chat_send_message(customer_id):
     if not content:
         return jsonify({"success": False, "message": "Nội dung tin nhắn trống."}), 400
     try:
-        cust = db.bot_customers.find_one({'id': customer_id}, {'business_id': 1, '_id': 0})
+        cust = db.bot_customers.find_one({'id': customer_id}, {'business_id': 1, 'channel': 1, '_id': 0})
         if not cust:
             return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
         now_iso = datetime.now().isoformat()
-        db.bot_messages.insert_one({
+        msg = {
             'customer_id': customer_id, 'sender_type': 'staff', 'content': content[:2000],
             'business_id': cust.get('business_id'), 'created_at': now_iso, 'is_read': True,
-        })
+        }
+        stamp = None
+        if (cust.get('channel') or 'web') == 'web':
+            stamp, err = _web_reply_stamp(customer_id, data.get('reply_to'))
+            if err:
+                return jsonify({"success": False, "message": _vi_en(err[1], err[2])}), err[0]
+            msg['chat_token_hash'] = stamp['chat_token_hash']
+        db.bot_messages.insert_one(msg)
         db.bot_customers.update_one(
             {'id': customer_id}, {'$set': {'last_message': content[:500], 'last_message_time': now_iso}}
         )
-        return jsonify({"success": True})
+        out = {"success": True}
+        if stamp:
+            out.update(device=stamp['device'], reply_to=stamp['reply_to'])
+        return jsonify(out)
     except Exception as e:
         print(f"[superadmin_chat_send_message] Lỗi gửi tin nhắn customer_id={customer_id}: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
