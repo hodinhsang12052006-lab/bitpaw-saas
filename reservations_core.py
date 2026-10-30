@@ -558,16 +558,43 @@ def ctx_country(ctx):
     return ctx['country']
 
 
+def _typed_phone(ctx):
+    """SĐT khách gõ trong CHÍNH chat web này (ctx.contact_phone, không thì id hội thoại web '<quán>:<SĐT>'). Không bao giờ là
+    bằng chứng một mình (ai cũng gõ được SĐT người khác) — chỉ để gắn mã trình duyệt với đúng người đang chat."""
+    if ctx.get('contact_phone'):
+        return str(ctx['contact_phone'])
+    cid = str(ctx.get('customer_id') or '')
+    if str(ctx.get('channel') or 'web').lower() == 'web' and ':' in cid:
+        rest = cid.split(':', 1)[1].split('~', 1)[0].strip()
+        return rest if re.fullmatch(r'\+?[0-9(][0-9 ().-]{5,31}', rest) else None
+    return None
+
+
+def _token_owns(doc, ctx):
+    """Mã chat khớp VÀ (chat web) đặt chỗ thuộc đúng chat này: tạo trong cùng hội thoại web, hoặc lưu đúng SĐT khách gõ ở đây.
+    1 trình duyệt (máy tính bảng quầy lễ tân) dùng chung 1 mã cho mọi khách: khách kế tiếp gõ SĐT khác không thừa hưởng đặt
+    chỗ của người trước. Hội thoại kênh nền tảng ('conv:<băm>') không cần thêm gì. Cùng luật ai_packs.token_owns."""
+    th = _token_proof(ctx)
+    if not th or doc.get('chat_token_hash') != th:
+        return False
+    if str(ctx.get('channel') or 'web').lower() != 'web':
+        return True
+    cid = ctx.get('customer_id')
+    if cid and doc.get('ai_conversation_id') == cid:
+        return True
+    typed = _typed_phone(ctx)
+    return bool(typed) and same_phone(doc.get('customer_phone'), typed, ctx_country(ctx))
+
+
 def is_owned(doc, ctx):
-    """Đặt chỗ này CHỨNG MINH được là của cuộc chat đang nói chuyện: SĐT đã xác minh trùng, hoặc cùng mã chat web
-    (chat_token_hash), hoặc cùng hội thoại kênh nền tảng (xem _conversation_proof). Chat web không có mã: không gì cả.
-    Cùng luật ai_packs.manage_filter của phần lõi."""
+    """Đặt chỗ này CHỨNG MINH được là của cuộc chat đang nói chuyện: SĐT đã xác minh trùng (NGUYÊN số), hoặc mã chat web của
+    đúng trình duyệt KÈM đúng chat này (_token_owns), hoặc cùng hội thoại kênh nền tảng (xem _conversation_proof). Chat web
+    không có mã: không gì cả. Cùng luật ai_packs.manage_filter của phần lõi."""
     if not doc or not ctx:
         return False
     if ctx.get('phone') and same_phone(doc.get('customer_phone'), ctx['phone'], ctx_country(ctx)):
         return True
-    th = _token_proof(ctx)
-    if th and doc.get('chat_token_hash') == th:
+    if _token_owns(doc, ctx):
         return True
     cid = _conversation_proof(ctx)
     return bool(cid and doc.get('ai_conversation_id') == cid)
@@ -600,19 +627,31 @@ def ai_tags(ctx):
             'ai_channel': ctx.get('channel') or 'web'}
 
 
+def _phone_regex(phone, country=None):
+    """Regex Mongo khớp ĐÚNG số này dù ghi kiểu gì ('0412-345-678', '+61 412 345 678', '(212) 555-1234'): đủ mọi chữ số, neo
+    2 đầu, trước số quốc gia chỉ cho mã nước hoặc số 0 đầu — không bao giờ khớp số khác chỉ trùng mấy số cuối."""
+    d = re.sub(r'\D', '', e164(phone, country) or '')
+    if not 8 <= len(d) <= 15:
+        return None
+    cc = next((c for c in sorted(set(_CC.values()), key=len, reverse=True) if d.startswith(c) and len(d) - len(c) >= 7), '')
+    sp = r'\D*'.join
+    prefix = (r'(?:(?:\+|00)?\D*' + sp(cc) + r'\D*|0\D*)?') if cc else r'(?:\+|00)?\D*'
+    return r'^\D*' + prefix + sp(d[len(cc):]) + r'\D*$'
+
+
 def ownership_query(ctx):
-    """Lọc ỨNG VIÊN ngay trong Mongo (mã chat / hội thoại / SĐT đã xác minh — 8 số cuối, mọi cách ghi) để quán đông khách
-    không làm rơi đặt chỗ của khách khỏi trang kết quả; is_owned() vẫn kiểm chính xác từng dòng sau đó. None = không có
-    bằng chứng nào."""
+    """Lọc ỨNG VIÊN ngay trong Mongo (mã chat / hội thoại / SĐT đã xác minh — NGUYÊN số, mọi cách ghi) để quán đông khách
+    không làm rơi đặt chỗ của khách khỏi trang kết quả; is_owned() vẫn kiểm chính xác từng dòng sau đó (mã chat web chỉ tính
+    kèm đúng chat này). None = không có bằng chứng nào."""
     ors = []
     th, cid = _token_proof(ctx), _conversation_proof(ctx)
     if th:
         ors.append({'chat_token_hash': th})
     if cid:
         ors.append({'ai_conversation_id': cid})
-    digits = re.sub(r'\D', '', str((ctx or {}).get('phone') or ''))
-    if len(digits) >= 8:
-        ors.append({'customer_phone': {'$regex': r'\D*'.join(digits[-8:]) + r'\D*$'}})
+    rx = _phone_regex((ctx or {}).get('phone'), ctx_country(ctx)) if (ctx or {}).get('phone') else None
+    if rx:
+        ors.append({'customer_phone': {'$regex': rx}})
     return {'$or': ors} if ors else None
 
 

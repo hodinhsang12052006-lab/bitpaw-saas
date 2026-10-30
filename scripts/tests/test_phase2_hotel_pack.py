@@ -758,6 +758,53 @@ class TestMyBookings(Base):
         self.assertEqual(run('hotel_my_bookings', {}, ctx('whatsapp'))['bookings'], [])
 
 
+# ================================================================ danh tính: SĐT nguyên số, mã trình duyệt + SĐT đã gõ, giới hạn theo mạng
+class TestIdentityHardening(Base):
+    def test_last_nine_digits_are_not_the_same_phone(self):
+        # Mỹ: (212) 555-0123 và (312) 555-0123 trùng 9 số cuối nhưng là 2 người khác nhau
+        DB.businesses.update_one({'id': BID}, {'$set': {'country': 'US'}})
+        DB.hotel_reservations.insert_one(resv(90, D(3), D(5), room_type='Deluxe', phone='(212) 555-0123',
+                                              guest_name='Victim Person'))
+        other = ctx('whatsapp', cid=f'{BID}:whatsapp:13125550123', phone='+13125550123')
+        self.assertEqual(run('hotel_my_bookings', {}, other)['bookings'], [])
+        with self.assertRaises(PackError):
+            run('hotel_cancel_booking', {'booking_id': 90, 'customer_confirmed': True}, other)
+        with self.assertRaises(PackError):
+            run('hotel_change_dates', {'booking_id': 90, 'new_checkin_date': D(4), 'new_checkout_date': D(6)}, other)
+        self.assertEqual(DB.hotel_reservations.find_one({'id': 90})['status'], 'confirmed')
+        owner = ctx('whatsapp', cid=f'{BID}:whatsapp:12125550123', phone='+12125550123')
+        self.assertEqual([b['booking_id'] for b in run('hotel_my_bookings', {}, owner)['bookings']], [90])
+        self.assertFalse(hotel._same_phone('+1 541 234 5678', '+61412345678', 'AU'))
+        self.assertTrue(hotel._same_phone('0412 345 678', '+61 412 345 678', 'AU'))
+
+    def test_shared_browser_token_needs_the_phone_typed_in_this_chat(self):
+        mine = self.book()                                    # tok-A, chat '<tiệm>:0412345678'
+        nxt = ctx(token='tok-A', cid=f'{BID}:0499000111')     # khách kế tiếp trên cùng máy tính bảng, gõ SĐT khác
+        self.assertEqual(run('hotel_my_bookings', {}, nxt)['bookings'], [])
+        with self.assertRaises(PackError):
+            run('hotel_cancel_booking', {'booking_id': mine['booking_id'], 'customer_confirmed': True}, nxt)
+        self.assertEqual(DB.hotel_reservations.find_one({'id': mine['booking_id']})['status'], 'pending')
+        again = ctx(token='tok-A', cid=f'{BID}:+61412345678')  # cùng khách, gõ lại SĐT kiểu khác
+        self.assertEqual([b['booking_id'] for b in run('hotel_my_bookings', {}, again)['bookings']], [mine['booking_id']])
+
+    def test_network_cap_cannot_be_dodged_with_a_new_token_and_phone(self):
+        names = ['Ann Lee', 'Bob Ray', 'Cat Moe', 'Dan Fox', 'Eve Kim', 'Fay Ong', 'Gus Poe', 'Hal Roy']
+        n = hotel.MAX_LIVE_AI_BOOKINGS_PER_NETWORK
+        for i in range(n):
+            c = dict(ctx(token=f'tok-{i}', cid=f'{BID}:04120000{i:02d}'), client_key='net:abc')
+            r = self.book(c=c, phone=f'04120000{i:02d}', guest_name=names[i], checkin_date=D(8 + 2 * i),
+                          checkout_date=D(9 + 2 * i))
+            self.assertTrue(r['success'], r)
+        c = dict(ctx(token='tok-new', cid=f'{BID}:0412999999'), client_key='net:abc')
+        with self.assertRaises(PackError) as cm:
+            self.book(c=c, phone='0412999999', guest_name='Ivy Tan', checkin_date=D(40), checkout_date=D(41))
+        self.assertIn('through chat', str(cm.exception))
+        other_net = dict(ctx(token='tok-x', cid=f'{BID}:0412888888'), client_key='net:other')
+        self.assertTrue(self.book(c=other_net, phone='0412888888', guest_name='Jo Wu', checkin_date=D(40),
+                                  checkout_date=D(41))['success'])
+        self.assertEqual(DB.hotel_reservations.find_one({'guest_name': 'Jo Wu'})['client_key'], 'net:other')
+
+
 # ================================================================ huỷ đặt phòng
 class TestCancel(Base):
     def test_needs_confirmation_then_cancels_and_frees_room(self):

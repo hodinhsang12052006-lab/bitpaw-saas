@@ -507,19 +507,27 @@ class BookingOwnershipTests(unittest.TestCase):
         self.assertEqual(DB.appointments.find_one({'id': 1})['status'], 'confirmed')
 
     def test_duplicate_of_unowned_booking_reveals_nothing_and_changes_nothing(self):
+        # Phase 2 review: không cả "SĐT này đã có lịch đúng giờ này" (ai gõ SĐT người khác cũng dò được giờ họ tới tiệm) —
+        # trả lời chung "đã chuyển yêu cầu cho tiệm, chưa xác nhận", tiệm nhận ghi chú để tự liên hệ khách
         with T.chat_scope(TOKEN_A):
             out = T.book_appointment(NAIL, self.cid, service_id='1', appointment_time=FUTURE.isoformat(), customer_name='Mallory')
-        self.assertTrue(out['already_booked'])
+        self.assertTrue(out['request_sent_to_team'])
+        self.assertFalse(out['confirmed'])
+        self.assertNotIn('already_booked', out)
+        self.assertNotIn('already', json.dumps(out).lower())
         self.assertNotIn('appointment_id', out)
-        self.assertNotIn('status', out)
+        self.assertEqual(out['status'], 'pending')                # trạng thái của YÊU CẦU, không phải của lịch đã có
         self.assertNotIn('customer_name', DB.appointments.find_one({'id': 1}))
         self.assertEqual(DB.appointments.count_documents({}), 1)
 
     def test_overlap_with_unowned_booking_hides_its_time(self):
         with T.chat_scope(TOKEN_A):
             out = T.book_appointment(NAIL, self.cid, service_id='1', appointment_time=(FUTURE + timedelta(minutes=30)).isoformat())
-        self.assertEqual(out['reason'], 'customer_overlap')
+        self.assertTrue(out['request_sent_to_team'])
+        self.assertNotIn('customer_overlap', json.dumps(out))
+        self.assertNotIn('another booking', json.dumps(out).lower())
         self.assertNotIn('suggest_back_to_back_start', out)
+        self.assertEqual(DB.appointments.count_documents({}), 1)
 
     def test_sms_and_whatsapp_phone_is_verified_by_the_channel(self):
         sms = inbox_channels.record(NAIL, 'sms', self.PHONE, 'my booking?', 'customer', phone=self.PHONE)
