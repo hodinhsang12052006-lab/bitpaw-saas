@@ -179,7 +179,7 @@ def list_rooms(business_id):
     _require_db()
     rows = list(db.hotel_rooms.find({'business_id': business_id},
                                     {'_id': 0, 'id': 1, 'room_number': 1, 'room_type': 1, 'price_per_night': 1,
-                                     'capacity': 1, 'status': 1}))
+                                     'capacity': 1, 'status': 1, 'expected_checkout_date': 1}))
     out = []
     for r in rows:
         if r.get('id') is None:
@@ -385,7 +385,38 @@ def _night_state(business_id, rooms, nights, today=None, ignore_id=None, now=Non
             for rid in occupied:
                 if rid not in leaving:
                     busy[t].add(rid)
+    # Khách vãng lai đã báo ngày trả phòng (db.hotel_rooms.expected_checkout_date): phòng bận MỌI đêm tới ngày đó, không chỉ
+    # đêm nay. Chưa báo ngày -> open_walkins() (không tự xác nhận phòng đó cho các đêm sau).
+    if t:
+        for r in rooms:
+            until = _walkin_until(r, t)
+            if until:
+                for n in nights:
+                    if t <= n < until:
+                        busy[n].add(r['id'])
     return busy, unassigned, untyped
+
+
+def _walkin_until(room, t):
+    until = str(room.get('expected_checkout_date') or '').strip()
+    return until if (room.get('status') == OCCUPIED and _DATE_RE.match(until) and until > t) else None
+
+
+def open_walkins(business_id, rooms, today):
+    """Phòng 'Đang ở' KHÔNG rõ ngày khách rời đi: không có đặt phòng nào của chính phòng đó phủ hôm nay / trả phòng hôm nay,
+    cũng không có expected_checkout_date — khách vãng lai check-in tại quầy (/api/hotel/rooms/<id>/checkin không ghi ngày
+    trả phòng). Đêm nay đã bận (_night_state); các đêm sau chưa biết khách còn ở hay không nên phòng đó chỉ được xếp khi
+    các phòng khác cùng loại đã hết, và KHÔNG BAO GIỜ tự xác nhận (pending + báo nhân viên)."""
+    if today is None:
+        return set()
+    t = today.isoformat()
+    occupied = [r['id'] for r in rooms if r.get('status') == OCCUPIED and not _walkin_until(r, t)]
+    if not occupied:
+        return set()
+    known = {r.get('room_id') for r in db.hotel_reservations.find(
+        {'business_id': business_id, 'status': {'$in': list(LIVE_STATUSES)}, 'room_id': {'$in': occupied},
+         'checkin_date': {'$lte': t}, 'checkout_date': {'$gte': t}}, {'_id': 0, 'room_id': 1})}
+    return {rid for rid in occupied if rid not in known}
 
 
 def _per_type(rooms, types, nights, busy, unassigned, untyped, guests):
@@ -404,20 +435,24 @@ def _per_type(rooms, types, nights, busy, unassigned, untyped, guests):
 
 def availability(business_id, checkin, checkout, guests=1, today=None, min_nights=1, ignore_id=None, now=None):
     """Tình trạng THẬT từng loại phòng cho [checkin, checkout): còn mấy phòng, giá/đêm của phòng sẽ được giữ (rẻ nhất còn
-    trống, vừa số khách), tổng = giá × số đêm. Mục '_room' là phòng sẽ giữ (nội bộ, không đưa cho khách)."""
+    trống, vừa số khách), tổng = giá × số đêm. Mục '_room' là phòng sẽ giữ (nội bộ, không đưa cho khách). '_walkins' = phòng
+    có khách vãng lai chưa rõ ngày đi (xếp sau mọi phòng trống khác cùng loại, không tự xác nhận)."""
     ci, co, n = check_stay(checkin, checkout, today=today, min_nights=min_nights)
     guests = max(1, int(guests or 1))
     rooms = list_rooms(business_id)
     types = room_types(rooms)
     out = {'checkin': ci, 'checkout': co, 'nights': n, 'guests': guests, 'types': [], 'rooms_total': len(rooms),
-           '_rooms': rooms, '_types': types}
+           '_rooms': rooms, '_types': types, '_walkins': set()}
     if not rooms:
         return out
     nights = nights_of(ci, co)
     busy, unassigned, untyped = _night_state(business_id, rooms, nights, today=today, ignore_id=ignore_id, now=now)
     per = _per_type(rooms, types, nights, busy, unassigned, untyped, guests)
+    walkins = out['_walkins'] = open_walkins(business_id, rooms, today)
     for k, t in types.items():
         p = per[k]
+        if walkins:   # sort ổn định: giữ thứ tự rẻ nhất trước trong từng nhóm
+            p['candidates'].sort(key=lambda r: r['id'] in walkins)
         room = p['candidates'][0] if (p['candidates'] and p['left'] > 0) else None
         reason = None
         if guests > t['max_guests']:
@@ -489,7 +524,8 @@ def create_hold(business_id, *, checkin, checkout, guests, room_type_key, guest_
             doc = {
                 'id': res_id, 'business_id': business_id, 'guest_name': guest_name, 'guest_phone': guest_phone,
                 'party_size': av['guests'], 'checkin_date': ci.isoformat(), 'checkout_date': co.isoformat(),
-                'room_type': t['room_type'], 'room_id': room['id'], 'status': status,
+                'room_type': t['room_type'], 'room_id': room['id'],
+                'status': 'pending' if (status == 'confirmed' and room['id'] in av['_walkins']) else status,
                 'nights': av['nights'], 'rate_per_night': room['_rate'],
                 'quoted_total': round(room['_rate'] * av['nights'], 2) if room['_rate'] else None,
                 'created_at': datetime.now().isoformat(),
@@ -510,20 +546,14 @@ def create_hold(business_id, *, checkin, checkout, guests, room_type_key, guest_
     return None, av
 
 
-def change_dates(business_id, res, checkin, checkout, guests=None, today=None, min_nights=1, new_status=None, now=None):
-    """Đổi ngày ở (kiểm lại phòng trống thật). Giữ nguyên phòng nếu còn trống, không thì phòng khác CÙNG loại. Đặt phòng
-    chưa xếp phòng (form công khai) chỉ kiểm theo số phòng của loại đó (nhân viên vẫn xếp phòng sau).
-    Trả (doc mới, availability) — doc None nếu ngày mới hết phòng. HotelRequestError nếu đặt phòng vừa bị đổi nơi khác."""
-    _require_db()
-    now = now or _utcnow()
+def _change_plan(business_id, res, checkin, checkout, guests, today, min_nights, now):
+    """Phương án đổi ngày DÙNG CHUNG cho báo giá (quote_change) và ghi (change_dates): xem phòng trống KHÔNG tính chính đặt
+    phòng này là bận; giữ nguyên phòng nếu còn trống, không thì phòng rẻ nhất còn trống CÙNG loại — giá báo = giá sẽ ghi."""
     guests = max(1, int(guests or res.get('party_size') or 1))
     av = availability(business_id, checkin, checkout, guests=guests, today=today, min_nights=min_nights,
                       ignore_id=res['id'], now=now)
-    ci, co = av['checkin'], av['checkout']
-    rooms, types = av['_rooms'], av['_types']
-    by_id = {r['id']: r for r in rooms}
-    cur_room = by_id.get(res.get('room_id'))
-    key = cur_room['_key'] if cur_room else match_type(types, res.get('room_type'))
+    cur_room = {r['id']: r for r in av['_rooms']}.get(res.get('room_id'))
+    key = cur_room['_key'] if cur_room else match_type(av['_types'], res.get('room_type'))
     t = next((x for x in av['types'] if x['key'] == key), None)
     if t and t['reason'] == 'too_many_guests':
         raise HotelRequestError(
@@ -532,6 +562,47 @@ def change_dates(business_id, res, checkin, checkout, guests=None, today=None, m
             "book an additional room or ask the hotel.",
             f"Phòng {t['room_type']} tối đa {t['max_guests']} khách nên đặt phòng CHƯA được đổi. Đông hơn thì đặt thêm phòng "
             "hoặc hỏi khách sạn.")
+    order = []
+    if res.get('room_id') is None or cur_room is None:
+        ok = (t['available'] if t else any(x['available'] for x in av['types']))
+        rate = t['rate_per_night'] if (t and ok) else None
+    else:
+        ok = bool(t and t['available'])
+        if ok:
+            order = ([r for r in t['_candidates'] if r['id'] == cur_room['id']]
+                     + [r for r in t['_candidates'] if r['id'] != cur_room['id']])
+        rate = order[0]['_rate'] if order else None
+    return {'av': av, 'guests': guests, 'cur_room': cur_room, 'key': key, 't': t, 'available': bool(ok), 'order': order,
+            'room': order[0] if order else None, 'rate': rate,
+            'total': round(rate * av['nights'], 2) if rate else None}
+
+
+def quote_change(business_id, res, checkin, checkout, guests=None, today=None, min_nights=1, now=None):
+    """Báo giá đổi ngày / số khách TRƯỚC khi khách đồng ý: còn phòng không (đêm của CHÍNH đặt phòng này không tính là bận),
+    phòng sẽ giữ và tổng tiền THẬT change_dates sẽ ghi nếu đổi lúc này. HotelRequestError nếu ngày sai / quá số khách."""
+    _require_db()
+    return _change_plan(business_id, res, checkin, checkout, guests, today, min_nights, now or _utcnow())
+
+
+_ANY_RATE = object()
+
+
+def change_dates(business_id, res, checkin, checkout, guests=None, today=None, min_nights=1, new_status=None, now=None,
+                 expect_rate=_ANY_RATE):
+    """Đổi ngày ở (kiểm lại phòng trống thật). Giữ nguyên phòng nếu còn trống, không thì phòng khác CÙNG loại. Đặt phòng
+    chưa xếp phòng (form công khai) chỉ kiểm theo số phòng của loại đó (nhân viên vẫn xếp phòng sau).
+    expect_rate = giá/đêm đã báo khách (quote_change): chỉ ghi ĐÚNG giá đó — giá vừa đổi (phòng vừa bị giữ...) thì
+    HotelRequestError 'price_changed', không ghi gì. Đặt phòng đã xác nhận được đánh dấu was_confirmed: về 'pending' vẫn theo
+    hạn huỷ của đặt phòng đã xác nhận. Phòng có khách vãng lai chưa rõ ngày đi -> không giữ 'confirmed'.
+    Trả (doc mới, availability) — doc None nếu ngày mới hết phòng. HotelRequestError nếu đặt phòng vừa bị đổi nơi khác."""
+    _require_db()
+    now = now or _utcnow()
+    plan = _change_plan(business_id, res, checkin, checkout, guests, today, min_nights, now)
+    av, cur_room, guests = plan['av'], plan['cur_room'], plan['guests']
+    ci, co = av['checkin'], av['checkout']
+    rooms, types = av['_rooms'], av['_types']
+    if plan['available'] and expect_rate is not _ANY_RATE and plan['rate'] != expect_rate:
+        raise _price_changed()
     cas = {'id': res['id'], 'business_id': business_id, 'status': {'$in': list(LIVE_STATUSES)},
            'checkin_date': res.get('checkin_date'), 'checkout_date': res.get('checkout_date'), 'room_id': res.get('room_id')}
     upd = {'checkin_date': ci.isoformat(), 'checkout_date': co.isoformat(), 'party_size': guests, 'nights': av['nights'],
@@ -540,37 +611,51 @@ def change_dates(business_id, res, checkin, checkout, guests=None, today=None, m
            'changed_at': datetime.now().isoformat()}
     if new_status:
         upd['status'] = new_status
+    if res.get('status') == 'confirmed' or res.get('was_confirmed'):
+        upd['was_confirmed'] = True   # hạn huỷ của đặt phòng đã xác nhận vẫn áp dụng khi chờ khách sạn xác nhận lại
 
     if res.get('room_id') is None or cur_room is None:
-        ok = (t['available'] if t else any(x['available'] for x in av['types']))
-        if not ok:
+        if not plan['available']:
             return None, av
-        rate = t['rate_per_night'] if t else None
+        rate = plan['rate']
         upd.update({'rate_per_night': rate, 'quoted_total': round(rate * av['nights'], 2) if rate else None})
         if db.hotel_reservations.update_one(cas, {'$set': upd}).matched_count == 0:
             raise _changed_meanwhile()
         return {**res, **upd}, av
 
-    if not t:
+    if not plan['available']:
         return None, av
-    if not t['available']:
-        return None, av
-    order = [r for r in t['_candidates'] if r['id'] == cur_room['id']] + [r for r in t['_candidates'] if r['id'] != cur_room['id']]
-    for room in order[:MAX_ROOMS_TRIED]:
+    tried, sold_out = plan['order'][:MAX_ROOMS_TRIED], False
+    for room in tried:
+        if room['_rate'] != plan['rate']:
+            continue   # không bao giờ ghi giá khác giá đã báo khách
         taken, why = _try_room(business_id, room, rooms, types, ci, co, res['id'], today, now, exclude_id=res['id'])
         if taken is None:
             if why == 'sold_out':
+                sold_out = True
                 break
             continue
         rate = room['_rate']
         upd.update({'room_id': room['id'], 'rate_per_night': rate,
                     'quoted_total': round(rate * av['nights'], 2) if rate else None})
+        if room['id'] in av['_walkins'] and upd.get('status', res.get('status')) == 'confirmed':
+            upd['status'] = 'pending'
         if db.hotel_reservations.update_one(cas, {'$set': upd}).matched_count == 0:
             _drop_claims(taken, res['id'])
             raise _changed_meanwhile()
         release_claims(business_id, res['id'], keep=[_claim_key(business_id, room['id'], n) for n in nights_of(ci, co)])
         return {**res, **upd}, av
+    if not sold_out and any(r['_rate'] != plan['rate'] for r in tried):
+        raise _price_changed()   # chỉ còn phòng giá khác -> báo lại giá, không tự đổi giá
     return None, av
+
+
+def _price_changed():
+    return HotelRequestError('price_changed',
+                             'The price for these dates just changed, so the booking was NOT changed. Check the new total '
+                             'with the guest before changing it.',
+                             'Giá những ngày này vừa thay đổi nên đặt phòng CHƯA được đổi. Báo lại tổng tiền mới cho khách '
+                             'trước khi đổi.')
 
 
 def _changed_meanwhile():
@@ -593,7 +678,8 @@ def cancel(business_id, reservation_id, by, extra=None):
 
 def assign_room(business_id, res, room_id, now=None):
     """Xếp phòng cụ thể cho 1 đặt phòng có giữ phiếu nguyên tử — để màn /hotel/reservations dùng thay cho kiểm trùng
-    không nguyên tử (việc của người tích hợp). True nếu xếp được."""
+    không nguyên tử (việc của người tích hợp). True nếu xếp được, False nếu phòng đã có khách khác; HotelRequestError
+    'changed_meanwhile' nếu đặt phòng vừa bị đổi ngày / phòng / huỷ ở nơi khác so với bản `res` (không ghi gì)."""
     _require_db()
     now = now or _utcnow()
     ci, co = parse_day(res['checkin_date']), parse_day(res['checkout_date'])
@@ -603,10 +689,13 @@ def assign_room(business_id, res, room_id, now=None):
     if overlaps(business_id, room_id, ci.isoformat(), co.isoformat(), exclude_id=res['id']):
         _drop_claims(taken, res['id'])
         return False
-    if db.hotel_reservations.update_one({'id': res['id'], 'business_id': business_id},
-                                        {'$set': {'room_id': room_id}}).matched_count == 0:
+    # Ghi CÓ ĐIỀU KIỆN theo đúng bản đã giữ phiếu (giống change_dates): khách vừa dời ngày trong chat thì phiếu vừa giữ là
+    # cho các đêm CŨ — ghi room_id lên ngày MỚI sẽ xếp trùng phòng.
+    snap = {'id': res['id'], 'business_id': business_id, 'status': {'$in': list(LIVE_STATUSES)},
+            'checkin_date': res.get('checkin_date'), 'checkout_date': res.get('checkout_date'), 'room_id': res.get('room_id')}
+    if db.hotel_reservations.update_one(snap, {'$set': {'room_id': room_id}}).matched_count == 0:
         _drop_claims(taken, res['id'])
-        return False
+        raise _changed_meanwhile()
     if overlaps(business_id, room_id, ci.isoformat(), co.isoformat(), exclude_id=res['id']):
         # Lượt khác vừa ghi đúng phòng này đúng lúc này (giống kiểm lại sau khi ghi của create_hold): trả lại phòng cũ.
         db.hotel_reservations.update_one({'id': res['id'], 'business_id': business_id, 'room_id': room_id},
@@ -668,10 +757,11 @@ def save_hotel_settings(business_id, data):
 
 
 def cancel_allowed(res, settings, now_local):
-    """(được huỷ qua chat?, mã lý do). Yêu cầu còn 'pending' (khách sạn chưa nhận) huỷ được bất cứ lúc nào; đặt phòng đã
-    xác nhận: trước hạn huỷ miễn phí của chủ (free_cancel_hours trước giờ nhận phòng), chưa đặt hạn thì trước NGÀY nhận
-    phòng. Sau đó khách sạn quyết (có thể mất phí) — AI chuyển cho nhân viên."""
-    if res.get('status') == 'pending':
+    """(được huỷ qua chat?, mã lý do). Yêu cầu còn 'pending' mà khách sạn CHƯA TỪNG xác nhận: được (AI còn chặn từ ngày nhận
+    phòng); đặt phòng đã xác nhận — kể cả đã xác nhận rồi đổi ngày, đang chờ xác nhận lại (was_confirmed): trước hạn huỷ
+    miễn phí của chủ (free_cancel_hours trước giờ nhận phòng, chưa đặt giờ nhận phòng thì tính từ 00:00 ngày nhận phòng),
+    chưa đặt hạn thì trước NGÀY nhận phòng. Sau đó khách sạn quyết (có thể mất phí) — AI chuyển cho nhân viên."""
+    if res.get('status') == 'pending' and not res.get('was_confirmed'):
         return True, 'pending_request'
     ci = parse_day(res.get('checkin_date'))
     now = now_local.replace(tzinfo=None) if getattr(now_local, 'tzinfo', None) else now_local
