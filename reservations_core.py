@@ -503,20 +503,29 @@ _CC = {'US': '1', 'CA': '1', 'AU': '61', 'NZ': '64', 'GB': '44', 'VN': '84'}
 
 
 def e164(phone, country=None):
-    """'+61412345678' hoặc '' — cùng luật messaging.normalize_phone / ai_packs.normalize_phone (số nội địa theo nước quán)."""
+    """'+61412345678' hoặc '' — BẢN SAO ĐÚNG luật ai_packs.normalize_phone (scripts/tests/test_phase2_fix3_country.py so
+    từng ca; gói nạp riêng không có registry vẫn dùng được): số nội địa theo nước quán (country_of); quán CHƯA BIẾT nước ->
+    '' (không đoán là số Mỹ); Mỹ / Canada chỉ số NANP hợp lệ; số 0 trung kế ghi sau mã nước Úc / NZ / Anh / VN được bỏ."""
     raw = str(phone or '').strip()
     digits = re.sub(r'\D', '', raw)
     if not digits:
         return ''
     if raw.startswith('+') or raw.startswith('00'):
         d = digits if raw.startswith('+') else digits[2:]
+        cc = next((x for x in _TRUNK0_CC if d.startswith(x + '0')), None)
+        if cc and len(d) - len(cc) - 1 >= 7:
+            d = cc + d[len(cc) + 1:]
         return '+' + d if 8 <= len(d) <= 15 else ''
-    c = (country or 'US').upper()
+    c = str(country or '').strip().upper()
+    if not c:
+        return ''
     if c in ('US', 'CA'):
-        if len(digits) == 10:
+        if len(digits) == 10 and digits[0] not in '01':
             return '+1' + digits
-        if len(digits) == 11 and digits.startswith('1'):
+        if len(digits) == 11 and digits[0] == '1' and digits[1] not in '01':
             return '+' + digits
+        if digits[0] == '1':
+            return ''   # +1 nhưng không phải số NANP hợp lệ
     elif c == 'AU':
         if len(digits) == 10 and digits.startswith('0'):
             return '+61' + digits[1:]
@@ -536,7 +545,7 @@ def e164(phone, country=None):
             return '+' + _CC[c] + digits[1:]
         if digits.startswith(_CC[c]) and 10 <= len(digits) <= 13:
             return '+' + digits
-    if 11 <= len(digits) <= 15:
+    if 11 <= len(digits) <= 15 and digits[0] != '0':
         return '+' + digits
     return ''
 
@@ -554,9 +563,12 @@ def same_phone(a, b, country=None):
 
 
 def country_of(business_id):
+    """Nước của quán ('AU'...) hoặc None — CÙNG 1 nguồn với mọi chỗ chuẩn hoá SĐT: ai_packs.shop_country (hồ sơ quán -> múi
+    giờ trang Nhắn tin -> tiền tệ). Không qua TenantEngine (mặc định 'VN' khi hồ sơ chưa có nước: quán Úc / Mỹ tự đăng ký
+    từng bị đọc số nội địa như số Việt Nam)."""
     try:
-        from tenant_engine import TenantEngine
-        return str((TenantEngine.get_region_config(business_id) or {}).get('country') or '').upper() or None
+        import ai_packs
+        return ai_packs.shop_country(business_id)
     except Exception:
         return None
 

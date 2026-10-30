@@ -207,7 +207,7 @@ def _login(user, provider, nxt=None):
 @oauth_bp.route('/auth/complete', methods=['GET', 'POST'])
 def oauth_complete():
     """Người mới đăng nhập Google/Facebook lần đầu: cần mã kích hoạt (BitPaw gửi sau khi mua gói) + tên tiệm."""
-    from app import INDUSTRY_CONFIG, _send_welcome_email, csrf
+    from app import INDUSTRY_CONFIG, _send_welcome_email, _signup_region, csrf
     pend = session.get('oauth_signup')
     if not pend or time.time() - int(pend.get('ts') or 0) > 1800:
         session.pop('oauth_signup', None)
@@ -234,7 +234,8 @@ def oauth_complete():
         err = 'Invalid activation code, or it has already been used.'
     if err:
         return render_template('oauth_complete.html', pend=pend, industry_en=INDUSTRY_EN, industries=INDUSTRY_CONFIG, error=err,
-                               form={'business_name': business_name, 'business_type': business_type}), 400
+                               form={'business_name': business_name, 'business_type': business_type,
+                                     'country': request.form.get('country')}), 400
     lic = (key.get('nganh_nghe') or '').strip().lower()
     if lic and lic != 'all':
         business_type = lic
@@ -251,6 +252,7 @@ def oauth_complete():
                    'created_at': datetime.now().isoformat()}
         if (key or {}).get('plan') in ('essential', 'pro', 'empire'):
             biz_doc['plan'] = key['plan']
+        biz_doc.update(_signup_region(request.form))   # nước + tiền tệ (ô "Quốc gia của tiệm" / header Vercel), không rõ -> không lưu
         db.businesses.insert_one(biz_doc)
         db.system_settings.update_one({'key': f'business_mode_{user_id}'}, {'$set': {'key': f'business_mode_{user_id}', 'value': business_type}}, upsert=True)
     except Exception as e:

@@ -56,11 +56,19 @@ def business(business_id):
         name = str(b.get('name') or '').strip()
         if '@' in name:   # old accounts used the owner's e-mail as the shop name — never show it to customers
             name = ''
+        profile_country = (b.get('country') or '').upper() or None
+        try:   # 'country' = the ONE shop country every phone normaliser uses (profile -> Messaging time zone -> currency)
+            import ai_packs
+            country = ai_packs.shop_country(dict(b, id=business_id))
+        except Exception as e:
+            print(f"[customer_context] country: {e}")
+            country = profile_country
         return {'id': business_id, 'name': name or None, 'industry': _norm_industry(b.get('industry_code')) or None,
-                'currency': (b.get('currency') or 'VND').upper(), 'country': (b.get('country') or '').upper() or None,
+                'currency': (b.get('currency') or 'VND').upper(), 'country': country, 'profile_country': profile_country,
                 'phone': str(b.get('phone') or '').strip(), 'address': str(b.get('address') or '').strip()}
     if not business_id:
-        return {'id': None, 'name': None, 'industry': None, 'currency': 'VND', 'country': None, 'phone': '', 'address': ''}
+        return {'id': None, 'name': None, 'industry': None, 'currency': 'VND', 'country': None, 'profile_country': None,
+                'phone': '', 'address': ''}
     return booking_rules._cached(('cc_business', business_id), _load)
 
 
@@ -73,13 +81,14 @@ def money(business_id, amount):
 
 
 def tz_name(business_id):
-    """Same source as booking_rules.local_now: Messaging settings time zone, else the country's main zone."""
+    """Same source as booking_rules.local_now: Messaging settings time zone, else the main zone of the country on the shop
+    profile (profile_country — not a country guessed from the currency, which booking_rules.local_now does not use either)."""
     def _load():
         try:
             t = (db.messaging_settings.find_one({'business_id': business_id}, {'_id': 0, 'timezone': 1}) or {}).get('timezone')
         except Exception:
             t = None
-        return t or booking_rules.COUNTRY_TZ.get(business(business_id).get('country') or '')
+        return t or booking_rules.COUNTRY_TZ.get(business(business_id).get('profile_country') or '')
     return booking_rules._cached(('cc_tz', business_id), _load) if business_id else None
 
 

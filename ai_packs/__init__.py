@@ -36,14 +36,16 @@ ctx passed to execute() (a fresh copy per call):
                      a visitor can't dodge by clearing the browser token or typing a new phone. Never proof of anything.
     lang             'vi' | 'en' (the customer's latest message)
     now_local        timezone-aware datetime in the shop's timezone
-    customer_name    name we already know (None when only a placeholder) ; country  shop country code
+    customer_name    name we already know (None when only a placeholder) ; country  shop country code (shop_country():
+                     profile -> Messaging time zone -> currency; None = unknown, a national number is then never guessed)
   A MANAGE tool on web chat with neither a chat token nor a verified phone is refused here, before the pack runs.
   manage_filter(ctx) builds the ownership filter the contract asks for (verified phone OR this chat's token OR conversation);
   token_owns(doc, ctx) is the same token rule for one document. Phones match as the SAME full number only (same_phone /
   phone_variants), never 'the last N digits'.
 
 Other helpers: pack_for(industry), pack_for_business(business_id), tools_for(...), claim_ready(industry),
-normalize_phone(), phone_variants(), errors() (modules skipped at discovery and why).
+normalize_phone(), phone_variants(), shop_country() (the shop's country for every phone normaliser), errors() (modules
+skipped at discovery and why).
 """
 import hashlib
 import importlib
@@ -371,10 +373,13 @@ _TRUNK0_CC = ('61', '64', '44', '84')
 
 
 def normalize_phone(phone, country=None):
-    """E.164 ('+61412345678') or '' when it is not a phone number or its country can't be known. Like messaging.normalize_phone
-    + NZ/GB/VN extras, with stricter rules: the shop's country unknown + a national number (no '+' / '00') -> '' (never guessed
-    as US: '0912 345 678' is not +10912345678); US/CA only valid NANP numbers (no area code starts with 0 or 1); the trunk 0
-    kept after an AU/NZ/GB/VN country code ('+61 (0)412 345 678', '+610412345678') is dropped (same number)."""
+    """E.164 ('+61412345678') or '' when it is not a phone number or its country can't be known. THE phone rule of BitPaw:
+    reservations_core.e164, messaging.normalize_phone and ai_packs.retail._e164_local are exact copies of it
+    (scripts/tests/test_phase2_fix3_country.py compares them case by case). `country` = the shop's country (shop_country()).
+    The shop's country unknown + a national number (no '+' / '00') -> '' (never guessed as US: '0912 345 678' is not
+    +10912345678); US/CA only valid NANP numbers (no area code starts with 0 or 1); the trunk 0 kept after an AU/NZ/GB/VN
+    country code ('+61 (0)412 345 678', '+610412345678') is dropped (same number); a foreign number typed without '+' keeps
+    its own country code, and no country code starts with 0 ('04123456789' at a US shop -> '', not +04123456789)."""
     raw = str(phone or '').strip()
     digits = re.sub(r'\D', '', raw)
     if not digits:
@@ -414,7 +419,7 @@ def normalize_phone(phone, country=None):
             return '+' + _CC[c] + digits[1:]
         if digits.startswith(_CC[c]) and 10 <= len(digits) <= 13:
             return '+' + digits
-    if 11 <= len(digits) <= 15:
+    if 11 <= len(digits) <= 15 and digits[0] != '0':
         return '+' + digits
     return ''
 
@@ -502,6 +507,80 @@ def same_phone(a, b, country=None):
         return ea == eb
     da, db_ = re.sub(r'\D', '', str(a or '')), re.sub(r'\D', '', str(b or ''))
     return len(da) >= 6 and da == db_
+
+
+# ---------------------------------------------------------------- the shop's country (ONE answer for every phone normaliser)
+SHOP_COUNTRIES = ('US', 'AU', 'VN', 'CA', 'NZ', 'GB')   # the countries BitPaw has phone / time-zone / currency rules for
+CURRENCY_COUNTRY = {'USD': 'US', 'AUD': 'AU', 'VND': 'VN', 'CAD': 'CA', 'NZD': 'NZ', 'GBP': 'GB'}
+# Time zones of the Messaging settings page (templates/messaging_settings.html) + their usual aliases -> country
+_TZ_COUNTRY = {
+    'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US', 'America/Phoenix': 'US',
+    'America/Los_Angeles': 'US', 'America/Anchorage': 'US', 'Pacific/Honolulu': 'US', 'America/Detroit': 'US',
+    'America/Boise': 'US', 'America/Juneau': 'US', 'America/Adak': 'US',
+    'America/Toronto': 'CA', 'America/Vancouver': 'CA', 'America/Edmonton': 'CA', 'America/Winnipeg': 'CA',
+    'America/Halifax': 'CA', 'America/St_Johns': 'CA', 'America/Regina': 'CA', 'America/Montreal': 'CA',
+    'America/Moncton': 'CA', 'Pacific/Auckland': 'NZ', 'Pacific/Chatham': 'NZ', 'NZ': 'NZ', 'Europe/London': 'GB', 'GB': 'GB',
+    'Asia/Ho_Chi_Minh': 'VN', 'Asia/Saigon': 'VN',
+}
+_TZ_PREFIX_COUNTRY = (('Australia/', 'AU'), ('US/', 'US'), ('America/Indiana/', 'US'), ('America/Kentucky/', 'US'),
+                      ('America/North_Dakota/', 'US'), ('Canada/', 'CA'))
+
+
+def country_code(value):
+    """' au ' -> 'AU' when it is one of SHOP_COUNTRIES ('UK' -> 'GB'); 'other', 'DE', '', None -> None."""
+    c = str(value or '').strip().upper()
+    c = {'UK': 'GB'}.get(c, c)
+    return c if c in SHOP_COUNTRIES else None
+
+
+def country_from_timezone(tz):
+    """'Australia/Perth' -> 'AU', 'America/Toronto' -> 'CA'; a zone of another country (or none) -> None."""
+    t = str(tz or '').strip()
+    return _TZ_COUNTRY.get(t) or next((c for p, c in _TZ_PREFIX_COUNTRY if t.startswith(p)), None)
+
+
+def shop_country(business):
+    """The shop's country ('US' | 'AU' | 'VN' | 'CA' | 'NZ' | 'GB') or None — the ONE answer every phone normaliser uses
+    (customer_context.business -> ai_function_tools + the packs' ctx['country']; reservations_core.country_of):
+      1. db.businesses.country (stored at signup, app._signup_region). When it is set it decides: a country BitPaw has no
+         rules for ('other', 'SG'...) -> None, never guessed from the currency;
+      2. else the time zone chosen on the Messaging settings page (db.messaging_settings.timezone);
+      3. else the shop currency (USD -> US, AUD -> AU, VND -> VN, CAD -> CA, NZD -> NZ, GBP -> GB);
+      4. else None — no silent US / VN default: a national number ('0412 345 678') is then not guessed (normalize_phone
+         -> ''), an international one ('+61 412 345 678') still works.
+    `business`: a business id, or a db.businesses document with its 'id', 'country' and 'currency'. A DB error reads as
+    'not set'."""
+    import sys
+    doc = dict(business) if isinstance(business, dict) else None
+    bid = doc.get('id') if doc is not None else business
+    db = None
+    try:
+        mc = sys.modules.get('mongo_client')
+        if mc is None:
+            import mongo_client as mc
+        db = mc.db
+    except Exception as e:
+        print(f"[ai_packs] shop_country: {e}")
+    if doc is None:
+        doc = {}
+        if bid and db is not None:
+            try:
+                doc = db.businesses.find_one({'id': bid}, {'_id': 0, 'country': 1, 'currency': 1}) or {}
+            except Exception as e:
+                print(f"[ai_packs] shop_country: {e}")
+    stored = str(doc.get('country') or '').strip()
+    if stored:
+        return country_code(stored)
+    if bid and db is not None:
+        tz = None
+        try:
+            tz = (db.messaging_settings.find_one({'business_id': bid}, {'_id': 0, 'timezone': 1}) or {}).get('timezone')
+        except Exception as e:
+            print(f"[ai_packs] shop_country: {e}")
+        c = country_from_timezone(tz)
+        if c:
+            return c
+    return CURRENCY_COUNTRY.get(str(doc.get('currency') or '').strip().upper())
 
 
 def typed_phone(ctx):

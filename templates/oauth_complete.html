@@ -42,6 +42,17 @@
     <select id="business_type" name="business_type">
         {% for code, cfg in industries.items() %}<option value="{{ code }}" {% if (form or {}).get('business_type') == code %}selected{% endif %}>{{ cfg.get('name') if vi else industry_en.get(code, cfg.get('name') or code) }}</option>{% endfor %}
     </select>
+    {# Nước của tiệm: đọc đúng SĐT nội địa của khách + tiền tệ (app._signup_region). Giữ lựa chọn khi form báo lỗi, không thì theo header Vercel #}
+    {% set picked = (form or {}).get('country') %}
+    {% set picked = (request.headers.get('X-Vercel-IP-Country') or '' if picked is none else picked)|upper %}
+    {% set picked = 'GB' if picked == 'UK' else picked %}
+    {% set countries = [('US', 'Hoa Kỳ (Mỹ)', 'United States'), ('AU', 'Úc', 'Australia'), ('VN', 'Việt Nam', 'Vietnam'), ('CA', 'Canada', 'Canada'), ('NZ', 'New Zealand', 'New Zealand'), ('GB', 'Vương quốc Anh', 'United Kingdom')] %}
+    <label for="country">{{ 'Quốc gia của tiệm' if vi else 'Shop country' }}</label>
+    <select id="country" name="country">
+        <option value="" {% if not picked %}selected{% endif %}>{{ 'Chọn quốc gia' if vi else 'Select country' }}</option>
+        {% for code, vi_name, en_name in countries %}<option value="{{ code }}" {% if picked == code %}selected{% endif %}>{{ vi_name if vi else en_name }}</option>{% endfor %}
+        <option value="other" {% if picked and picked not in countries|map('first') %}selected{% endif %}>{{ 'Nước khác' if vi else 'Other' }}</option>
+    </select>
     {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
     <button type="submit">{{ 'Tạo tài khoản' if vi else 'Create my account' }}</button>
     <p class="help">{{ 'Chưa có mã? Chọn gói ở' if vi else "Don't have a code yet? Choose a plan at" }} <a href="/checkout">/checkout</a> — {{ 'BitPaw liên hệ và gửi mã trong 1 ngày làm việc.' if vi else 'BitPaw will contact you and send the code within 1 business day.' }}</p>
