@@ -193,8 +193,12 @@ for (const ind of ONLY) {
     await owner.waitForTimeout(1000);
     st = db('state', BID, MA_NV);
     rec(ind, 'Chủ', 'Duyệt đơn nghỉ + hoàn ứng', st.leave[0]?.status === 'approved' && st.expense[0]?.status === 'approved');
-    await go(owner, ccPage); await owner.waitForTimeout(1500);
-    rec(ind, 'Chủ', `Trang chấm công ngành (${ccPage}) có nhân viên mới`, (await owner.content()).includes(HO_TEN));
+    // danh sách nhân viên do JS tải sau khi mở trang: chờ tới khi thấy tên (tải lại 1 lần nếu lần tải bị kẹt)
+    const seesNew = async () => owner.waitForFunction((n) => document.body.innerText.includes(n), HO_TEN, { timeout: 12000 }).then(() => true, () => false);
+    await go(owner, ccPage);
+    let ccOk = await seesNew();
+    if (!ccOk) { await go(owner, ccPage); ccOk = await seesNew(); }
+    rec(ind, 'Chủ', `Trang chấm công ngành (${ccPage}) có nhân viên mới`, ccOk);
     if (st.swaps.length) {   // chủ tiệm duyệt yêu cầu đổi ca ngay trên trang chấm công
       const row = owner.locator(`#swapRequestsBox [data-swap-id="${st.swaps[0].id}"]`);
       const seen = await row.count() === 1;
