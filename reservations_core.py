@@ -649,6 +649,22 @@ def _typed_phone(ctx):
     return None
 
 
+_TRUNK0_CC = ('61', '64', '44', '84')
+
+
+def _untrunk(phone):
+    """'+61 (0)412 345 678' / '+610412345678' / '0061 0412...' (mã nước + số 0 đầu của số nội địa — cách ghi hay gặp ở Úc / NZ /
+    Anh / VN) -> '+61412345678'; mọi cách ghi khác giữ nguyên. Chỉ cho so khớp chủ đặt chỗ: lọc ứng viên (_phone_regex) và
+    kiểm từng dòng (is_owned / _token_owns) phải nhận CÙNG các cách ghi, không thì đặt chỗ của khách đã xác minh bị rơi mất."""
+    raw = str(phone or '').strip()
+    if not (raw.startswith('+') or raw.startswith('00')):
+        return phone
+    d = re.sub(r'\D', '', raw)
+    d = d if raw.startswith('+') else d[2:]
+    cc = next((x for x in _TRUNK0_CC if d.startswith(x + '0')), None)
+    return ('+' + cc + d[len(cc) + 1:]) if cc and len(d) - len(cc) - 1 >= 7 else phone
+
+
 def _token_owns(doc, ctx):
     """Mã chat khớp VÀ (chat web) đặt chỗ thuộc đúng chat này: tạo trong cùng hội thoại web, hoặc lưu đúng SĐT khách gõ ở đây.
     1 trình duyệt (máy tính bảng quầy lễ tân) dùng chung 1 mã cho mọi khách: khách kế tiếp gõ SĐT khác không thừa hưởng đặt
@@ -662,7 +678,7 @@ def _token_owns(doc, ctx):
     if cid and doc.get('ai_conversation_id') == cid:
         return True
     typed = _typed_phone(ctx)
-    return bool(typed) and same_phone(doc.get('customer_phone'), typed, ctx_country(ctx))
+    return bool(typed) and same_phone(_untrunk(doc.get('customer_phone')), _untrunk(typed), ctx_country(ctx))
 
 
 def is_owned(doc, ctx):
@@ -671,7 +687,7 @@ def is_owned(doc, ctx):
     không có mã: không gì cả. Cùng luật ai_packs.manage_filter của phần lõi."""
     if not doc or not ctx:
         return False
-    if ctx.get('phone') and same_phone(doc.get('customer_phone'), ctx['phone'], ctx_country(ctx)):
+    if ctx.get('phone') and same_phone(_untrunk(doc.get('customer_phone')), _untrunk(ctx['phone']), ctx_country(ctx)):
         return True
     if _token_owns(doc, ctx):
         return True
@@ -708,13 +724,15 @@ def ai_tags(ctx):
 
 def _phone_regex(phone, country=None):
     """Regex Mongo khớp ĐÚNG số này dù ghi kiểu gì ('0412-345-678', '+61 412 345 678', '(212) 555-1234'): đủ mọi chữ số, neo
-    2 đầu, trước số quốc gia chỉ cho mã nước hoặc số 0 đầu — không bao giờ khớp số khác chỉ trùng mấy số cuối."""
-    d = re.sub(r'\D', '', e164(phone, country) or '')
+    2 đầu, trước số quốc gia chỉ cho mã nước hoặc số 0 đầu (Úc / NZ / Anh / VN: cả 2, '+61 (0)412...') — không bao giờ khớp số
+    khác chỉ trùng mấy số cuối. Cùng các cách ghi is_owned nhận (_untrunk)."""
+    d = re.sub(r'\D', '', e164(_untrunk(phone), country) or '')
     if not 8 <= len(d) <= 15:
         return None
     cc = next((c for c in sorted(set(_CC.values()), key=len, reverse=True) if d.startswith(c) and len(d) - len(c) >= 7), '')
     sp = r'\D*'.join
-    prefix = (r'(?:(?:\+|00)?\D*' + sp(cc) + r'\D*|0\D*)?') if cc else r'(?:\+|00)?\D*'
+    trunk = r'(?:0\D*)?' if cc in _TRUNK0_CC else ''
+    prefix = (r'(?:(?:\+|00)?\D*' + sp(cc) + r'\D*' + trunk + r'|0\D*)?') if cc else r'(?:\+|00)?\D*'
     return r'^\D*' + prefix + sp(d[len(cc):]) + r'\D*$'
 
 

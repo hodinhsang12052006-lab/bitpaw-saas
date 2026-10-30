@@ -126,8 +126,8 @@ def test_widget_static():
     handled = re.findall(r"if \(resData\.ai_unavailable && CHAT_CONTEXT === 'customer_booking'\) \{\s*//[^\n]*\n\s*aiReply = await aiUnavailableReply\(resData, msgVal\);", s)
     check('widget: cả 2 lượt chat (đầu + sau) xử lý ai_unavailable TRƯỚC paused/choices', len(handled) == 2, str(len(handled)))
     check('widget: giữ hội thoại qua /api/portal/messages (GET kiểm tra + POST sender_type customer)',
-          'fetch("/api/portal/messages?customer_id=" + encodeURIComponent(customerId))' in s
-          and 'JSON.stringify({ customer_id: customerId, content: msg, sender_type: "customer" })' in s)
+          'fetch("/api/portal/messages?customer_id=" + encodeURIComponent(customerId), portalAuth())' in s
+          and 'JSON.stringify({ customer_id: customerId, content: msg, sender_type: "customer", chat_token: getChatToken() })' in s)
     check('widget: nút Gọi / Nhắn tin dựng bằng DOM (textContent), href tel:/sms: chỉ chữ số và +',
           '["tel:", BT.call, "fa-phone"], ["sms:", BT.text, "fa-comment-sms"]' in s and 'replace(/[^0-9+]/g, "")' in s
           and 'document.createTextNode(label)' in s)

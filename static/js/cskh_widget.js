@@ -584,6 +584,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return tok;
     }
     const bookingTokenField = () => (CHAT_CONTEXT === 'customer_booking' ? { chat_token: getChatToken() } : {});
+    // /api/portal/* (trả lời của nhân viên tiệm, giữ hội thoại cho nhân viên): server chỉ mở hội thoại web cho ĐÚNG trình duyệt
+    // đã chat ở đó (mã chat này); hội thoại SMS / WhatsApp / Messenger... không bao giờ. Mã đi trong header (không nằm trong URL);
+    // riêng EventSource không gửi được header nên dùng ?chat_token=.
+    const portalAuth = () => ({ headers: { "X-Chat-Token": getChatToken() } });
 
     // Dọn lại phần UI tĩnh (không thuộc dna) cho đúng ngữ cảnh đặt lịch: đổi tiêu đề header,
     // ẩn hàng quick-reply "Nail Salon/Restaurant/Payroll..." (chọn ngành phần mềm — vô nghĩa
@@ -740,13 +744,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // 6d. Nhân viên tiệm trả lời khách NGAY trong widget đặt lịch. BUG THẬT đã vá (đo thật 10/2026): chủ
     // tiệm trả lời trong /ai_bot (sender_type='staff') nhưng widget trên trang đặt lịch không hề nghe kênh
     // nào cho hội thoại "business_id:SĐT" -> khách đang chờ KHÔNG BAO GIỜ thấy câu trả lời. Dùng lại kênh
-    // public của /portal (/api/portal/stream + /api/portal/messages, cùng khoá customer_id).
+    // public của /portal (/api/portal/stream + /api/portal/messages, cùng khoá customer_id + mã chat của trình duyệt này).
     let handoffNoticeShown = false;
     let shopReplyStream = null;
     let shopReplySeen = null; // số tin staff đã có lúc bắt đầu nghe — chỉ hiện tin MỚI
     async function fetchShopReplies(customerId) {
         try {
-            const res = await fetch("/api/portal/messages?customer_id=" + encodeURIComponent(customerId));
+            const res = await fetch("/api/portal/messages?customer_id=" + encodeURIComponent(customerId), portalAuth());
             const json = await res.json();
             if (!json.success) return false;
             const staff = (json.data || []).filter(m => m.sender_type === "staff");
@@ -764,7 +768,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const customerId = BUSINESS_ID + ":" + phone;
         shopReplyStream = "pending";
         if (!(await fetchShopReplies(customerId))) { shopReplyStream = null; return; } // hội thoại chưa lưu
-        shopReplyStream = new EventSource("/api/portal/stream?customer_id=" + encodeURIComponent(customerId));
+        shopReplyStream = new EventSource("/api/portal/stream?customer_id=" + encodeURIComponent(customerId)
+                                          + "&chat_token=" + encodeURIComponent(getChatToken()));
         shopReplyStream.onmessage = () => fetchShopReplies(customerId);
     }
 
@@ -783,7 +788,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function keepThreadForTeam(customerId, msg) {
         try {
-            const res = await fetch("/api/portal/messages?customer_id=" + encodeURIComponent(customerId));
+            const res = await fetch("/api/portal/messages?customer_id=" + encodeURIComponent(customerId), portalAuth());
             if (!res.ok) return false;                       // hội thoại chưa có -> không ghi được
             const json = await res.json();
             if (!json.success) return false;
@@ -793,7 +798,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const post = await fetch("/api/portal/messages", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ customer_id: customerId, content: msg, sender_type: "customer" }),
+                body: JSON.stringify({ customer_id: customerId, content: msg, sender_type: "customer", chat_token: getChatToken() }),
             });
             const pj = await post.json().catch(() => ({}));
             return post.ok && pj.success !== false;

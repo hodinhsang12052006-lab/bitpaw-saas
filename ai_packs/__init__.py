@@ -366,23 +366,35 @@ def claim_ready(industry):
 
 # ---------------------------------------------------------------- phones (bookings store what the customer typed)
 _CC = {'US': '1', 'CA': '1', 'AU': '61', 'NZ': '64', 'GB': '44', 'VN': '84'}
+# National numbers there start with a trunk 0 that people often keep after the country code: '+61 (0)412 345 678'
+_TRUNK0_CC = ('61', '64', '44', '84')
 
 
 def normalize_phone(phone, country=None):
-    """E.164 ('+61412345678') or '' when it is not a phone number. Same rules as messaging.normalize_phone + NZ/GB/VN extras."""
+    """E.164 ('+61412345678') or '' when it is not a phone number or its country can't be known. Like messaging.normalize_phone
+    + NZ/GB/VN extras, with stricter rules: the shop's country unknown + a national number (no '+' / '00') -> '' (never guessed
+    as US: '0912 345 678' is not +10912345678); US/CA only valid NANP numbers (no area code starts with 0 or 1); the trunk 0
+    kept after an AU/NZ/GB/VN country code ('+61 (0)412 345 678', '+610412345678') is dropped (same number)."""
     raw = str(phone or '').strip()
     digits = re.sub(r'\D', '', raw)
     if not digits:
         return ''
     if raw.startswith('+') or raw.startswith('00'):
         d = digits if raw.startswith('+') else digits[2:]
+        cc = next((x for x in _TRUNK0_CC if d.startswith(x + '0')), None)
+        if cc and len(d) - len(cc) - 1 >= 7:
+            d = cc + d[len(cc) + 1:]
         return '+' + d if 8 <= len(d) <= 15 else ''
-    c = (country or 'US').upper()
+    c = str(country or '').strip().upper()
+    if not c:
+        return ''
     if c in ('US', 'CA'):
-        if len(digits) == 10:
+        if len(digits) == 10 and digits[0] not in '01':
             return '+1' + digits
-        if len(digits) == 11 and digits.startswith('1'):
+        if len(digits) == 11 and digits[0] == '1' and digits[1] not in '01':
             return '+' + digits
+        if digits[0] == '1':
+            return ''   # +1 but not a valid NANP number
     elif c == 'AU':
         if len(digits) == 10 and digits.startswith('0'):
             return '+61' + digits[1:]
@@ -445,6 +457,8 @@ def _more_spellings(cc, nat):
     out |= _grouped(local)
     for body in _grouped(nat, seps=(' ',)) | {nat}:
         out.update((f"+{cc} {body}", f"{cc} {body}", f"00{cc} {body}"))
+        if cc in _TRUNK0_CC:   # trunk 0 kept after the country code: '+61 (0)412 345 678', '+61 0412 345 678'
+            out.update((f"+{cc} (0){body}", f"+{cc} (0) {body}", f"+{cc} 0{body}"))
     for sep in ('-', '.'):
         for body in _grouped(nat, seps=(sep,)):
             out.add(f"+{cc}{sep}{body}")
@@ -473,7 +487,7 @@ def phone_variants(phone, country=None):
                                 f"{nat[:3]}.{nat[3:6]}.{nat[6:]}", f"{nat[:3]} {nat[3:6]} {nat[6:]}"))
                 else:
                     local = '0' + nat
-                    out.update((local, f"{local[:4]} {local[4:7]} {local[7:]}", f"+{cc} {nat}"))
+                    out.update((local, f"{local[:4]} {local[4:7]} {local[7:]}", f"+{cc} {nat}", f"+{cc}0{nat}"))
                 extra = _more_spellings(cc, nat)
                 break
     core = sorted(x for x in out if x)

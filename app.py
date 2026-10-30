@@ -11576,7 +11576,21 @@ def portal():
     return render_template('portal.html')
 
 
-def _resolve_portal_customer(customer_id):
+def _portal_chat_token():
+    """Mã chat riêng của trình duyệt — đúng mã widget đặt lịch lưu ở localStorage 'bp_chat_token' và gửi kèm mọi lượt chat
+    (secure_ai_generate lưu mã băm của nó trên từng tin). Nhận qua header X-Chat-Token, body JSON / form 'chat_token', hoặc
+    ?chat_token= (EventSource không gửi được header)."""
+    tok = request.headers.get('X-Chat-Token')
+    if not tok:
+        body = request.get_json(silent=True)
+        if isinstance(body, dict):
+            tok = body.get('chat_token')
+    if not tok:
+        tok = request.form.get('chat_token') or request.args.get('chat_token')
+    return tok if isinstance(tok, str) else None
+
+
+def _resolve_portal_customer(customer_id, chat_token=None):
     """Tra cứu bot_customers theo id do CHÍNH customer_id xác định business_id — không có
     session nên KHÔNG ĐƯỢC tin business_id từ client dưới bất kỳ hình thức nào; mọi route
     /api/portal/* đều phải đi qua hàm này trước khi đọc/ghi bot_messages.
@@ -11586,20 +11600,60 @@ def _resolve_portal_customer(customer_id):
     find_one() — client gửi customer_id dạng object thay vì chuỗi (vd {"$ne": null}) sẽ được
     MongoDB hiểu là toán tử truy vấn, khớp BẤT KỲ document nào thay vì đúng 1 khách hàng thật,
     cho phép kẻ tấn công ẩn danh đọc/ghi vào hội thoại của BẤT KỲ tenant nào mà không cần biết
-    customer_id/SĐT thật của họ. Bắt buộc customer_id phải là chuỗi (str) mới cho query."""
+    customer_id/SĐT thật của họ. Bắt buộc customer_id phải là chuỗi (str) mới cho query.
+
+    BUG THẬT đã vá (review Phase 2): chỉ cần BIẾT customer_id là đọc / ghi được mọi hội thoại, kể cả hội thoại SMS / WhatsApp
+    thật '<tiệm>:sms:+614...' (id ghép từ SĐT, đoán được): đọc trọn tin + câu AI liệt kê lịch / địa chỉ của chủ SĐT, và ghi
+    tin 'customer' giả vào đó (AI kênh SMS đọc lại như lời của chính chủ SĐT nhà mạng đã xác minh -> huỷ / đổi lịch hộ). Giờ:
+      - hội thoại kênh nền tảng (SMS / WhatsApp / Messenger / Instagram / Zalo / Viber..., và mọi id không đúng dạng web
+        '<tiệm>:<SĐT>') KHÔNG BAO GIỜ được mở ở đây;
+      - hội thoại web cần bằng chứng: mã chat của trình duyệt (chat_token) có mã băm nằm trên ít nhất 1 tin của CHÍNH hội
+        thoại đó (trình duyệt này đã thật sự chat ở đây). Thiếu / sai mã -> như không có hội thoại (404, không dò được).
+    Trả bản ghi bot_customers, hoặc None."""
     if not customer_id or not isinstance(customer_id, str):
         return None
-    return db.bot_customers.find_one({'id': customer_id}, {'_id': 0})
+    import ai_function_tools
+    token_hash = ai_function_tools.chat_token_hash(chat_token)
+    if not token_hash:
+        return None
+    customer = db.bot_customers.find_one({'id': customer_id}, {'_id': 0})
+    if not customer:
+        return None
+    biz = customer.get('business_id')
+    if not isinstance(biz, str) or not biz or not customer_id.startswith(biz + ':'):
+        return None
+    if (customer.get('channel') or 'web') != 'web' or not re.fullmatch(r'\+?[0-9]{6,15}', customer_id[len(biz) + 1:]):
+        return None   # hội thoại kênh nền tảng (hay id lạ): không bao giờ mở ở trang công khai
+    if not db.bot_messages.find_one({'customer_id': customer_id, 'chat_token_hash': token_hash}, {'_id': 1}):
+        return None
+    return customer
+
+
+def _portal_conversation(customer_id):
+    """(bot_customers, mã băm mã chat) khi trình duyệt đang gọi chứng minh được là người trong hội thoại web này
+    (_resolve_portal_customer), không thì (None, None). Mọi route /api/portal/* dùng hàm này."""
+    import ai_function_tools
+    chat_token = _portal_chat_token()
+    customer = _resolve_portal_customer(customer_id, chat_token)
+    return (customer, ai_function_tools.chat_token_hash(chat_token)) if customer else (None, None)
 
 
 @app.route('/api/portal/messages', methods=['GET'])
 def api_portal_messages_list():
     customer_id = request.args.get('customer_id', '')
-    customer = _resolve_portal_customer(customer_id)
+    customer, token_hash = _portal_conversation(customer_id)
     if not customer:
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
     try:
-        messages = list(db.bot_messages.find({'customer_id': customer_id}, {'_id': 0}).sort('created_at', 1))
+        # Hội thoại web khoá theo SĐT TỰ GÕ: 2 trình duyệt gõ cùng 1 số dùng chung 1 hội thoại -> chỉ trả tin của CHÍNH trình
+        # duyệt này (khách / AI, cùng mã băm) + trả lời của nhân viên từ lúc trình duyệt này bắt đầu chat ở đây.
+        first = list(db.bot_messages.find({'customer_id': customer_id, 'chat_token_hash': token_hash},
+                                          {'_id': 0, 'created_at': 1}).sort('created_at', 1).limit(1))
+        since = str((first[0].get('created_at') if first else '') or '')
+        messages = list(db.bot_messages.find(
+            {'customer_id': customer_id, '$or': [{'chat_token_hash': token_hash},
+                                                 {'sender_type': 'staff', 'created_at': {'$gte': since}}]},
+            {'_id': 0, 'chat_token_hash': 0}).sort('created_at', 1))
         # tên QUÁN cho tiêu đề khung chat (khách của quán thấy quán, không phải "Trợ lý BitPaw")
         biz_id = customer.get('business_id')
         shop_name = ((_public_shop_context(biz_id) or {}).get('shop_name') or '') if biz_id else ''
@@ -11614,7 +11668,9 @@ def api_portal_messages_create():
     """Khách hàng (ẩn danh, không session) gửi tin nhắn — CHỈ sender_type='customer'. Trước đây route
     còn nhận sender_type='ai' (để portal.html tự ghi "AI" giả lập): ai biết customer_id cũng ghi được tin
     giả danh trợ lý, và AI thật đọc lại chúng như lượt trả lời của chính nó. Trả lời của nhân viên chỉ ghi qua
-    /api/bot/messages (đã có @login_required + business_id từ session); trả lời AI do server tự ghi."""
+    /api/bot/messages (đã có @login_required + business_id từ session); trả lời AI do server tự ghi.
+    Chỉ đúng trình duyệt đã chat trong hội thoại WEB này (mã chat) mới ghi được; hội thoại SMS / WhatsApp / Messenger... không
+    bao giờ (xem _resolve_portal_customer)."""
     data = request.json or {}
     customer_id = data.get('customer_id', '')
     content = (data.get('content') or '').strip()
@@ -11623,7 +11679,7 @@ def api_portal_messages_create():
         return jsonify({"success": False, "message": "sender_type không hợp lệ."}), 400
     if not content:
         return jsonify({"success": False, "message": "Tin nhắn trống."}), 400
-    customer = _resolve_portal_customer(customer_id)
+    customer, token_hash = _portal_conversation(customer_id)
     if not customer:
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
     try:
@@ -11631,7 +11687,7 @@ def api_portal_messages_create():
         db.bot_messages.insert_one({
             'customer_id': customer_id, 'sender_type': sender_type, 'content': content[:2000],
             'business_id': customer['business_id'], 'created_at': now_iso,
-            'is_read': sender_type != 'customer',
+            'is_read': sender_type != 'customer', 'channel': 'web', 'chat_token_hash': token_hash,
         })
         db.bot_customers.update_one(
             {'id': customer_id}, {'$set': {'last_message': content[:500], 'last_message_time': now_iso}}
@@ -11651,7 +11707,7 @@ def api_portal_upload():
     if media_fs is None:
         return jsonify({'success': False, 'error': 'MongoDB/GridFS chưa được cấu hình.'}), 400
     customer_id = request.form.get('customer_id', '')
-    customer = _resolve_portal_customer(customer_id)
+    customer, _token_hash = _portal_conversation(customer_id)
     if not customer:
         return jsonify({'success': False, 'error': 'Không tìm thấy hội thoại này.'}), 404
     file = request.files.get('file')
@@ -11680,11 +11736,13 @@ def api_portal_stream():
     (không dùng _sse_tenant_match() vì hàm đó đọc business_id từ session, ở đây không có
     session — business_id phải suy ra từ customer_id)."""
     customer_id = request.args.get('customer_id', '')
-    customer = _resolve_portal_customer(customer_id)
+    customer, _token_hash = _portal_conversation(customer_id)
     if not customer:
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
+    # Chỉ tín hiệu của ĐÚNG hội thoại này (trước đây mọi tin của cả tiệm cũng báo -> lộ nhịp hoạt động của khách khác)
     match = {'$match': {'$or': [
-        {'fullDocument.business_id': customer['business_id']},
+        {'fullDocument.customer_id': customer_id},
+        {'fullDocument.id': customer_id},
         {'operationType': 'delete'},
     ], 'ns.coll': {'$in': ['bot_customers', 'bot_messages']}}}
     return _sse_change_signal(db, match)
@@ -12171,6 +12229,11 @@ def api_cskh_chat_send():
     content = (raw_content or '').strip()
     if not phone or not content:
         return jsonify({"success": False, "message": "Thiếu số điện thoại hoặc nội dung tin nhắn."}), 400
+    # Chỉ nhận SỐ ĐIỆN THOẠI (chữ số, khoảng trắng ( ) . - và dấu + đầu; 6-15 chữ số) — cùng luật secure_ai_generate. Trước đây
+    # 'sms:+614...' trả success:true mà KHÔNG lưu gì (_persist_chat_turn bỏ qua id có ':') -> khách tưởng tin đã tới.
+    if not (re.fullmatch(r'\+?[0-9(][0-9 ().-]{5,31}', phone) and 6 <= len(re.sub(r'\D', '', phone)) <= 15):
+        return jsonify({"success": False, "message": _vi_en("Số điện thoại không hợp lệ — vui lòng nhập lại số của bạn.",
+                                                             "That phone number isn't valid — please enter your number again.")}), 400
     _persist_chat_turn(BITPAW_LEADS_BUSINESS_ID, phone, content[:2000], sender_type='customer')
     return jsonify({"success": True})
 

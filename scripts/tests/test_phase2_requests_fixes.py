@@ -222,7 +222,8 @@ class HeldQtyConcurrencyTests(unittest.TestCase):
             return real_release(bid, h)
         retail._release = racing_release
         try:
-            out = retail.execute('retail_cancel_hold', {'hold_id': b['hold_id']}, ctx(chat_token_hash='tokB'))
+            # chủ thật: đúng trình duyệt (mã) + đúng SĐT đã gõ trong chat này (luật sở hữu chat web)
+            out = retail.execute('retail_cancel_hold', {'hold_id': b['hold_id']}, ctx(chat_token_hash='tokB', contact_phone='0412 000 111'))
         finally:
             retail._release = real_release
         self.assertEqual(out['status'], 'cancelled')
@@ -255,7 +256,7 @@ class HeldQtyConcurrencyTests(unittest.TestCase):
         a = hold(chat_token_hash='tokA')
         self.assertGreaterEqual(product(1)['held_qty_at'], t0)
         DB.products.update_one({'id': 1, 'business_id': AU}, {'$set': {'held_qty_at': 0}})
-        retail.execute('retail_cancel_hold', {'hold_id': a['hold_id']}, ctx(chat_token_hash='tokA'))
+        retail.execute('retail_cancel_hold', {'hold_id': a['hold_id']}, ctx(chat_token_hash='tokA', contact_phone='0412 345 678'))
         self.assertGreaterEqual(product(1)['held_qty_at'], t0)
         self.assertEqual(product(1)['held_qty'], 0)
 
@@ -279,8 +280,10 @@ class UnknownCountryPhoneTests(unittest.TestCase):
         self.assertEqual(retail._e164_local('0912345678', None), '')
 
     def test_hold_keeps_the_typed_number(self):
+        web = f'{NC_RETAIL}:0912345678'   # hội thoại web của chat này (tiệm chưa có nước: không có khoá E.164 để gắn SĐT gõ)
         out = retail.execute('retail_hold_for_pickup', {'product_id': 71, 'quantity': 1, 'customer_name': 'Lan',
-                                                        'phone': '0912 345 678'}, ctx(NC_RETAIL, chat_token_hash='tokN'))
+                                                        'phone': '0912 345 678'},
+                             ctx(NC_RETAIL, chat_token_hash='tokN', customer_id=web))
         self.assertTrue(out['success'])
         h = DB.retail_holds.find_one({'id': out['hold_id']})
         self.assertEqual(h['customer_phone'], '0912345678')
@@ -288,7 +291,8 @@ class UnknownCountryPhoneTests(unittest.TestCase):
         self.assertNotIn('+1', str(h))
         self.assertNotIn('+10912345678', str(CALLS))
         self.assertIn('0912345678', alerts()[-1][3])
-        mine = retail.execute('retail_my_holds', {}, ctx(NC_RETAIL, chat_token_hash='tokN'))['holds']   # chủ = mã trình duyệt
+        mine = retail.execute('retail_my_holds', {}, ctx(NC_RETAIL, chat_token_hash='tokN',   # chủ = mã trình duyệt
+                                                         customer_id=web))['holds']             # + đúng chat này
         self.assertEqual([x['hold_id'] for x in mine], [out['hold_id']])
         # cùng SĐT ở trình duyệt khác: giới hạn hold / khách vẫn tính theo số khách gõ (khoá E.164 = None)
         args = {'product_id': 71, 'quantity': 1, 'customer_name': 'Lan', 'phone': '0912345678'}

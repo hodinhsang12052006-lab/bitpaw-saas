@@ -184,6 +184,18 @@
         let sentNoticeShown = false;
         let eventSource = null; // EventSource SSE thay cho realtime channel cũ
         let knownMessageCount = 0; // số tin nhắn đã render, dùng để chỉ append phần mới khi SSE báo có thay đổi
+        // Bằng chứng là người trong hội thoại: mã chat của trình duyệt (widget đặt lịch cùng trang web lưu ở localStorage
+        // 'bp_chat_token'). Server chỉ mở hội thoại web cho đúng trình duyệt đã chat ở đó; hội thoại SMS / WhatsApp / Messenger...
+        // không bao giờ mở ở trang công khai này. Không có mã -> không tải được (nói rõ lý do, không tự tạo mã mới).
+        function portalChatToken() {
+            try {
+                const tok = localStorage.getItem('bp_chat_token') || '';
+                return /^[0-9a-f]{32}$/.test(tok) ? tok : '';
+            } catch (e) {
+                return '';
+            }
+        }
+        const portalHeaders = () => ({ 'X-Chat-Token': portalChatToken() });
 
         // DOM
         const chatBox = document.getElementById('chatBox');
@@ -225,6 +237,7 @@
                 portal_invalid_link: 'Link không hợp lệ.<br>Vui lòng quét mã QR hoặc liên hệ CSKH.',
                 portal_loading: 'Đang tải...',
                 portal_err_load_history: 'Lỗi tải lịch sử',
+                portal_err_no_access: 'Không mở được cuộc trò chuyện này ở đây. Cuộc trò chuyện chỉ mở được trên đúng trình duyệt bạn đã dùng để nhắn cho tiệm — hãy mở lại từ trình duyệt đó, hoặc nhắn / gọi trực tiếp cho tiệm.',
                 portal_empty_note: 'Chưa có tin nhắn. Nhắn cho tiệm tại đây — nhân viên sẽ trả lời ngay trong khung chat này khi có thể.',
                 portal_sent_note: 'Đã gửi tới tiệm. Nhân viên sẽ trả lời tại đây.'
             },
@@ -254,6 +267,7 @@
                 portal_invalid_link: 'Invalid link.<br>Please scan the QR code or contact support.',
                 portal_loading: 'Loading...',
                 portal_err_load_history: 'Error loading history',
+                portal_err_no_access: "This chat can't be opened here. It only opens in the browser you used to message the shop — open it from that browser, or message or call the shop directly.",
                 portal_empty_note: 'No messages yet. Write to the shop here — staff will reply in this chat as soon as they can.',
                 portal_sent_note: 'Sent to the shop. Staff will reply here.'
             }
@@ -364,7 +378,7 @@
                 const res = await fetch('/api/portal/messages', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customer_id: currentCustomerId, content, sender_type: 'customer' })
+                    body: JSON.stringify({ customer_id: currentCustomerId, content, sender_type: 'customer', chat_token: portalChatToken() })
                 });
                 const json = await res.json();
                 if (!json.success) {
@@ -426,6 +440,7 @@
             try {
                 const formData = new FormData();
                 formData.append('customer_id', currentCustomerId);
+                formData.append('chat_token', portalChatToken());
                 formData.append('file', file);
                 const res = await fetch('/api/portal/upload', { method: 'POST', body: formData });
                 const json = await res.json();
@@ -484,7 +499,7 @@
         async function refreshFromServer() {
             if (!currentCustomerId) return;
             try {
-                const res = await fetch(`/api/portal/messages?customer_id=${encodeURIComponent(currentCustomerId)}`);
+                const res = await fetch(`/api/portal/messages?customer_id=${encodeURIComponent(currentCustomerId)}`, { headers: portalHeaders() });
                 const json = await res.json();
                 if (!json.success || !Array.isArray(json.data)) return;
                 const newMessages = json.data.slice(knownMessageCount);
@@ -510,7 +525,7 @@
                 eventSource.close();
                 eventSource = null;
             }
-            eventSource = new EventSource(`/api/portal/stream?customer_id=${encodeURIComponent(currentCustomerId)}`);
+            eventSource = new EventSource(`/api/portal/stream?customer_id=${encodeURIComponent(currentCustomerId)}&chat_token=${encodeURIComponent(portalChatToken())}`);
             eventSource.onmessage = () => { refreshFromServer(); };
             eventSource.onerror = (e) => { console.warn('SSE lỗi kết nối:', e); };
         }
@@ -524,10 +539,10 @@
             chatBox.innerHTML = '<div class="flex justify-center py-10"><i class="fas fa-circle-notch fa-spin text-2xl text-cyan-400"></i><span class="ml-2 text-gray-400">' + t('portal_loading') + '</span></div>';
             let json;
             try {
-                const res = await fetch(`/api/portal/messages?customer_id=${encodeURIComponent(currentCustomerId)}`);
+                const res = await fetch(`/api/portal/messages?customer_id=${encodeURIComponent(currentCustomerId)}`, { headers: portalHeaders() });
                 json = await res.json();
                 if (!res.ok || !json.success) {
-                    chatBox.innerHTML = '<div class="text-center text-red-400 py-10">' + t('portal_err_load_history') + '</div>';
+                    chatBox.innerHTML = '<div class="text-center text-red-400 py-10">' + t(res.status === 404 ? 'portal_err_no_access' : 'portal_err_load_history') + '</div>';
                     return;
                 }
             } catch (e) {
