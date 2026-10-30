@@ -19,6 +19,9 @@
         .action-btn { padding: 0.4rem 0.85rem; border-radius: 0.75rem; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; transition: 0.15s; cursor: pointer; border: 1px solid transparent; }
         .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .room-select { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.6rem; padding: 0.35rem 0.6rem; color: #fff; font-size: 0.78rem; }
+        /* Đặt chỗ do AI lễ tân tạo (source == 'ai_bot') + vạch vàng bên trái cho dòng còn chờ xác nhận */
+        .ai-chip { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.04em; line-height: 1.4; color: #ddd6fe; background: rgba(139,92,246,0.16); border: 1px solid rgba(139,92,246,0.45); vertical-align: middle; white-space: nowrap; cursor: help; }
+        tr.is-pending > td:first-child { box-shadow: inset 3px 0 0 #fbbf24; }
     </style>
 </head>
 <body class="min-h-screen flex text-white font-sans">
@@ -34,6 +37,9 @@
                 <p class="text-gray-400 mt-2 text-sm">
                     {% if vi %}Yêu cầu đặt phòng từ khách — ngày <span class="text-emerald-400 font-bold">{{ selected_date }}</span>. Duyệt, xếp phòng hoặc huỷ ngay tại đây.{% else %}Booking requests from guests for <span class="text-emerald-400 font-bold">{{ selected_date }}</span>. Approve, assign a room or cancel right here.{% endif %}
                 </p>
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                <a href="/settings/booking#resv" class="inline-flex items-center gap-2 mt-2 text-xs font-bold text-emerald-300"><i class="fas fa-sliders"></i> {{ 'Luật đặt phòng cho AI lễ tân' if default_lang == 'vi' else 'Room booking rules for the AI receptionist' }}</a>
+                {% endif %}
             </div>
             <form method="get" class="flex items-center gap-2">
                 <input type="date" name="date" value="{{ selected_date }}"
@@ -69,12 +75,12 @@
                     </thead>
                     <tbody class="divide-y divide-white/5" id="reservationsBody">
                         {% for r in reservations %}
-                        <tr class="hover:bg-white/[0.03] transition-colors" data-res-id="{{ r.id }}">
+                        <tr class="hover:bg-white/[0.03] transition-colors{% if r.status == 'pending' %} is-pending{% endif %}" data-res-id="{{ r.id }}">
                             <td class="px-6 py-4 font-bold text-emerald-300 whitespace-nowrap">
                                 {{ r.reserved_time.split('T')[1][:5] if 'T' in r.reserved_time else r.reserved_time }}
                                 <span class="text-[10px] text-gray-500 font-normal block">~{{ r.duration_hours or 2 }} {{ 'giờ' if vi else 'h' }}</span>
                             </td>
-                            <td class="px-6 py-4 font-medium">{{ r.customer_name or ('Không rõ' if vi else 'Unknown') }}</td>
+                            <td class="px-6 py-4 font-medium">{{ r.customer_name or ('Không rõ' if vi else 'Unknown') }}{% if r.source == 'ai_bot' %}<span class="ai-chip" title="{{ 'AI lễ tân đặt' if default_lang == 'vi' else 'Booked by the AI receptionist' }}" aria-label="{{ 'AI lễ tân đặt' if default_lang == 'vi' else 'Booked by the AI receptionist' }}"><i class="fas fa-robot" aria-hidden="true"></i> AI</span>{% endif %}</td>
                             <td class="px-6 py-4 text-gray-300">{{ r.customer_phone or '—' }}</td>
                             <td class="px-6 py-4 text-gray-300"><i class="fas fa-user-friends text-gray-500"></i> {{ r.party_size }}</td>
                             <td class="px-6 py-4 text-gray-400 max-w-[180px] truncate" title="{{ r.note or '' }}">{{ r.note or '—' }}</td>
@@ -179,6 +185,7 @@
                 if (!result.success) throw new Error(result.message || (VI ? 'Lỗi không xác định' : 'Unknown error'));
 
                 row.querySelector('[data-status-cell]').innerHTML = STATUS_BADGE[status];
+                row.classList.toggle('is-pending', status === 'pending');
                 row.querySelector('[data-actions-cell]').innerHTML = `<div class="flex gap-2 flex-wrap">${NEXT_ACTIONS[status](id)}</div>`;
                 const sel = row.querySelector('[data-room-cell] select');
                 if (sel && (status === 'cancelled' || status === 'no_show')) sel.disabled = true;

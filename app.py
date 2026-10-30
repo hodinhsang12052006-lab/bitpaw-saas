@@ -7215,9 +7215,11 @@ def hotel_reservations_page():
 @login_required
 def api_hotel_reservation_update(reservation_id):
     """Duyệt/xếp phòng/huỷ 1 yêu cầu đặt phòng khách sạn — business_id-scoped. Xếp phòng cụ thể
-    (room_id) BẮT BUỘC chặn trùng lịch qua _hotel_reservation_overlaps(), khác F&B/Karaoke vì
-    khách sạn đặt theo khoảng ngày dài, admin không thể tự soát bằng mắt như 1 danh sách trong
-    ngày."""
+    (room_id) BẮT BUỘC chặn trùng lịch, khác F&B/Karaoke vì khách sạn đặt theo khoảng ngày dài,
+    admin không thể tự soát bằng mắt như 1 danh sách trong ngày. Xếp phòng đi qua
+    reservations_hotel.assign_room: giữ phòng-đêm nguyên tử bằng CÙNG phiếu giữ với trợ lý AI đặt
+    phòng (trước đây chỉ kiểm trùng rồi ghi — AI đặt đúng lúc đó vẫn lọt vào cùng phòng/đêm). Mở lại
+    1 đặt phòng đã huỷ cũng kiểm lại phòng trống (sau khi huỷ, phòng có thể đã bán cho khách khác)."""
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     reservation = db.hotel_reservations.find_one({'id': reservation_id, 'business_id': business_id}, {'_id': 0})
@@ -7234,18 +7236,54 @@ def api_hotel_reservation_update(reservation_id):
         if room_id is not None:
             if not db.hotel_rooms.find_one({'id': room_id, 'business_id': business_id}, {'id': 1, '_id': 0}):
                 return jsonify({'success': False, 'message': 'Phòng không tồn tại.'}), 404
-            if _hotel_reservation_overlaps(
-                business_id, room_id, reservation['checkin_date'], reservation['checkout_date'], exclude_id=reservation_id
-            ):
-                return jsonify({'success': False, 'message': 'Phòng này đã có khách khác đặt trùng khoảng ngày này.'}), 409
         update_fields['room_id'] = room_id
     if not update_fields:
         return jsonify({'success': False, 'message': 'Không có gì để cập nhật.'}), 400
+    import reservations_hotel
+    live = reservations_hotel.LIVE_STATUSES
+    old_status = reservation.get('status')
+    new_status = update_fields.get('status', old_status)
+    room_id = update_fields.get('room_id', reservation.get('room_id'))
+    reopening = old_status not in live and new_status in live
     try:
+        if reopening and room_id is None and not _hotel_request_has_room(business_id, reservation):
+            return jsonify({'success': False, 'message': _vi_en(
+                'Không còn phòng trống cho khoảng ngày này nên chưa mở lại được đặt phòng — đổi ngày hoặc xếp phòng khác.',
+                'No room is free for these dates any more, so the booking was not reopened — change the dates or assign another room.')}), 409
+        if new_status in live and room_id is not None and (reopening or room_id != reservation.get('room_id')):
+            if reopening and db.hotel_reservations.update_one(
+                    {'id': reservation_id, 'business_id': business_id, 'status': old_status},
+                    {'$set': {'status': new_status}}).matched_count == 0:
+                # Mở lại TRƯỚC khi giữ phòng-đêm: phiếu giữ của 1 đặt phòng đã huỷ không được tính là còn hiệu lực.
+                return jsonify({'success': False, 'message': _vi_en('Đặt phòng này vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại.',
+                                                                    'This booking was just changed elsewhere — reload the page and try again.')}), 409
+            if not reservations_hotel.assign_room(business_id, dict(reservation, status=new_status), room_id):
+                if reopening:
+                    db.hotel_reservations.update_one({'id': reservation_id, 'business_id': business_id, 'status': new_status},
+                                                     {'$set': {'status': old_status}})
+                return jsonify({'success': False, 'message': 'Phòng này đã có khách khác đặt trùng khoảng ngày này.'}), 409
         db.hotel_reservations.update_one({'id': reservation_id, 'business_id': business_id}, {'$set': update_fields})
+        if new_status not in live or room_id is None:
+            reservations_hotel.release_claims(business_id, reservation_id)   # huỷ / bỏ xếp phòng -> trả phòng-đêm
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+def _hotel_request_has_room(business_id, reservation):
+    """Mở lại 1 yêu cầu CHƯA xếp phòng: còn ít nhất 1 phòng trống (đúng loại khách chọn nếu khớp loại phòng thật) cho khoảng
+    ngày đó — theo cùng bảng tình trạng phòng-đêm trợ lý AI dùng. Khách sạn chưa nhập phòng / ngày cũ không đọc được: không
+    chặn (giữ hành vi cũ, nhân viên tự xếp)."""
+    import reservations_hotel
+    try:
+        av = reservations_hotel.availability(business_id, reservation.get('checkin_date'), reservation.get('checkout_date'),
+                                             guests=1, ignore_id=reservation.get('id'))
+    except reservations_hotel.HotelRequestError:
+        return True
+    if not av['rooms_total']:
+        return True
+    key = reservations_hotel.match_type(av['_types'], reservation.get('room_type'))
+    return any(t['available'] for t in av['types'] if key is None or t['key'] == key)
 
 
 # ========== PRODUCTION OUTPUT TRACKING (Sản xuất) ==========
