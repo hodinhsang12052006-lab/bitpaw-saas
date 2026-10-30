@@ -12315,39 +12315,46 @@ def _inbox_ai_reply(business_id, customer_id, latest_text):
     _usage = ai_gateway.begin('sms_reply' if bc.get('channel') == 'sms' else 'inbox_reply', business_id)
     try:
         import ai_function_tools
-        # Chỉ Nails/Spa có lịch hẹn thật; ngành khác: hỏi đáp từ dữ liệu công khai + chuyển yêu cầu cho nhân viên
-        booking_on = ai_function_tools.has_booking_pack(business_id)
+        import ai_packs
+        # Phase 2: 1 lễ tân cho mọi ngành — công cụ theo GÓI ĐẶT CHỖ của ngành (ai_packs: lịch hẹn Nails/Spa, bàn, phòng...);
+        # ngành chưa có gói: hỏi đáp từ dữ liệu công khai + chuyển yêu cầu cho nhân viên
+        pack = ai_packs.pack_for_business(business_id)
+        booking_on = pack is not None
+        vi = bool(_VI_CHARS_RE.search(latest_text) or _VI_WORDS_RE.search(latest_text))
+        lang = 'vi' if vi else 'en'
         ctx = AIContextEngine.build_context_prompt(business_id, None, customer_phone=bc.get('phone'), include_private_data=False,
                                                    audience='customer')
-        business_name = ctx['business_name'] or 'BitPaw'
-        system_prompt = compose_booking_assistant_prompt(ctx['prompt'], business_name,
-                                                         booking_facts=_booking_assistant_facts(business_id, booking=booking_on),
-                                                         booking_enabled=booking_on)
-        vi = bool(_VI_CHARS_RE.search(latest_text) or _VI_WORDS_RE.search(latest_text))
-        label = inbox_channels.CHANNELS.get(bc.get('channel') or 'web', {}).get('label', 'chat')
-        system_prompt += ("\n\nLANGUAGE: the customer's latest message is in "
-                          + ("Vietnamese — reply in Vietnamese." if vi else
-                             "English (or another non-Vietnamese language) — reply in that same language, not Vietnamese."))
-        system_prompt += (f"\n\nCHANNEL: this conversation is on {label}. Plain text only (no Markdown, no tables), short like a text message."
-                          + ("" if (bc.get('phone') or not booking_on) else " You do not have the customer's phone number yet — ask for it before booking."))
-        if waiting:
-            from ai_sales_prompts import WAITING_FOR_TEAM
-            system_prompt += "\n\n" + WAITING_FOR_TEAM.format(reason=waiting.get('handoff_reason') or 'customer asked for a person',
-                                                               expectation=ai_function_tools.reply_expectation(business_id, vi))
-        convo = list(db.bot_messages.find({'customer_id': customer_id, 'sender_type': {'$in': ['customer', 'ai', 'staff']}},
-                                          {'_id': 0, 'sender_type': 1, 'content': 1}).sort('created_at', -1).limit(13))[::-1]
-        if convo and convo[-1].get('sender_type') == 'customer':
-            convo = convo[:-1]  # tin cuối = tin vừa nhận, đưa vào lượt "user" bên dưới
-        messages = [{"role": "system", "content": system_prompt}]
-        for t in convo[-12:]:
-            c = (t.get('content') or '').strip()
-            if c:
-                messages.append({"role": "user" if t.get('sender_type') == 'customer' else "assistant", "content": c[:2000]})
-        messages.append({"role": "user", "content": latest_text[:2000]})
-        tools = BOOKING_TOOLS if booking_on else ai_function_tools.QA_TOOLS
-        if waiting:
-            tools = [t for t in tools if t['function']['name'] not in ('handoff_to_staff', 'ask_team')]
-        result = _call_deepseek_with_tools(messages, 0.4, 600, business_id, customer_id, api_key, tools=tools)
+        business_name = ctx['business_name'] or ('tiệm' if vi else 'the business')
+        # Phạm vi lượt trả lời: công cụ biết ngôn ngữ + kênh; mã SMS 1 lần gắn với ĐÚNG hội thoại này (Messenger/Zalo/...)
+        with ai_function_tools.chat_scope(None, lang=lang, channel=bc.get('channel')):
+            can_verify = booking_on and ai_function_tools.can_verify(business_id, customer_id)
+            system_prompt = compose_booking_assistant_prompt(
+                ctx['prompt'], business_name, booking_facts=_booking_assistant_facts(business_id, booking=pack or False, lang=lang),
+                booking_enabled=booking_on, pack=pack, lang=lang, can_verify=can_verify,
+                industry=ai_function_tools.business_industry(business_id))
+            label = inbox_channels.CHANNELS.get(bc.get('channel') or 'web', {}).get('label', 'chat')
+            system_prompt += ("\n\nLANGUAGE: the customer's latest message is in "
+                              + ("Vietnamese — reply in Vietnamese." if vi else
+                                 "English (or another non-Vietnamese language) — reply in that same language, not Vietnamese."))
+            system_prompt += (f"\n\nCHANNEL: this conversation is on {label}. Plain text only (no Markdown, no tables), short like a text message."
+                              + ("" if (bc.get('phone') or not booking_on) else " You do not have the customer's phone number yet — ask for it before booking."))
+            if waiting:
+                from ai_sales_prompts import WAITING_FOR_TEAM
+                system_prompt += "\n\n" + WAITING_FOR_TEAM.format(reason=waiting.get('handoff_reason') or 'customer asked for a person',
+                                                                   expectation=ai_function_tools.reply_expectation(business_id, vi))
+            convo = list(db.bot_messages.find({'customer_id': customer_id, 'sender_type': {'$in': ['customer', 'ai', 'staff']}},
+                                              {'_id': 0, 'sender_type': 1, 'content': 1}).sort('created_at', -1).limit(13))[::-1]
+            if convo and convo[-1].get('sender_type') == 'customer':
+                convo = convo[:-1]  # tin cuối = tin vừa nhận, đưa vào lượt "user" bên dưới
+            messages = [{"role": "system", "content": system_prompt}]
+            for t in convo[-12:]:
+                c = (t.get('content') or '').strip()
+                if c:
+                    messages.append({"role": "user" if t.get('sender_type') == 'customer' else "assistant", "content": c[:2000]})
+            messages.append({"role": "user", "content": latest_text[:2000]})
+            # waiting (đã chuyển cho người): không chuyển lần 2
+            tools = ai_function_tools.customer_tools(business_id, customer_id, waiting=bool(waiting))
+            result = _call_deepseek_with_tools(messages, 0.4, 600, business_id, customer_id, api_key, tools=tools)
         _log_ai_run('booking', business_id, time.time() - _t0, result.get('tools_used'), fallback=False)
         text = inbox_channels.plain_text(result['choices'][0]['message']['content'] or '')
         return text, not text
@@ -12443,6 +12450,15 @@ def _inbox_sms_inbound(business_id, from_number, body):
     text = (body or '').strip()[:2000]
     if not text or db is None:
         return ''
+    import ai_function_tools
+    # Khách trả lời TIN MÃ XÁC MINH (mã 6 số gửi cho chat web/Messenger) bằng SMS: không lưu mã vào hộp thư, không đưa cho AI —
+    # nhắc gõ mã vào đúng khung chat đã yêu cầu
+    code_reply = ai_function_tools.sms_code_reply(business_id, from_number, text)
+    if code_reply:
+        inbox_channels.record(business_id, 'sms', from_number, ai_function_tools.HIDDEN_CODE_TEXT, 'customer', phone=from_number,
+                              default_name=_inbox_walkin(business_id))
+        inbox_channels.record(business_id, 'sms', from_number, code_reply, 'ai', delivery={'status': 'sent', 'via': 'twiml'})
+        return code_reply
     cid = inbox_channels.record(business_id, 'sms', from_number, text, 'customer', phone=from_number,
                                 default_name=_inbox_walkin(business_id))
     if not inbox_channels.ai_auto_reply_on(business_id, 'sms'):
@@ -12642,21 +12658,26 @@ def _paused_holding_reply(business_id, customer_id, bc, latest_message):
         return ""
 
 
-def _booking_assistant_facts(business_id, client_now=None, booking=None):
+def _booking_assistant_facts(business_id, client_now=None, booking=None, lang='en'):
     """BUG THẬT đã vá (đóng vai khách chat đặt lịch, 10/2026): trợ lý đặt lịch được bảo gọi
     book_appointment(service_id, appointment_time) nhưng prompt chỉ có TÊN + giá dịch vụ (không có id)
     và không hề biết hôm nay là ngày nào -> khách nói "mai 3h chiều" là AI không đặt được, lần nào cũng
     báo "hệ thống chưa khớp dịch vụ". Bổ sung giờ địa phương hiện tại (lấy từ máy khách — khách ở gần
     tiệm nên cùng múi giờ; không có thì dùng giờ server) + danh sách dịch vụ kèm id thật.
-    booking=None -> tự xác định theo ngành (ai_function_tools.has_booking_pack). Ngành KHÔNG có gói đặt lịch: chỉ dữ kiện
-    công khai (bảng giá để tham khảo — không id, không thời lượng, không "đặt được"), giờ mở cửa nếu chủ đã nhập, thông tin
-    tiệm, trang đặt chỗ thật của tiệm. Trước đây mọi món của nhà hàng/karaoke/khách sạn hiện thành "dịch vụ đặt được 60 phút"."""
-    if booking is None:
+    Phase 2: dữ kiện CÔNG KHAI do customer_context dựng theo GÓI ĐẶT CHỖ của ngành (ai_packs): booking=None/True -> gói của
+    ngành tiệm; False -> hỏi đáp (bảng giá để tham khảo — không id, không thời lượng, không "đặt được" — giờ mở cửa nếu chủ
+    đã nhập, thông tin tiệm, trang đặt chỗ thật); hoặc truyền thẳng 1 ai_packs.Pack. Gói lịch hẹn Nails/Spa: dịch vụ + id +
+    thời lượng + thợ + luật đặt; gói khác: facts() của gói. Mọi ngành: địa chỉ, giờ, chính sách + kho câu trả lời của chủ."""
+    import customer_context
+    pack = None
+    if booking is None or booking is True:
         try:
-            import ai_function_tools
-            booking = ai_function_tools.has_booking_pack(business_id)
-        except Exception:
-            booking = False
+            import ai_packs
+            pack = ai_packs.pack_for_business(business_id) if business_id else None
+        except Exception as e:
+            print(f"[booking facts] pack: {e}")
+    elif booking is not False:
+        pack = booking
     # Giờ ĐỊA PHƯƠNG CỦA TIỆM (cùng nguồn với luật đặt lịch — booking_rules.local_now) để "mai 3h" và kiểm giờ trống
     # khớp nhau; giờ máy khách chỉ dùng khi không xác định được tiệm.
     try:
@@ -12671,56 +12692,7 @@ def _booking_assistant_facts(business_id, client_now=None, booking=None):
         weekday = datetime.fromisoformat(now_str).strftime('%A')
     except ValueError:
         now_str, weekday = datetime.now().strftime('%Y-%m-%dT%H:%M'), datetime.now().strftime('%A')
-    if not booking:
-        lines = [f"CURRENT LOCAL DATE/TIME AT THE BUSINESS: {now_str} ({weekday}). Use it to understand 'today', 'tomorrow', "
-                 f"'Friday'... when you pass a request to the team."]
-        if db is not None and business_id:
-            try:
-                import booking_rules
-                import ai_function_tools
-                rules = booking_rules.get_rules(business_id)
-                cur = _tenant_currency(business_id)
-                items = list(db.products.find({'business_id': business_id, 'is_active': 1},
-                                              {'_id': 0, 'name': 1, 'price': 1}).limit(60))
-                if items:
-                    lines.append("PRICE LIST (information only — nothing here can be booked, reserved, held or ordered in this chat):\n"
-                                 + "\n".join(f"- {s.get('name')} — {format_money(s.get('price') or 0, cur)}" for s in items))
-                if rules.get('configured'):  # giờ mở cửa CHỈ khi chủ tiệm đã nhập (mặc định 9-19 không phải giờ thật của quán)
-                    names = {'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'}
-                    lines.append("OPENING HOURS: " + ', '.join(f"{names.get(d, d)} {v[0]}-{v[1]}" if v else f"{names.get(d, d)} closed"
-                                                               for d, v in (rules.get('hours') or {}).items()) + ".")
-                phone = booking_rules.business_phone(business_id)
-                info = [f"{booking_rules.INFO_LABELS.get(k, k)}: {v}" for k, v in (rules.get('info') or {}).items() if v]
-                if phone:
-                    info.insert(0, f"Phone: {phone}")
-                lines.append("BUSINESS INFO (only these facts are confirmed): " + ('; '.join(info) if info else 'none published yet.'))
-                link = ai_function_tools.reservation_link(business_id)
-                if link:
-                    lines.append(f"ONLINE RESERVATION PAGE (the business's own form; the business confirms each request): {link}")
-            except Exception as e:
-                print(f"[public facts] {e}")
-        return "\n\n".join(lines)
-    lines = [f"CURRENT LOCAL DATE/TIME AT THE SALON: {now_str} ({weekday}). Resolve 'today', 'tomorrow', "
-             f"'this Friday', 'chiều mai'... from this, and pass appointment_time as local time without timezone "
-             f"(e.g. 2026-08-01T15:00:00). Never book a time in the past."]
-    if db is not None and business_id:
-        try:
-            import booking_rules
-            rules = booking_rules.get_rules(business_id)
-            cur = _tenant_currency(business_id)
-            services = list(db.products.find({'business_id': business_id, 'is_active': 1},
-                                             {'_id': 0, 'id': 1, 'name': 1, 'price': 1}).limit(60))
-            if services:
-                lines.append("BOOKABLE SERVICES — use the exact service_id in tools (price, duration):\n" +
-                             "\n".join(f"- service_id {s.get('id')}: {s.get('name')} — {format_money(s.get('price') or 0, cur)}, "
-                                       f"{booking_rules.duration_of(rules, s.get('id'))} min" for s in services))
-            team = sorted({n for n in booking_rules._staff_names(business_id).values() if n})
-            if team:
-                lines.append("TEAM (customers may ask for someone by first name): " + ", ".join(team[:25]))
-            lines.append(booking_rules.describe_for_ai(business_id))
-        except Exception as e:
-            print(f"[booking facts] {e}")
-    return "\n\n".join(lines)
+    return customer_context.facts(business_id, pack, now_str, weekday, lang=lang if lang in ('vi', 'en') else 'en')
 
 
 def _call_deepseek_with_tools(messages, temperature, max_tokens, business_id, customer_id, api_key, tools=None):
@@ -12955,13 +12927,23 @@ def secure_ai_generate():
     conversation_memory = get_conversation_memory(customer_id) if memory_is_read else ""
     extra_context = f"WHAT WE KNOW ABOUT THIS CUSTOMER SO FAR: {conversation_memory}" if conversation_memory else None
 
-    booking_on = public_customer_chat and ai_function_tools.has_booking_pack(business_id)
+    # Phase 2: 1 lễ tân cho mọi ngành — công cụ theo GÓI ĐẶT CHỖ của ngành tiệm (ai_packs; ngành lấy từ hồ sơ tiệm, không tin
+    # 'industry' client gửi); ngành chưa có gói: hỏi đáp từ dữ liệu công khai + chuyển yêu cầu cho nhân viên
+    import ai_packs
+    import customer_context
+    pack = ai_packs.pack_for_business(business_id) if public_customer_chat else None
+    booking_on = pack is not None
+    chat_lang = customer_context.detect_lang(latest_customer_message)
+    if public_customer_chat and not ctx['business_name']:
+        business_name = 'tiệm' if chat_lang == 'vi' else 'the business'   # không bao giờ xưng "BitPaw" với khách của tiệm
     if chat_context == 'customer_booking':
-        # Chỉ Nails/Spa có lịch hẹn thật; ngành khác: hỏi đáp từ dữ liệu công khai + chuyển yêu cầu cho nhân viên
+        with ai_function_tools.chat_scope(chat_token, lang=chat_lang, channel='web'):
+            can_verify_sms = booking_on and ai_function_tools.can_verify(business_id, customer_id)
         system_prompt = compose_booking_assistant_prompt(
             tenant_context, business_name,
-            booking_facts=_booking_assistant_facts(business_id, data.get('client_now'), booking=booking_on),
-            booking_enabled=booking_on)
+            booking_facts=_booking_assistant_facts(business_id, data.get('client_now'), booking=pack or False, lang=chat_lang),
+            booking_enabled=booking_on, pack=pack, lang=chat_lang, can_verify=can_verify_sms,
+            industry=ai_function_tools.business_industry(business_id))
         temperature = min(temperature, 0.4)  # đặt lịch cần chính xác hơn bay bổng
         max_tokens = min(max_tokens, 600)
     else:
@@ -13025,7 +13007,8 @@ def secure_ai_generate():
         fallback_reply = (
             f"Dạ {business_name} đang xử lý hơi chậm một chút, chị/anh nhắn lại giúp em sau ít phút hoặc gọi trực tiếp cho tiệm nhé!"
             if _vi_fb else
-            (f"Sorry — {business_name}'s booking assistant is a bit slow right now. Please try again in a minute or call the salon directly."
+            (f"Sorry — {business_name}'s booking assistant is a bit slow right now. Please try again in a minute or call "
+             + ("the salon" if (pack is not None and pack.resource == 'appointment') else "us") + " directly."
              if booking_on else
              f"Sorry — {business_name}'s assistant is a bit slow right now. Please try again in a minute or call us directly.")
         )
@@ -13050,11 +13033,13 @@ def secure_ai_generate():
         # _call_deepseek_with_tools() cho phép AI THỰC SỰ gọi book_appointment() (Function
         # Calling) thay vì chỉ sinh văn bản "đã đặt lịch" mà không ghi gì vào Database.
         _t0 = time.time()
-        _tools = (BOOKING_TOOLS if booking_on else ai_function_tools.QA_TOOLS) if chat_context == 'customer_booking' else SALES_TOOLS
-        if waiting_for_team:  # đang chờ người: không chuyển lần 2
-            _tools = [t for t in _tools if t['function']['name'] not in ('handoff_to_staff', 'ask_team')]
-        # Công cụ đọc mã chat của trình duyệt này (lịch hẹn AI đặt được gắn mã băm; xem/huỷ/dời chỉ lịch khớp mã)
-        with ai_function_tools.chat_scope(chat_token):
+        # Công cụ đọc mã chat của trình duyệt này (lịch hẹn AI đặt được gắn mã băm; xem/huỷ/dời chỉ lịch khớp mã hoặc SĐT đã
+        # xác minh bằng mã SMS 1 lần) + ngôn ngữ của khách
+        with ai_function_tools.chat_scope(chat_token, lang=chat_lang, channel='web'):
+            if chat_context == 'customer_booking':  # gói của ngành (+ mã SMS khi tiệm nhắn được); đang chờ người: không chuyển lần 2
+                _tools = ai_function_tools.customer_tools(business_id, customer_id, waiting=bool(waiting_for_team))
+            else:
+                _tools = SALES_TOOLS
             result = _call_deepseek_with_tools(
                 messages, temperature, max_tokens, business_id, customer_id, api_key, tools=_tools,
             )
@@ -14535,6 +14520,13 @@ try:
     app.register_blueprint(booking_settings_bp)
 except Exception as bp_err:
     print(f"Error registering booking_settings_bp: {str(bp_err)}")
+
+try:
+    # Kiến thức cho trợ lý AI (hỏi-đáp + chính sách chủ tiệm viết, AI chỉ trả lời từ đây) — ai_knowledge.py
+    from ai_knowledge_bp import ai_knowledge_bp
+    app.register_blueprint(ai_knowledge_bp)
+except Exception as bp_err:
+    print(f"Error registering ai_knowledge_bp: {str(bp_err)}")
 
 try:
     # Gói liệu trình nhiều buổi (bán tại quầy, dùng buổi ở POS Spa) — service_packages.py

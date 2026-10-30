@@ -15,13 +15,15 @@ PACK CONTRACT — a module ai_packs/<name>.py (discovered automatically, nothing
     def execute(name, args, ctx) -> dict                                                      # raise PackError to refuse
   Optional: FACTS_INCLUDE_CATALOG = True when facts() already lists the shop's products/prices (the generic price list
   is then left out of the prompt so it is not repeated).
+  Optional: BOOKING_COLLECTIONS = (('table_reservations', 'customer_phone'),) — where this pack's bookings live and which
+  field holds the phone; used only to decide whether a one-time SMS code is worth sending (default per RESOURCE below).
 
 ctx passed to execute() (a fresh copy per call):
     business_id      the shop
-    customer_id      conversation id to store as ai_conversation_id. Web chat: '<thread>~<16 hex of the chat token hash>'
-                     (anyone can type a phone number, so the plain '<shop>:<phone>' thread id is NOT proof of ownership);
-                     split at '~' to link the /ai_bot thread. Other channels: the platform-signed thread id.
-    thread_id        the /ai_bot thread id (db.bot_customers.id)
+    customer_id      the /ai_bot thread id (db.bot_customers.id) to store as ai_conversation_id, or None (web chat before the
+                     customer gave a phone). Web chat: '<shop>:<phone typed>' — anyone can type a phone number, so on web it
+                     is NOT proof of ownership (use chat_token_hash). Other channels: '<shop>:<channel>:<platform-signed id>'.
+    thread_id        same as customer_id
     channel          web | messenger | instagram | whatsapp | zalo | viber | sms
     phone            VERIFIED phone (E.164) or None: SMS/WhatsApp = the carrier-verified number; web/Messenger/... = the number
                      confirmed with a one-time SMS code in this chat (ai_function_tools.verify_code)
@@ -82,7 +84,7 @@ class Pack:
     """One booking pack (a discovered module, or the built-in appointment pack of ai_function_tools)."""
 
     def __init__(self, name, *, industries, resource, tools, manage_tools=(), prompt_rules=None, facts=None, execute=None,
-                 builtin=False, facts_include_catalog=False, module=None):
+                 builtin=False, facts_include_catalog=False, module=None, booking_collections=None):
         self.name = name
         self.industries = tuple(industries)
         self.resource = resource
@@ -95,6 +97,8 @@ class Pack:
         self.builtin = builtin
         self.facts_include_catalog = bool(facts_include_catalog)
         self.module = module
+        cols = booking_collections or DEFAULT_BOOKING_COLLECTIONS.get(resource) or ()
+        self.booking_collections = tuple((str(c), str(f)) for c, f in cols)
 
     def __repr__(self):
         return f"<Pack {self.name} {self.resource} {','.join(self.industries)}>"
@@ -164,7 +168,18 @@ def _validate(name, mod):
         raise ValueError('PROMPT_RULES must be a dict {lang: text}')
     return Pack(name, industries=industries, resource=resource, tools=tools, manage_tools=manage, prompt_rules=rules,
                 facts=getattr(mod, 'facts', None), execute=mod.execute,
-                facts_include_catalog=getattr(mod, 'FACTS_INCLUDE_CATALOG', False), module=mod)
+                facts_include_catalog=getattr(mod, 'FACTS_INCLUDE_CATALOG', False), module=mod,
+                booking_collections=_booking_collections(mod))
+
+
+def _booking_collections(mod):
+    cols = getattr(mod, 'BOOKING_COLLECTIONS', None)
+    if not cols:
+        return None
+    try:
+        return tuple((str(c), str(f)) for c, f in cols)
+    except (TypeError, ValueError):
+        raise ValueError('BOOKING_COLLECTIONS must be ((collection, phone_field), ...)')
 
 
 def _builtin_packs():
@@ -424,7 +439,8 @@ def conversation_hash(customer_id):
 
 def manage_filter(ctx, phone_fields=('customer_phone',)):
     """Mongo filter (AND it with business_id) for bookings this chat may read/change, or None when nothing proves ownership:
-    a VERIFIED phone (any of its spellings) OR the chat_token_hash stored at creation OR (non-web) the conversation id."""
+    a VERIFIED phone (any of its spellings) OR the chat_token_hash stored at creation OR (non-web) the conversation id.
+    phone_fields: where the pack's collection keeps the phone (hotel_reservations: ('guest_phone',))."""
     ors = []
     if ctx.get('phone'):
         variants = phone_variants(ctx['phone'], ctx.get('country'))
@@ -434,6 +450,36 @@ def manage_filter(ctx, phone_fields=('customer_phone',)):
     if th and not str(th).startswith('anon:'):
         ors.append({'chat_token_hash': th})
     cid = ctx.get('customer_id')
-    if cid and (ctx.get('channel') != 'web' or ('~' in str(cid) and '~anon' not in str(cid))):
+    if cid and ctx.get('channel') not in (None, '', 'web'):   # web thread id = typed phone -> never proof on its own
         ors.append({'ai_conversation_id': cid})
     return {'$or': ors} if ors else None
+
+
+# Where each resource's bookings live (pack may override with BOOKING_COLLECTIONS). Only used to decide whether a one-time
+# SMS code is worth sending to a phone (no texts to numbers that never booked here).
+DEFAULT_BOOKING_COLLECTIONS = {
+    'appointment': (('appointments', 'customer_phone'),),
+    'table': (('table_reservations', 'customer_phone'),),
+    'room_hour': (('karaoke_room_reservations', 'customer_phone'),),
+    'room_night': (('hotel_reservations', 'guest_phone'),),   # /hotel/reserve stores the guest's phone as guest_phone
+    'stock_hold': (('retail_holds', 'customer_phone'), ('orders', 'customer_phone')),
+    'job': (('tasks', 'customer_phone'),),
+    'quote': (('quote_requests', 'customer_phone'),),
+    'consult': (('consultation_requests', 'customer_phone'),),
+}
+
+
+def phone_has_bookings(pack, business_id, variants):
+    """True when any spelling of the phone has a booking of this pack's kind at this shop (any status — a cancelled booking
+    can still be asked about). Raises on DB errors (the caller decides)."""
+    if not variants or pack is None:
+        return False
+    import sys
+    mc = sys.modules.get('mongo_client')
+    if mc is None:
+        import mongo_client as mc
+    db = mc.db
+    for coll, field in pack.booking_collections:
+        if db[coll].find_one({'business_id': business_id, field: {'$in': list(variants)}}, {'_id': 1}):
+            return True
+    return False

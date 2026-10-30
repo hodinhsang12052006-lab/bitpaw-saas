@@ -24,7 +24,8 @@ _VI_RE = re.compile(r'[ăâđêôơưạảấầẩẫậắằẳẵặẹẻ�
 _PLACEHOLDER_NAME_RE = re.compile(r'^(client|khách|customer)\b', re.I)
 DAY_NAMES = {'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'}
 
-# Customer-facing words per industry (en, vi). 'technician' only for nail, 'therapist' for spa (plan: vocabulary per pack).
+# Customer-facing words per industry (en, vi). 'technician' only for nail, 'therapist' for spa (plan: vocabulary per pack;
+# prompts for the other 7 industries must not contain 'salon', 'technician' or 'manicure').
 INDUSTRY_WORDS = {
     'nail': {'place': ('nail salon', 'tiệm nail'), 'team': ('technician', 'thợ')},
     'spa': {'place': ('spa', 'spa'), 'team': ('therapist', 'kỹ thuật viên')},
@@ -32,7 +33,7 @@ INDUSTRY_WORDS = {
     'karaoke': {'place': ('karaoke & billiards venue', 'quán karaoke / bida'), 'team': ('staff', 'nhân viên')},
     'hotel': {'place': ('hotel / homestay', 'khách sạn / homestay'), 'team': ('front desk', 'lễ tân')},
     'retail': {'place': ('shop', 'cửa hàng'), 'team': ('staff', 'nhân viên')},
-    'technical': {'place': ('repair & technical service', 'dịch vụ sửa chữa / kỹ thuật'), 'team': ('technician', 'kỹ thuật viên')},
+    'technical': {'place': ('repair & technical service', 'dịch vụ sửa chữa / kỹ thuật'), 'team': ('service team', 'đội kỹ thuật')},
     'production': {'place': ('workshop', 'xưởng sản xuất'), 'team': ('team', 'đội ngũ')},
     'office': {'place': ('office', 'văn phòng'), 'team': ('team', 'đội ngũ')},
 }
