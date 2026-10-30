@@ -4,7 +4,8 @@
     ~40% số phòng mỗi loại mỗi đêm (ít nhất 1) — không dựa vào danh tính người chat (mã trình duyệt / SĐT / mạng đổi được).
     Vượt trần: AI KHÔNG giữ phòng, chuyển nguyên yêu cầu cho nhân viên (không số đặt phòng, không nói đã đặt); xem phòng
     trống nói trước; dời ngày vào đêm đã đầy bị từ chối; chat đã xác minh và đặt phòng nhân viên đã duyệt không tính; 2 chat
-    cùng lúc tranh suất cuối thì bên vượt trần tự huỷ phiếu của mình;
+    cùng lúc tranh suất cuối không bao giờ vượt trần (bên kiểm lại thấy vượt trần tự huỷ phiếu của mình — có thể CẢ 2 cùng
+    huỷ, xem test_phase2_fix4_hotel4);
   - form đặt phòng công khai /api/public/hotel_reservations/<id>: trần riêng theo IP chặt hơn (giờ + NGÀY), decorator đặt
     đúng chỗ nên Flask-Limiter 4.1.1 thật trả 429 (không "biến mất");
   - 4 cạnh của ngày trả phòng dự kiến (trang Quản Lý Phòng + route): (1) ngày đã qua hiện cảnh báo vàng như "chưa rõ ngày";
@@ -139,7 +140,8 @@ class TestWebHoldCap(_Hotel):
         note = hp.STAFF_NOTES[-1][2]
         self.assertIn('CHƯA giữ phòng', note)
         self.assertIn('chưa xác minh', note)
-        self.assertIn('link đặt phòng công khai', note)
+        self.assertIn('Khách sạn > Đặt phòng', note)
+        self.assertNotIn('link đặt phòng công khai', note)
 
     def test_cap_is_per_night_and_per_type(self):
         self.book_as(web(1), 1, checkin_date=D(8), checkout_date=D(10))

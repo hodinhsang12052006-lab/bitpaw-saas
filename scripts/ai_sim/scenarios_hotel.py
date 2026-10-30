@@ -47,11 +47,19 @@ def _types_for(data, guests):
     return [t for t in data['types'].values() if (t['cap'] or 2) >= guests]
 
 
+# Chat web CHƯA xác minh (khách giả lập của sim là chat web thường) chỉ giữ được ~40% số phòng mỗi loại VÀ ~40% tổng số phòng
+# mỗi đêm (reservations_hotel.web_holds_full) — 2 lượt chạy cùng 1 kịch bản (cùng đêm) hay các kịch bản chồng đêm (next_fri..+2
+# và next_sat) chạm trần là chuyện thường ở khách sạn mẫu nhỏ. Lúc đó gói KHÔNG giữ phòng mà ghi 1 yêu cầu 'requested' cho
+# nhân viên (cùng tên / SĐT / ngày / số khách) — đúng luật, không phải lỗi. Bot nói "đã xác nhận" với dòng 'requested' vẫn bị
+# bắt (analyse_claims: says_confirmed_but_db_pending).
+STAFF_REQUEST = 'requested'
+
+
 def _status(data, guests):
     ok = _types_for(data, guests)
     if data['auto_confirm'] and ok and all(not t['unpriced'] for t in ok):
-        return ['pending', 'confirmed']
-    return ['pending']
+        return ['pending', 'confirmed', STAFF_REQUEST]
+    return ['pending', STAFF_REQUEST]
 
 
 def facts(shop, data):
@@ -68,6 +76,9 @@ def facts(shop, data):
                  f"{data['min_nights']} night(s).")
     lines.append('- Booking status: ' + ('auto-confirm ON — a free, priced room type may be confirmed instantly.'
                                          if data['auto_confirm'] else 'requests stay PENDING until the hotel confirms.'))
+    lines.append('- Online hold limit: an ordinary web chat (phone not verified) can hold only about 40% of the rooms of a type '
+                 'and about 40% of all rooms per night. Over that, the assistant holds NO room and passes the request to the '
+                 'team, who call the guest (no booking number, never "confirmed") — correct behaviour, not a failure.')
     lines.append(f"- Check-in from: {data['checkin_time'] or 'NOT published'}; check-out by: {data['checkout_time'] or 'NOT published'} "
                  "(early check-in is only ever 'subject to availability — the hotel decides').")
     fc = data['free_cancel_hours']
