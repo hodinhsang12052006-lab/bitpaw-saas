@@ -585,8 +585,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const bookingTokenField = () => (CHAT_CONTEXT === 'customer_booking' ? { chat_token: getChatToken() } : {});
     // /api/portal/* (trả lời của nhân viên tiệm, giữ hội thoại cho nhân viên): server chỉ mở hội thoại web cho ĐÚNG trình duyệt
-    // đã chat ở đó (mã chat này); hội thoại SMS / WhatsApp / Messenger... không bao giờ. Mã đi trong header (không nằm trong URL);
-    // riêng EventSource không gửi được header nên dùng ?chat_token=.
+    // đã chat ở đó (mã chat này); hội thoại SMS / WhatsApp / Messenger... không bao giờ. Mã chỉ đi trong header / body, KHÔNG BAO
+    // GIỜ trong URL (lộ vào log truy cập); riêng EventSource (không gửi được header) dùng khoá nghe ngắn hạn server cấp (stream_key).
     const portalAuth = () => ({ headers: { "X-Chat-Token": getChatToken() } });
 
     // Dọn lại phần UI tĩnh (không thuộc dna) cho đúng ngữ cảnh đặt lịch: đổi tiêu đề header,
@@ -627,6 +627,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let chatHistory = [];
     let chatMode = "ai"; // "ai" | "human"
     let humanChatStream = null; // EventSource — chỉ mở 1 lần cho mỗi SĐT, xem startHumanAgentStream()
+    let humanChatPhone = "";    // SĐT của kênh đang nghe (khách sửa SĐT -> mở lại kênh cho số mới)
     let renderedStaffMessageCount = 0; // đếm số tin nhắn staff đã render, tránh lặp khi poll lại
 
     // Sync state globally for quick reply handlers
@@ -722,7 +723,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const res = await fetch("/api/cskh/chat/messages?phone=" + encodeURIComponent(phone));
             const json = await res.json();
-            if (!json.success) return;
+            if (!json.success || phone !== humanChatPhone) return;   // kết quả của số cũ (khách vừa sửa SĐT) -> bỏ
             const staffMessages = (json.messages || []).filter(m => m.sender_type !== "customer");
             if (staffMessages.length > renderedStaffMessageCount) {
                 staffMessages.slice(renderedStaffMessageCount).forEach(m => appendMessage("ai", m.content));
@@ -734,7 +735,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function startHumanAgentStream(phone) {
-        if (!phone || humanChatStream) return;
+        if (!phone || (humanChatStream && humanChatPhone === phone)) return;
+        // Khách sửa SĐT (vd sau lỗi "số điện thoại không hợp lệ") -> đóng kênh của số cũ, nghe đúng hội thoại của số mới. Trước
+        // đây kênh mở 1 lần cho số đầu tiên (kể cả số sai, lúc bấm "Talk to Human Agent") rồi giữ mãi -> trả lời không hiện ra.
+        if (humanChatStream) humanChatStream.close();
+        humanChatPhone = phone;
+        renderedStaffMessageCount = 0;
         fetchHumanAgentReplies(phone); // lấy ngay lịch sử/reply đã có trước khi mở kênh SSE
         humanChatStream = new EventSource("/api/stream/cskh_chat?phone=" + encodeURIComponent(phone));
         humanChatStream.onmessage = () => fetchHumanAgentReplies(phone);
@@ -744,15 +750,19 @@ document.addEventListener("DOMContentLoaded", () => {
     // 6d. Nhân viên tiệm trả lời khách NGAY trong widget đặt lịch. BUG THẬT đã vá (đo thật 10/2026): chủ
     // tiệm trả lời trong /ai_bot (sender_type='staff') nhưng widget trên trang đặt lịch không hề nghe kênh
     // nào cho hội thoại "business_id:SĐT" -> khách đang chờ KHÔNG BAO GIỜ thấy câu trả lời. Dùng lại kênh
-    // public của /portal (/api/portal/stream + /api/portal/messages, cùng khoá customer_id + mã chat của trình duyệt này).
+    // public của /portal (/api/portal/messages với customer_id + mã chat của trình duyệt này trong header; /api/portal/stream với
+    // khoá nghe ngắn hạn server cấp). Chỉ thấy trả lời nhân viên gửi cho ĐÚNG trình duyệt này (cùng SĐT ở máy khác không thấy).
     let handoffNoticeShown = false;
     let shopReplyStream = null;
     let shopReplySeen = null; // số tin staff đã có lúc bắt đầu nghe — chỉ hiện tin MỚI
+    // Khoá nghe ngắn hạn (server ký HMAC, ~10 phút) do GET /api/portal/messages cấp — nằm trong URL của EventSource THAY cho mã chat
+    let shopStreamKey = null, shopStreamTtl = 600, shopStreamTimer = null, shopStreamRetries = 0;
     async function fetchShopReplies(customerId) {
         try {
             const res = await fetch("/api/portal/messages?customer_id=" + encodeURIComponent(customerId), portalAuth());
             const json = await res.json();
             if (!json.success) return false;
+            if (json.stream_key) { shopStreamKey = String(json.stream_key); shopStreamTtl = Number(json.stream_key_ttl) || 600; }
             const staff = (json.data || []).filter(m => m.sender_type === "staff");
             if (shopReplySeen === null) { shopReplySeen = staff.length; return true; }
             staff.slice(shopReplySeen).forEach(m => appendMessage("shop", m.content));
@@ -768,9 +778,34 @@ document.addEventListener("DOMContentLoaded", () => {
         const customerId = BUSINESS_ID + ":" + phone;
         shopReplyStream = "pending";
         if (!(await fetchShopReplies(customerId))) { shopReplyStream = null; return; } // hội thoại chưa lưu
-        shopReplyStream = new EventSource("/api/portal/stream?customer_id=" + encodeURIComponent(customerId)
-                                          + "&chat_token=" + encodeURIComponent(getChatToken()));
-        shopReplyStream.onmessage = () => fetchShopReplies(customerId);
+        openShopReplyStream(customerId);
+    }
+
+    // Mở kênh nghe bằng khoá ngắn hạn mới nhất (KHÔNG BAO GIỜ mã chat trong URL) và tự gia hạn ~2 phút trước khi khoá hết hạn:
+    // lấy lại tin (kèm khoá mới), mở kênh mới rồi đóng kênh cũ. Server từ chối kênh (khoá đã hết hạn vì máy ngủ...) -> gia hạn ngay.
+    function openShopReplyStream(customerId) {
+        clearTimeout(shopStreamTimer);
+        const old = shopReplyStream && typeof shopReplyStream === "object" ? shopReplyStream : null;
+        if (!shopStreamKey) { if (old) old.close(); shopReplyStream = null; return; } // server không cấp khoá -> không nghe
+        const es = new EventSource("/api/portal/stream?customer_id=" + encodeURIComponent(customerId)
+                                   + "&stream_key=" + encodeURIComponent(shopStreamKey));
+        es.onmessage = () => fetchShopReplies(customerId);
+        es.onerror = () => {  // readyState 2 = CLOSED: trình duyệt không tự nối lại nữa
+            if (es.readyState !== 2 || shopReplyStream !== es) return;
+            clearTimeout(shopStreamTimer);
+            shopStreamTimer = setTimeout(() => renewShopReplyStream(customerId), 3000);
+        };
+        shopReplyStream = es;
+        if (old) old.close();
+        shopStreamTimer = setTimeout(() => renewShopReplyStream(customerId), Math.max(30, shopStreamTtl - 120) * 1000);
+    }
+
+    async function renewShopReplyStream(customerId) {
+        if (await fetchShopReplies(customerId)) { shopStreamRetries = 0; openShopReplyStream(customerId); return; }
+        if (++shopStreamRetries <= 5) { shopStreamTimer = setTimeout(() => renewShopReplyStream(customerId), 30000); return; }
+        if (shopReplyStream && typeof shopReplyStream === "object") shopReplyStream.close();
+        shopReplyStream = null;   // bỏ cuộc: tin nhắn tiếp theo của khách mở lại kênh (finishSubmit -> startShopReplyStream)
+        shopStreamRetries = 0;
     }
 
     // 6e. Tiệm chưa có trợ lý chat (gói chưa gồm / vừa hạ gói): server KHÔNG gọi AI, trả
@@ -862,6 +897,19 @@ document.addEventListener("DOMContentLoaded", () => {
         msgContainer.scrollTop = msgContainer.scrollHeight;
     }
 
+    // Câu báo tin CHƯA gửi được (theo ngôn ngữ trang): 400 = SĐT sai, 429 = gửi quá nhanh, 0 = mất mạng, còn lại = lỗi máy chủ.
+    function humanSendError(status) {
+        const vi = pageLangIsVi();
+        if (status === 400) return vi ? "Tin nhắn CHƯA được gửi: số điện thoại không hợp lệ. Vui lòng kiểm tra lại số điện thoại của bạn rồi gửi lại."
+                                      : "Your message was NOT sent: that phone number isn't valid. Please check your phone number and send it again.";
+        if (status === 429) return vi ? "Tin nhắn CHƯA được gửi: bạn đang gửi quá nhanh. Vui lòng đợi khoảng 1 phút rồi gửi lại."
+                                      : "Your message was NOT sent: you're sending messages too quickly. Please wait about a minute and send it again.";
+        if (status === 0) return vi ? "Tin nhắn CHƯA được gửi: mất kết nối mạng. Vui lòng kiểm tra kết nối rồi thử lại."
+                                    : "Your message was NOT sent: no connection. Please check your connection and try again.";
+        return vi ? "Tin nhắn CHƯA được gửi do máy chủ đang gặp sự cố. Vui lòng thử lại sau ít phút."
+                  : "Your message was NOT sent because of a server problem. Please try again in a few minutes.";
+    }
+
     async function handleHumanAgentSubmit(msgVal, phoneVal) {
         appendMessage("user", msgVal);
         chatHistory.push({ role: "user", content: msgVal });
@@ -869,21 +917,37 @@ document.addEventListener("DOMContentLoaded", () => {
         chatMsgInput.disabled = true;
         if (chatSendBtn) chatSendBtn.disabled = true;
 
+        // Chỉ nghe trả lời khi tin THẬT SỰ đã tới đội ngũ. Trước đây bỏ qua phản hồi: SĐT sai (400), gửi quá nhanh (429), lỗi máy
+        // chủ (5xx) hay mất mạng đều im lặng mở kênh nghe -> khách tưởng tin đã tới và chờ mãi.
+        let status = 0;
         try {
-            await fetch("/api/cskh/chat/send", {
+            const res = await fetch("/api/cskh/chat/send", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ phone: phoneVal, content: msgVal }),
             });
+            const json = await res.json().catch(() => ({}));
+            status = res.ok && json.success === true ? 200 : (res.ok ? 500 : res.status || 500);
         } catch (err) {
-            console.log("Human agent message send deferred: ", err);
+            status = 0;
         }
 
-        startHumanAgentStream(phoneVal);
+        let focusEl = chatMsgInput;
+        if (status === 200) {
+            startHumanAgentStream(phoneVal);
+        } else {
+            appendMessage("ai", humanSendError(status));
+            if (!chatMsgInput.value) chatMsgInput.value = msgVal;   // giữ lại tin để khách sửa / gửi lại
+            if (status === 400 && chatPhoneInput) {
+                const phoneDiv = document.getElementById("phone-container");
+                if (phoneDiv) phoneDiv.style.display = "";
+                focusEl = chatPhoneInput;
+            }
+        }
 
         chatMsgInput.disabled = false;
         if (chatSendBtn) chatSendBtn.disabled = false;
-        chatMsgInput.focus();
+        focusEl.focus();
     }
 
     // 7. Offline/Fallback Logic Engine (Vietnamese Natural Response)

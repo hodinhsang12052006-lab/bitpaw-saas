@@ -280,7 +280,8 @@ const reset = (o) => { S = Object.assign({ gen: [], portalGet: [], portalPost: [
         const cid = url.searchParams.get('customer_id'); S.portalGet.push(cid);
         const t = S.threads[cid];
         if (!t) return json({ success: false, message: 'not found' }, 404);
-        return json({ success: true, data: t, shop_name: 'Lotus Nails' });
+        // server thật cấp khoá nghe ngắn hạn: widget mở /api/portal/stream bằng ?stream_key=, không bao giờ bằng mã chat (identity3)
+        return json({ success: true, data: t, shop_name: 'Lotus Nails', stream_key: '1900000000.' + 'ab'.repeat(32), stream_key_ttl: 600 });
       }
       if (p === '/api/portal/messages' && m === 'POST') {
         const b = req.postDataJSON(); S.portalPost.push(b);
@@ -290,6 +291,7 @@ const reset = (o) => { S = Object.assign({ gen: [], portalGet: [], portalPost: [
         return json({ success: true });
       }
       if (p === '/api/portal/stream') {
+        S.streams = (S.streams || []).concat([req.url()]);
         if (!S.streamEvent) return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 250\n\n' });
         return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 250\ndata: change\n\n' });
       }
@@ -357,6 +359,7 @@ const reset = (o) => { S = Object.assign({ gen: [], portalGet: [], portalPost: [
     const shop = await page.$$eval('#chat-messages-container .chat-shop', (els) => els.map((e) => e.textContent.replace(/\s+/g, ' ').trim()));
     ok('W1. trả lời của nhân viên hiện ngay trong khung chat (nhãn nhân viên tiệm)', shop.some((t) => /Salon staff/.test(t) && /See you tomorrow at 3pm!/.test(t)), JSON.stringify(shop));
     ok('W1. trả lời cũ của nhân viên (trước khi khách mở chat) không bị hiện lại', !shop.some((t) => /Hello!/.test(t)), JSON.stringify(shop));
+    ok('W1. kênh nghe dùng stream_key, không có mã chat trong URL', (S.streams || []).length > 0 && S.streams.every((u) => u.includes('stream_key=') && !u.includes('chat_token')), JSON.stringify(S.streams));
   });
   async function chat2(page, msg) {
     const n = S.gen.length;

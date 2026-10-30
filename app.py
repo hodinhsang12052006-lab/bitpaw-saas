@@ -11633,19 +11633,21 @@ def portal():
 
 def _portal_chat_token():
     """Mã chat riêng của trình duyệt — đúng mã widget đặt lịch lưu ở localStorage 'bp_chat_token' và gửi kèm mọi lượt chat
-    (secure_ai_generate lưu mã băm của nó trên từng tin). Nhận qua header X-Chat-Token, body JSON / form 'chat_token', hoặc
-    ?chat_token= (EventSource không gửi được header)."""
+    (secure_ai_generate lưu mã băm của nó trên từng tin). Nhận qua header X-Chat-Token hoặc body (JSON / form 'chat_token').
+    KHÔNG BAO GIỜ nhận qua URL (?chat_token=): mã này là bằng chứng chủ hội thoại + chủ lịch (reservations_core, gói đặt chỗ),
+    nằm trong URL là lộ vào log truy cập của Werkzeug / proxy / Vercel -> ai đọc được log là đóng vai được trình duyệt đó.
+    EventSource (không gửi được header) dùng khoá nghe ngắn hạn _portal_stream_key thay cho mã này."""
     tok = request.headers.get('X-Chat-Token')
     if not tok:
         body = request.get_json(silent=True)
         if isinstance(body, dict):
             tok = body.get('chat_token')
     if not tok:
-        tok = request.form.get('chat_token') or request.args.get('chat_token')
+        tok = request.form.get('chat_token')
     return tok if isinstance(tok, str) else None
 
 
-def _resolve_portal_customer(customer_id, chat_token=None):
+def _resolve_portal_customer(customer_id, chat_token=None, token_hash=None):
     """Tra cứu bot_customers theo id do CHÍNH customer_id xác định business_id — không có
     session nên KHÔNG ĐƯỢC tin business_id từ client dưới bất kỳ hình thức nào; mọi route
     /api/portal/* đều phải đi qua hàm này trước khi đọc/ghi bot_messages.
@@ -11664,12 +11666,13 @@ def _resolve_portal_customer(customer_id, chat_token=None):
         '<tiệm>:<SĐT>') KHÔNG BAO GIỜ được mở ở đây;
       - hội thoại web cần bằng chứng: mã chat của trình duyệt (chat_token) có mã băm nằm trên ít nhất 1 tin của CHÍNH hội
         thoại đó (trình duyệt này đã thật sự chat ở đây). Thiếu / sai mã -> như không có hội thoại (404, không dò được).
+    token_hash: CHỈ dùng nội bộ khi không có mã gốc — mã băm đã được xác minh từ khoá nghe ngắn hạn (_portal_stream_owner).
     Trả bản ghi bot_customers, hoặc None."""
     if not customer_id or not isinstance(customer_id, str):
         return None
     import ai_function_tools
-    token_hash = ai_function_tools.chat_token_hash(chat_token)
-    if not token_hash:
+    token_hash = ai_function_tools.chat_token_hash(chat_token) if chat_token is not None else token_hash
+    if not token_hash or not isinstance(token_hash, str):
         return None
     customer = db.bot_customers.find_one({'id': customer_id}, {'_id': 0})
     if not customer:
@@ -11693,6 +11696,46 @@ def _portal_conversation(customer_id):
     return (customer, ai_function_tools.chat_token_hash(chat_token)) if customer else (None, None)
 
 
+# Khoá nghe tín hiệu /api/portal/stream (giây). EventSource không gửi được header nên khoá buộc phải nằm trong URL -> dùng khoá ký
+# ngắn hạn này thay cho mã chat gốc; widget (cskh_widget.js) + portal.html tự lấy khoá mới và gia hạn trước khi hết hạn.
+_PORTAL_STREAM_KEY_TTL = 600
+
+
+def _portal_stream_sig(customer_id, token_hash, exp):
+    """HMAC-SHA256 (khoá bí mật của app) trên hội thoại + mã băm của trình duyệt + hạn dùng. Thiếu khoá bí mật -> None
+    (không bao giờ ký bằng khoá rỗng / khoá đoán được)."""
+    secret = app.secret_key
+    if not secret or not isinstance(token_hash, str) or not token_hash:
+        return None
+    key = secret.encode('utf-8') if isinstance(secret, str) else bytes(secret)
+    return hmac.new(key, f'portal-stream|{customer_id}|{token_hash}|{int(exp)}'.encode('utf-8'), hashlib.sha256).hexdigest()
+
+
+def _portal_stream_key(customer_id, token_hash):
+    """Khoá nghe '<hạn unix>.<chữ ký>' cho ĐÚNG trình duyệt + hội thoại này, hết hạn sau _PORTAL_STREAM_KEY_TTL giây. Lộ trong log
+    truy cập thì chỉ nghe được tín hiệu "có gì mới" (không có nội dung) của trình duyệt đó tới khi hết hạn: không đọc / ghi tin,
+    không làm chủ lịch được, và khoá không chứa mã chat hay mã băm của trình duyệt."""
+    exp = int(time.time()) + _PORTAL_STREAM_KEY_TTL
+    sig = _portal_stream_sig(customer_id, token_hash, exp)
+    return f'{exp}.{sig}' if sig else None
+
+
+def _portal_stream_owner(customer_id, stream_key):
+    """Mã băm của trình duyệt được cấp khoá nghe này cho hội thoại này (chữ ký đúng, còn hạn, hạn không xa quá 1 lần cấp), không
+    thì None. Khoá không chứa mã băm -> thử với mã băm của các trình duyệt đã có tin trong hội thoại (thường 1-2)."""
+    m = re.fullmatch(r'([0-9]{1,12})\.([0-9a-f]{64})', stream_key) if isinstance(stream_key, str) else None
+    if not m or not customer_id or not isinstance(customer_id, str):
+        return None
+    exp, now = int(m.group(1)), time.time()
+    if not now < exp <= now + _PORTAL_STREAM_KEY_TTL + 60:
+        return None
+    for h in db.bot_messages.distinct('chat_token_hash', {'customer_id': customer_id}):
+        sig = _portal_stream_sig(customer_id, h, exp)
+        if sig and hmac.compare_digest(sig, m.group(2)):
+            return h
+    return None
+
+
 @app.route('/api/portal/messages', methods=['GET'])
 def api_portal_messages_list():
     customer_id = request.args.get('customer_id', '')
@@ -11701,18 +11744,24 @@ def api_portal_messages_list():
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
     try:
         # Hội thoại web khoá theo SĐT TỰ GÕ: 2 trình duyệt gõ cùng 1 số dùng chung 1 hội thoại -> chỉ trả tin của CHÍNH trình
-        # duyệt này (khách / AI, cùng mã băm) + trả lời của nhân viên từ lúc trình duyệt này bắt đầu chat ở đây.
+        # duyệt này: tin khách / AI và trả lời của nhân viên mang mã băm của nó (api_bot_messages_create ghi trả lời kèm mã băm
+        # của ĐÚNG trình duyệt được trả lời). Trả lời cũ không có trường mã băm (ghi trước bản sửa, hay từ /super_admin): chỉ
+        # những trả lời ghi SAU lúc trình duyệt này bắt đầu chat ở đây (trình duyệt vào sau không bao giờ thấy trả lời cũ).
         first = list(db.bot_messages.find({'customer_id': customer_id, 'chat_token_hash': token_hash},
                                           {'_id': 0, 'created_at': 1}).sort('created_at', 1).limit(1))
         since = str((first[0].get('created_at') if first else '') or '')
         messages = list(db.bot_messages.find(
             {'customer_id': customer_id, '$or': [{'chat_token_hash': token_hash},
-                                                 {'sender_type': 'staff', 'created_at': {'$gte': since}}]},
+                                                 {'sender_type': 'staff', 'chat_token_hash': {'$exists': False},
+                                                  'created_at': {'$gte': since}}]},
             {'_id': 0, 'chat_token_hash': 0}).sort('created_at', 1))
         # tên QUÁN cho tiêu đề khung chat (khách của quán thấy quán, không phải "Trợ lý BitPaw")
         biz_id = customer.get('business_id')
         shop_name = ((_public_shop_context(biz_id) or {}).get('shop_name') or '') if biz_id else ''
-        return jsonify({"success": True, "data": messages, "shop_name": shop_name})
+        # stream_key: khoá nghe /api/portal/stream ngắn hạn cho trình duyệt này (EventSource không gửi được header -> không bao giờ
+        # đưa mã chat gốc vào URL); trang lấy khoá mới ở mỗi lần tải tin và gia hạn trước khi hết hạn.
+        return jsonify({"success": True, "data": messages, "shop_name": shop_name,
+                        "stream_key": _portal_stream_key(customer_id, token_hash), "stream_key_ttl": _PORTAL_STREAM_KEY_TTL})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -11789,17 +11838,25 @@ def api_portal_stream():
     """SSE public — chỉ là tín hiệu "có gì mới, tự gọi lại /api/portal/messages", KHÔNG mang dữ
     liệu, nên lộ tín hiệu này không rò rỉ nội dung chat của khách khác. Match stage tự dựng
     (không dùng _sse_tenant_match() vì hàm đó đọc business_id từ session, ở đây không có
-    session — business_id phải suy ra từ customer_id)."""
+    session — business_id phải suy ra từ customer_id).
+    Trình duyệt mở kênh bằng ?stream_key= (khoá ký ngắn hạn do GET /api/portal/messages cấp, xem _portal_stream_key), KHÔNG BAO
+    GIỜ bằng mã chat gốc trong URL; client không phải trình duyệt có thể gửi mã gốc qua header X-Chat-Token."""
     customer_id = request.args.get('customer_id', '')
-    customer, _token_hash = _portal_conversation(customer_id)
+    customer, token_hash = _portal_conversation(customer_id)
+    if not customer:
+        token_hash = _portal_stream_owner(customer_id, request.args.get('stream_key'))
+        customer = _resolve_portal_customer(customer_id, token_hash=token_hash) if token_hash else None
     if not customer:
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 404
-    # Chỉ tín hiệu của ĐÚNG hội thoại này (trước đây mọi tin của cả tiệm cũng báo -> lộ nhịp hoạt động của khách khác)
+    # Chỉ tín hiệu của ĐÚNG trình duyệt này trong hội thoại này: tin mang mã băm của nó (khách / AI / trả lời của nhân viên dành
+    # cho nó) + trả lời cũ của nhân viên chưa có trường mã băm (GET vẫn chỉ trả trả lời ghi sau lúc trình duyệt vào). Trình duyệt
+    # khác gõ cùng SĐT nhắn tin, hay bot_customers đổi last_message, không còn báo (trước đây lộ nhịp hoạt động của người kia).
     match = {'$match': {'$or': [
-        {'fullDocument.customer_id': customer_id},
-        {'fullDocument.id': customer_id},
+        {'fullDocument.customer_id': customer_id, 'fullDocument.chat_token_hash': token_hash},
+        {'fullDocument.customer_id': customer_id, 'fullDocument.sender_type': 'staff',
+         'fullDocument.chat_token_hash': {'$exists': False}},
         {'operationType': 'delete'},
-    ], 'ns.coll': {'$in': ['bot_customers', 'bot_messages']}}}
+    ], 'ns.coll': 'bot_messages'}}
     return _sse_change_signal(db, match)
 
 
@@ -12370,7 +12427,8 @@ def api_bot_messages_list():
 def api_bot_messages_create():
     """Staff (chủ tiệm) tự trả lời khách trong console ai_bot.html — sender_type='staff',
     KHÁC với sender_type='ai'/'customer' do _persist_chat_turn() ghi tự động từ widget
-    landing page. Dùng chung 1 collection, chỉ khác nhãn người gửi."""
+    landing page. Dùng chung 1 collection, chỉ khác nhãn người gửi.
+    reply_to (tuỳ chọn, hội thoại web): created_at của tin khách mà nhân viên đang trả lời; không gửi = tin khách mới nhất."""
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     customer_id = data.get('customer_id', '')
@@ -12389,10 +12447,29 @@ def api_bot_messages_create():
             # tin trước rồi gửi, kèm trạng thái giao tin THẬT — kênh chưa nối thì báo rõ "chưa gửi được").
             delivery = inbox_channels.deliver(business_id, channel, bc['ext_user_id'], content[:2000], 'staff')
         else:
-            db.bot_messages.insert_one({
+            msg = {
                 'customer_id': customer_id, 'sender_type': 'staff', 'content': content[:2000],
                 'business_id': business_id, 'created_at': now_iso, 'is_read': True, 'channel': channel,
-            })
+            }
+            if channel == 'web':
+                # Hội thoại web khoá theo SĐT TỰ GÕ: 2 trình duyệt gõ cùng 1 số dùng chung 1 hội thoại. Trả lời chỉ tới ĐÚNG trình
+                # duyệt nó trả lời (/api/portal/* lọc theo mã băm): mã băm của tin khách được trả lời (reply_to), mặc định tin
+                # khách MỚI NHẤT. Tin đó không có mã (widget cũ / trang không phải đặt lịch) -> '' = không trình duyệt nào đọc
+                # được qua trang công khai (trước đây: mọi trình duyệt đã vào hội thoại từ trước, kể cả người gõ SĐT của người khác).
+                answered_q = {'customer_id': customer_id, 'sender_type': 'customer'}
+                reply_to = data.get('reply_to')
+                if reply_to is not None:
+                    if not isinstance(reply_to, str) or not reply_to:
+                        return jsonify({"success": False, "message": _vi_en("Tin nhắn được trả lời (reply_to) không hợp lệ.",
+                                                                           "Invalid reply_to message.")}), 400
+                    answered_q['created_at'] = reply_to
+                answered = db.bot_messages.find_one(answered_q, {'_id': 0, 'chat_token_hash': 1}, sort=[('created_at', -1)])
+                if reply_to is not None and not answered:
+                    return jsonify({"success": False, "message": _vi_en("Không tìm thấy tin nhắn của khách mà bạn đang trả lời.",
+                                                                       "The customer message you're replying to wasn't found.")}), 404
+                answered_hash = (answered or {}).get('chat_token_hash')
+                msg['chat_token_hash'] = answered_hash if isinstance(answered_hash, str) else ''
+            db.bot_messages.insert_one(msg)
         # Nhân viên đã nhảy vào trả lời -> AI ngừng tự trả lời khách này (chủ tiệm bật lại bằng công tắc), để
         # khách không nhận 2 câu trả lời chồng nhau (1 của người, 1 của AI) cho cùng 1 tin.
         db.bot_customers.update_one(
