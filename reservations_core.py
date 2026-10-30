@@ -78,6 +78,11 @@ REASONS = {
     'too_close_to_closing': ('That is too close to closing time.', 'Giờ này sát giờ đóng cửa quá.'),
     'fully_booked': ('That time is fully booked.', 'Giờ này đã kín chỗ.'),
     'no_table': ('No table for that party size is free at that time.', 'Giờ này không còn bàn đủ chỗ cho nhóm.'),
+    'large_party_request': ('The group is bigger than the number of guests the restaurant takes per time slot — it is a '
+                            'request the team reviews and confirms.',
+                            'Nhóm đông hơn số khách quán nhận mỗi khung giờ — đây là yêu cầu, quán xem lại và xác nhận.'),
+    'large_party_slot_taken': ('A group this size needs a time slot with no other bookings, and this time already has some.',
+                               'Nhóm đông như vậy cần 1 khung giờ chưa có ai đặt, giờ này đã có khách đặt.'),
     'no_room': ('No suitable room is free at that time.', 'Giờ này không còn phòng phù hợp.'),
     'room_taken': ('That room is already booked at that time.', 'Phòng này đã có khách đặt giờ đó.'),
     'no_rooms_listed': ('The venue has not listed its rooms yet.', 'Quán chưa nhập danh sách phòng.'),
@@ -725,27 +730,42 @@ def table_fit(rules, tables, rows, when, party):
     None): không biết, chỉ nhận yêu cầu."""
     if table_model(rules, tables) == 'none':
         return None, None, None
+    large = None
     if rules['max_covers_per_slot'] > 0:
         b = _bucket(when, rules['slot_minutes'])
         used = sum(_party(r) for r in rows if _bucket(r['_start'], rules['slot_minutes']) == b)
-        if used + party > rules['max_covers_per_slot']:
+        if party > rules['max_covers_per_slot']:
+            # Riêng 1 nhóm đã đông hơn số khách / khung giờ: không phải "kín chỗ" ở mọi giờ mọi ngày — là yêu cầu nhóm lớn
+            # quán duyệt (không tự xác nhận), cần trọn 1 khung giờ chưa có ai đặt.
+            if used:
+                return False, 'large_party_slot_taken', None
+            large = 'large_party_request'
+        elif used + party > rules['max_covers_per_slot']:
             return False, 'fully_booked', None
     if not tables:
-        return True, None, None
+        return True, large, None
     stay = timedelta(minutes=rules['dining_minutes'])
     overlapping = [r for r in rows if r['_start'] < when + stay and r['_start'] + stay > when]
     busy = {r.get('table_id') for r in overlapping if r.get('table_id') is not None}
     free = [t for t in tables if t['id'] not in busy]
-    # Yêu cầu chưa xếp bàn (form công khai) cũng cần bàn: nhóm lớn trước, mỗi nhóm lấy bàn nhỏ nhất vừa đủ.
+    # Yêu cầu chưa xếp bàn (form công khai, nhóm lớn đã nhận chờ ghép bàn) cũng cần bàn: nhóm lớn trước, mỗi nhóm lấy bàn
+    # nhỏ nhất vừa đủ; không bàn nào đủ ghế -> ghép bàn: lấy bàn lớn nhất trước tới khi đủ ghế (không đủ: giữ hết bàn còn lại).
     for r in sorted((r for r in overlapping if r.get('table_id') is None), key=_party, reverse=True):
-        fit = next((t for t in free if t['seats'] >= _party(r)), None) or (free[-1] if free else None)
+        need = _party(r)
+        fit = next((t for t in free if t['seats'] >= need), None)
         if fit:
             free.remove(fit)
+            continue
+        for t in sorted(free, key=lambda t: t['seats'], reverse=True):
+            free.remove(t)
+            need -= t['seats']
+            if need <= 0:
+                break
     if party > tables[-1]['seats']:
-        # Không bàn nào đủ ghế cho cả nhóm (quán ghép bàn) -> chỉ nhận yêu cầu, nhân viên xếp; vẫn phải còn bàn trống.
-        return (True, 'needs_joined_tables', None) if free else (False, 'no_table', None)
+        # Không bàn nào đủ ghế cho cả nhóm (quán ghép bàn) -> chỉ nhận yêu cầu, nhân viên xếp; bàn trống phải đủ ghế cho cả nhóm.
+        return (True, 'needs_joined_tables', None) if sum(t['seats'] for t in free) >= party else (False, 'no_table', None)
     pick = next((t for t in free if t['seats'] >= party), None)
-    return (True, None, pick['id']) if pick else (False, 'no_table', None)
+    return (True, large, pick['id']) if pick else (False, 'no_table', None)
 
 
 def table_candidate_times(rules, day, around=None):
@@ -787,7 +807,7 @@ def table_status_for(rules, model, party, fit_reason=None):
         return 'pending', 'no_live_availability'
     if not rules['hours']:
         return 'pending', 'hours_not_published'
-    if fit_reason == 'needs_joined_tables' or (rules['max_party_auto'] and party > rules['max_party_auto']):
+    if fit_reason in ('needs_joined_tables', 'large_party_request') or (rules['max_party_auto'] and party > rules['max_party_auto']):
         return 'pending', 'large_party'
     if not rules['auto_confirm']:
         return 'pending', 'shop_confirms'
@@ -824,6 +844,16 @@ def room_size(room):
 
 def room_kind(room):
     return 'billiards' if _BILLIARDS_RE.search(str(room.get('name') or '') + ' ' + str(room.get('room_type') or '')) else 'karaoke'
+
+
+def unassigned_kind(row, rooms):
+    """Loại chỗ (karaoke | billiards) của 1 đặt phòng CHƯA xếp phòng — form công khai không hỏi loại: ghi chú nhắc bida /
+    pool -> 'billiards', còn lại = loại mặc định của quán, cùng luật trợ lý AI dùng khi khách không nói (có phòng karaoke ->
+    'karaoke')."""
+    if _BILLIARDS_RE.search(str(row.get('note') or '')):
+        return 'billiards'
+    kinds = {r['kind'] for r in rooms}
+    return 'karaoke' if 'karaoke' in kinds or not kinds else 'billiards'
 
 
 def karaoke_rooms(business_id):
@@ -878,17 +908,22 @@ def karaoke_rows(business_id, day, exclude_id=None):
 
 def karaoke_free(rules, rooms, rows, start, hours, now, group=None, kind=None, room_type=None):
     """Phòng còn trống thật cho [start, start+hours): không chồng giờ với đặt phòng đã xếp vào phòng đó, không đang có khách
-    vãng lai nếu giờ bắt đầu sát hiện tại, và trừ hao các yêu cầu CHƯA xếp phòng chồng giờ (mỗi yêu cầu sẽ chiếm 1 phòng).
+    vãng lai nếu giờ bắt đầu sát hiện tại, và trừ hao các yêu cầu CHƯA xếp phòng chồng giờ (mỗi yêu cầu sẽ chiếm 1 phòng
+    ĐÚNG LOẠI của nó — unassigned_kind: phòng karaoke cuối cùng không được đem cho khách sau khi còn yêu cầu karaoke chờ xếp).
     Trả (phòng hợp nhóm còn trống — vừa cỡ trước, rồi rẻ trước —, phòng trống nhưng không rõ cỡ / chưa đủ thông tin)."""
     end = start + timedelta(hours=hours)
     overlapping = [r for r in rows if r['_start'] < end and r['_start'] + timedelta(hours=float(r.get('duration_hours') or 2)) > start]
     busy = {r.get('room_id') for r in overlapping if r.get('room_id') is not None}
-    unassigned = sum(1 for r in overlapping if r.get('room_id') is None)
     near = start < now + timedelta(hours=rules['in_use_buffer_hours'])
     free_all = [r for r in rooms if r['id'] not in busy and not (near and r['in_use'])]
-    if len(free_all) - unassigned <= 0:
-        return [], []
-    cands = rooms_matching(free_all, kind, room_type)
+    left = {}                                       # phòng trống còn lại theo loại, sau khi chừa cho yêu cầu chưa xếp phòng
+    for r in free_all:
+        left[r['kind']] = left.get(r['kind'], 0) + 1
+    for r in overlapping:
+        if r.get('room_id') is None:
+            k = unassigned_kind(r, rooms)
+            left[k] = left.get(k, 0) - 1
+    cands = [r for r in rooms_matching(free_all, kind, room_type) if left.get(r['kind'], 0) > 0]
     fits = [r for r in cands if group and r['max_guests'] is not None and r['max_guests'] >= group]
     unknown = [r for r in cands if r['max_guests'] is None or not group]
     fits.sort(key=lambda r: (r['max_guests'], r['rate'], r['id']))

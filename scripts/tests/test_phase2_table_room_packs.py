@@ -923,11 +923,13 @@ class KaraokeBooking(KaraokeBase):
     def test_everything_busy_offers_other_times_and_counts_unassigned_requests(self):
         ktv_row(1, '2026-10-30T19:00:00', 3, 1)
         ktv_row(2, '2026-10-30T20:00:00', 2, 2)
-        ktv_row(3, '2026-10-30T18:00:00', 4, None, status='pending')       # form công khai chưa xếp phòng -> trừ hao 1 phòng
+        ktv_row(3, '2026-10-30T18:00:00', 4, None, status='pending', note='Pool table please')  # form chưa xếp: giữ 1 bàn bida
         ktv_row(4, '2026-10-30T19:30', 2, None, status='cancelled')        # đã huỷ: không tính
-        r = self.reserve(time='20:00', group=3)                             # còn phòng 3 + bàn bida, 1 yêu cầu chưa xếp
+        r = self.reserve(time='20:00', group=3)                             # còn phòng 3 + bàn bida, 1 yêu cầu bida chưa xếp
         self.assertTrue(r['success'])
         self.assertEqual(r['room'], 'Family Room (6-8 people)')
+        pool = self.reserve(time='20:00', group=2, phone='0499111222', room_kind='billiards')
+        self.assertEqual(pool['reason'], 'no_room')                         # bàn bida duy nhất dành cho yêu cầu bida đang chờ
         full = self.reserve(time='20:30', group=3, phone='0499888777')
         self.assertFalse(full['success'])
         self.assertEqual(full['reason'], 'no_room')
