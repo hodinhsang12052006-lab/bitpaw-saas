@@ -145,7 +145,7 @@ class TestWalkInExpectedCheckout(hp.Base):
         self.assertEqual(code, 200, out)
         self.assertIsNone(self.room(1)['expected_checkout_date'])
         self.assertEqual(rh.open_walkins(BID, rh.list_rooms(BID), TODAY), {1})
-        a = self.book(checkin_date=D(1), checkout_date=D(2))
+        a = self.book(c=ctx('whatsapp'), checkin_date=D(1), checkout_date=D(2))   # đã xác minh: không tính vào trần chat web
         self.assertEqual((find(a['booking_id'])['room_id'], a['status']), (2, 'confirmed'))
         b = self.other(1, checkin_date=D(1), checkout_date=D(2))
         doc = find(b['booking_id'])
