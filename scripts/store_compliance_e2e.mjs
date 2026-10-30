@@ -27,7 +27,8 @@ for (const [url, must] of legal) {
   const r = await nav(web, url);
   const txt = await web.innerText('body');
   const noPlaceholder = !/\[(Tax ID|Contact email|Last updated date|Ngày cập nhật|Email liên hệ)/.test(txt);
-  rec(`Trang ${url} HTTP 200, có "${must}", không còn [placeholder]`, r.status() === 200 && txt.includes(must) && noPlaceholder, `HTTP ${r.status()}`);
+  // tên pháp nhân: không phân biệt hoa/thường (văn bản pháp lý ghi "Bitpaw Technology LLC")
+  rec(`Trang ${url} HTTP 200, có "${must}", không còn [placeholder]`, r.status() === 200 && txt.toLowerCase().includes(must.toLowerCase()) && noPlaceholder, `HTTP ${r.status()}`);
 }
 await web.screenshot({ path: `${OUT}/store_privacy_policy_mobile.png` });
 await nav(web, '/account/delete?lang=en');
