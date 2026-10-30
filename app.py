@@ -6730,8 +6730,14 @@ def api_public_karaoke_reservation_create(business_id):
     try:
         # Cùng 1 hàm ghi với trợ lý AI đặt phòng (ai_packs/karaoke.py); số giờ: lỗi -> 2, kẹp 0.5-12 như trước
         import reservations_core
+        # Phòng hát hay bàn bida (form chỉ hỏi khi quán có cả 2): chỉ lưu loại quán THẬT có — yêu cầu chưa xếp phòng giữ đúng
+        # loại chỗ khi AI / nhân viên đếm phòng trống (reservations_core.unassigned_kind), khỏi đoán từ ghi chú.
+        room_kind = str(data.get('room_kind') or '').strip().lower()
+        if room_kind and room_kind not in {r['kind'] for r in reservations_core.karaoke_rooms(business_id)}:
+            room_kind = ''
         reservation_doc = reservations_core.create_karaoke_reservation(business_id, name, phone, party_size, reserved_time,
-                                                                       data.get('duration_hours'), note=data.get('note'))
+                                                                       data.get('duration_hours'), note=data.get('note'),
+                                                                       extra={'room_kind': room_kind or None})
         return jsonify({'success': True, 'id': reservation_doc['id']})
     except Exception as e:
         return jsonify({'success': False, 'message': f'Không thể tạo yêu cầu đặt phòng: {str(e)}'}), 500

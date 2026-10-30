@@ -943,12 +943,16 @@ def room_kind(room):
 
 
 def unassigned_kind(row, rooms):
-    """Loại chỗ (karaoke | billiards) của 1 đặt phòng CHƯA xếp phòng — form công khai không hỏi loại: ghi chú nhắc bida /
-    pool -> 'billiards', còn lại = loại mặc định của quán, cùng luật trợ lý AI dùng khi khách không nói (có phòng karaoke ->
-    'karaoke')."""
-    if _BILLIARDS_RE.search(str(row.get('note') or '')):
-        return 'billiards'
+    """Loại chỗ (karaoke | billiards) của 1 đặt phòng CHƯA xếp phòng: loại khách chọn trên form công khai (room_kind) nếu quán
+    có loại đó; không thì ghi chú nhắc bida / pool -> 'billiards' — CHỈ khi quán thật sự có bàn bida (quán chỉ có phòng hát:
+    "sau buổi pool party" vẫn là 1 yêu cầu phòng hát, phải được chừa phòng); còn lại = loại mặc định của quán, cùng luật trợ lý
+    AI dùng khi khách không nói (có phòng karaoke -> 'karaoke')."""
     kinds = {r['kind'] for r in rooms}
+    chosen = str(row.get('room_kind') or '').strip().lower()
+    if chosen in kinds:
+        return chosen
+    if 'billiards' in kinds and _BILLIARDS_RE.search(str(row.get('note') or '')):
+        return 'billiards'
     return 'karaoke' if 'karaoke' in kinds or not kinds else 'billiards'
 
 

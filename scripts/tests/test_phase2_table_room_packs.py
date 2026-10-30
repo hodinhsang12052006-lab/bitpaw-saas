@@ -905,12 +905,13 @@ class KaraokeBooking(KaraokeBase):
         self.assertEqual((row['room_id'], row['duration_hours'], row['reserved_time'], row['source']),
                          (3, 2.0, '2026-10-30T20:00:00', 'ai_bot'))
         self.assertEqual(row['estimated_room_charge'], 36.0)
-        # 21:00-23:00 chồng giờ với phòng 3 -> chọn đúng phòng 3 bị từ chối, kèm phòng khác còn trống
-        taken = self.reserve(time='21:00', group=6, room_id=3, phone='0499888777')
+        # 21:00-23:00 chồng giờ với phòng 3 -> chọn đúng phòng 3 bị từ chối, kèm phòng khác còn trống (khách khác, chat khác)
+        leo = web_ctx(token='z' * 40, customer_id=f'{BID}:0499888777')
+        taken = self.reserve(time='21:00', group=6, room_id=3, phone='0499888777', ctx=leo)
         self.assertFalse(taken['success'])
         self.assertEqual(taken['reason'], 'room_taken')
         self.assertEqual([x['name'] for x in taken['other_free_rooms']], ['VIP Room 1'])
-        moved = self.reserve(time='21:00', group=6, phone='0499888777')
+        moved = self.reserve(time='21:00', group=6, phone='0499888777', ctx=leo)
         self.assertEqual(moved['room'], 'VIP Room 1')
         self.assertTrue(moved['size_unknown'])
         self._assert_no_overlapping_pair()
@@ -929,9 +930,11 @@ class KaraokeBooking(KaraokeBase):
         r = self.reserve(time='20:00', group=3)                             # còn phòng 3 + bàn bida, 1 yêu cầu bida chưa xếp
         self.assertTrue(r['success'])
         self.assertEqual(r['room'], 'Family Room (6-8 people)')
-        pool = self.reserve(time='20:00', group=2, phone='0499111222', room_kind='billiards')
+        pool = self.reserve(time='20:00', group=2, phone='0499111222', room_kind='billiards',
+                            ctx=web_ctx(token='y' * 40, customer_id=f'{BID}:0499111222'))      # khách khác, chat khác
         self.assertEqual(pool['reason'], 'no_room')                         # bàn bida duy nhất dành cho yêu cầu bida đang chờ
-        full = self.reserve(time='20:30', group=3, phone='0499888777')
+        full = self.reserve(time='20:30', group=3, phone='0499888777', ctx=web_ctx(token='z' * 40,
+                                                                                   customer_id=f'{BID}:0499888777'))
         self.assertFalse(full['success'])
         self.assertEqual(full['reason'], 'no_room')
         self.assertIn('22:00', full['other_start_times_same_day'])

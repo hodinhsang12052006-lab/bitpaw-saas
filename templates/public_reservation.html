@@ -129,6 +129,13 @@
                     </select></div>
                 {% else %}<div></div>{% endif %}
             </div>
+            {% if kind == 'karaoke' and room_kinds is defined and room_kinds and 'karaoke' in room_kinds and 'billiards' in room_kinds %}
+            <div class="field"><label for="f_kind">{{ 'Bạn muốn đặt' if vi else 'What would you like to book?' }}</label>
+                <select id="f_kind" name="room_kind">
+                    <option value="karaoke">{{ 'Phòng hát karaoke' if vi else 'Karaoke room' }}</option>
+                    <option value="billiards">{{ 'Bàn bida' if vi else 'Billiards / pool table' }}</option>
+                </select></div>
+            {% endif %}
             {% endif %}
             <div class="field">
                 <label for="f_note">{{ 'Ghi chú' if vi else 'Notes' }} <small>({{ 'không bắt buộc' if vi else 'optional' }})</small></label>
@@ -186,6 +193,7 @@
             if (!fd.get('time')) return showErr(VI ? 'Vui lòng chọn giờ đến.' : 'Please choose a time.');
             body.reserved_time = `${fd.get('date')}T${fd.get('time')}:00`;
             if (KIND === 'karaoke') body.duration_hours = parseFloat(fd.get('duration_hours')) || 2;
+            if (KIND === 'karaoke' && fd.get('room_kind')) body.room_kind = fd.get('room_kind');
             rows = [[VI ? 'Ngày' : 'Date', fmtDate(fd.get('date'))], [VI ? 'Giờ' : 'Time', fd.get('time')], [VI ? 'Số người' : 'Party size', body.party_size]];
         }
         btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (VI ? 'Đang gửi…' : 'Sending…');
