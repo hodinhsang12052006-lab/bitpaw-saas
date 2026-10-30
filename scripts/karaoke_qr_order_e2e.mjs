@@ -105,7 +105,8 @@ rec(`Thẻ phòng hiện 4 món · ${money(ITEMS)} + món mới qua QR + đã h�
 await p.locator(`.glass-card[data-room-id="${ROOM}"] button:has-text("QR")`).click(); await p.waitForTimeout(500);
 rec('Nút QR hiện mã QR in được', await p.locator('#qrBox svg').count() === 1 && (await p.textContent('#qrUrl')).includes(tok));
 await p.click('#qrCloseLbl');
-await p.locator(`.glass-card[data-room-id="${ROOM}"] button[onclick^="openItems"]`).click(); await p.waitForTimeout(600);
+await p.locator(`.glass-card[data-room-id="${ROOM}"] button[onclick^="openItems"]`).click();
+await p.waitForFunction(() => /\(QR\)/.test((document.querySelector('#itemsList') || {}).textContent || ''), null, { timeout: 10000 }).catch(() => {});
 const list = await p.textContent('#itemsList');
 rec('Hộp món hiện đủ món + đánh dấu (QR)', list.includes(D.beer) && list.includes(D.fruit) && /\(QR\)/.test(list), list.replace(/\s+/g, ' ').slice(0, 100));
 await p.evaluate(() => closeItems()); await p.waitForTimeout(500);

@@ -98,6 +98,7 @@ for (const ind of ONLY) {
     await staff.fill('#login_manv', MA_NV);
     await staff.click('#btn_login_submit');
     await waitOrRedo(staff, '#checkinScreen:not(.hidden)', async () => {
+      staffErr.length = 0;   // lỗi JS của lần tải bị kẹt (script chưa chạy) — không phải lỗi app
       await go(staff, '/app_nhanvien'); await staff.fill('#login_manv', MA_NV); await staff.click('#btn_login_submit');
     });
     await staff.click('[onclick="startCameraAndGPS()"]', { force: true });   // nút có hiệu ứng nhịp thở
@@ -168,8 +169,9 @@ for (const ind of ONLY) {
       await staff.evaluate(() => switchAppTab('jobs')); await staff.waitForTimeout(1200);
       const card = staff.locator(`#available_jobs_container [data-task-id="${taskId}"]`);
       rec(ind, 'Thợ', 'Thấy job mới trong danh sách việc', await card.count() === 1);
-      await card.locator('[data-action="nhan"]').click(); await staff.click('#btn-confirm-yes'); await staff.waitForTimeout(1500);
+      await card.locator('[data-action="nhan"]').click(); await staff.click('#btn-confirm-yes');
       const mine = staff.locator(`#my_jobs_container [data-task-id="${taskId}"]`);
+      await mine.waitFor({ timeout: 10000 }).catch(() => {});
       rec(ind, 'Thợ', 'Nhận job -> chuyển sang "việc của tôi"', await mine.count() === 1 && db('state', BID, MA_NV).tasks[0]?.trang_thai === 'Đã Nhận');
       await mine.locator('[data-action="hoanthanh"]').click(); await staff.click('#btn-confirm-yes'); await staff.waitForTimeout(1500);
       rec(ind, 'Thợ', 'Hoàn thành job', db('state', BID, MA_NV).tasks[0]?.trang_thai === 'Hoàn Thành');

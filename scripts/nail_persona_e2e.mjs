@@ -10,6 +10,7 @@
  *
  * Chạy: node scripts/nail_persona_e2e.mjs   (server local http://127.0.0.1:5001 phải đang chạy)
  */
+import { waitOrRedo } from './lib/nail_nav.mjs';
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
@@ -120,6 +121,7 @@ try {
   await staff.fill('#login_manv', MA_NV.toLowerCase());
   await staff.click('#btn_login_submit');
   await waitOrRedo(staff, '#checkinScreen:not(.hidden)', async () => {
+    staffErrors.length = 0;   // lỗi JS của lần tải bị kẹt (script chưa chạy) — không phải lỗi app
     await staff.goto(`${BASE}/app_nhanvien`, { waitUntil: 'domcontentloaded' }).catch(() => {});
     await staff.click('#tabLogin').catch(() => {});
     await staff.fill('#login_manv', MA_NV.toLowerCase()); await staff.click('#btn_login_submit');
