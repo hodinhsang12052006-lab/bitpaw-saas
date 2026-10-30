@@ -2,6 +2,9 @@
 // Integrated with DeepSeek AI Engine and Supabase CRM Fallback
 
 document.addEventListener("DOMContentLoaded", () => {
+    // App mobile (CH Play / App Store; User-Agent "BitPawMobileApp/" — cùng quy tắc is_store_app() ở app.py): widget này là bot
+    // BÁN gói BitPaw (báo giá, dẫn tới trang mua) -> không hiện trong app. Chat đặt lịch của tiệm (customer_booking) giữ nguyên.
+    if ((navigator.userAgent || '').indexOf('BitPawMobileApp/') !== -1 && window.BITPAW_CHAT_CONTEXT !== 'customer_booking') return;
     // 1. Inject Premium CSS Styles (Futuristic Dark Neon & Responsive Layout)
     if (!document.getElementById("cskh-widget-styles")) {
         const style = document.createElement("style");

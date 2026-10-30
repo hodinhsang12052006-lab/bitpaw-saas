@@ -988,7 +988,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         if (!el) return;
         if (!e) { el.classList.add('hidden'); el.innerHTML = ''; return; }
         const msg = typeof e === 'string' ? e : (e.message || String(e));
-        const link = e && (e.code === 'upgrade_required' || e.code === 'quota_exceeded') ? ` <a href="/plan?feature=ai_studio">${esc(t('seePlans'))}</a>` : '';
+        const link = e && (e.code === 'upgrade_required' || e.code === 'quota_exceeded') ? `{% if not store_app %} <a href="/plan?feature=ai_studio">${esc(t('seePlans'))}</a>{% endif %}` : '';
         el.innerHTML = esc(msg) + link;
         el.classList.toggle('info', !!info);
         el.classList.remove('hidden');

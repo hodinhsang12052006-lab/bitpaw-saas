@@ -4,21 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BitPaw Software</title>
-    {# Hiện trong app mobile khi chạm tới trang bán gói phần mềm (/checkout). Theo App Store 3.1.1 /
-       Google Play Payments, app không được bán gói ngoài In-App Purchase và KHÔNG được chỉ đường ra
-       kênh thanh toán bên ngoài — nên trang này cố ý không có link/URL mua hàng nào. #}
+    {# Hiện trong app mobile (is_store_app ở app.py) thay trang mua / đổi gói phần mềm (/checkout, /pricing). Theo App Store
+       3.1.1 / Google Play Payments, app không bán gói ngoài In-App Purchase và KHÔNG được chỉ đường ra kênh thanh toán bên
+       ngoài — nên trang này cố ý không có link, nút, URL hay lời mời "vào website" nào: chỉ gói hiện tại (nếu đã đăng nhập)
+       + "đổi gói không khả dụng trong ứng dụng". #}
     <style>
         body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #08061a; color: #d1d5db; font: 15px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 24px; box-sizing: border-box; }
         .card { max-width: 420px; text-align: center; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 28px 22px; }
         h1 { color: #fff; font-size: 20px; margin: 0 0 8px; }
-        a { display: inline-block; margin-top: 18px; padding: 12px 22px; border-radius: 12px; background: linear-gradient(90deg, #06b6d4, #3b82f6); color: #fff; font-weight: 800; text-decoration: none; }
+        p { margin: 8px 0 0; }
+        b { color: #fff; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>{{ 'Tính năng này không khả dụng trong ứng dụng' if default_lang == 'vi' else 'This feature isn\'t available in the app' }}</h1>
-        <p>{{ 'Vui lòng tiếp tục với tài khoản hiện có của bạn.' if default_lang == 'vi' else 'Please continue with your existing account.' }}</p>
-        <a href="{{ url_for('login') }}">{{ 'Về trang đăng nhập' if default_lang == 'vi' else 'Back to sign in' }}</a>
+    {% set vi = default_lang == 'vi' %}
+    <div class="card" role="status">
+        <h1>{{ ('Gói của bạn' if vi else 'Your plan') if store_plan_name else 'BitPaw' }}</h1>
+        {% if store_plan_name %}<p>{{ 'Gói hiện tại:' if vi else 'Current plan:' }} <b>{{ store_plan_name }}</b></p>{% endif %}
+        <p>{{ 'Đổi gói không khả dụng trong ứng dụng.' if vi else 'Plan changes are not available in the app.' }}</p>
     </div>
 </body>
 </html>

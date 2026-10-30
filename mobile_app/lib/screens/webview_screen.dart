@@ -59,7 +59,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
     controller
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       // User-Agent riêng cho bản app — app.py dựa vào đây để áp chính sách store (ẩn trang bán
-      // gói phần mềm/bảng giá trong app). Định dạng phải khớp _MOBILE_APP_UA_RE trong app.py.
+      // gói phần mềm/bảng giá trong app). Phải chứa "BitPawMobileApp/" (is_store_app() trong app.py).
       ..setUserAgent('BitPawMobileApp/1.0.0 (${Platform.isIOS ? 'iOS' : 'Android'}; WebView)')
       ..setBackgroundColor(const Color(0xFF0F172A))
       ..setNavigationDelegate(

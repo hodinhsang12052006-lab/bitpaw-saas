@@ -1119,8 +1119,8 @@
         document.addEventListener('click', () => setTimeout(renderCopilotTopics, 90), true);   // nút EN/VI ở sidebar
         function copilotLockedHtml() {
             return `<i class="fas fa-lock text-amber-300 mr-2"></i>${escapeHtml(cpLang() === 'vi'
-                ? 'Copilot riêng của chủ tiệm (hỏi số liệu, gợi ý trả lời) có trong gói Empire Scale.'
-                : 'The owner Copilot (ask your numbers, suggested replies) is included in Empire Scale.')} <a href="/plan?feature=ai_copilot" class="underline text-cyan-300">${cpLang() === 'vi' ? 'Xem gói' : 'See plans'}</a>`;
+                ? '{% if store_app %}Copilot riêng của chủ tiệm không có trong gói hiện tại của bạn.{% else %}Copilot riêng của chủ tiệm (hỏi số liệu, gợi ý trả lời) có trong gói Empire Scale.{% endif %}'
+                : '{% if store_app %}The owner Copilot is not included in your current plan.{% else %}The owner Copilot (ask your numbers, suggested replies) is included in Empire Scale.{% endif %}')}{% if not store_app %} <a href="/plan?feature=ai_copilot" class="underline text-cyan-300">${cpLang() === 'vi' ? 'Xem gói' : 'See plans'}</a>{% endif %}`;
         }
         function openCopilot() { document.getElementById('copilotPanel').classList.remove('hidden'); }
         window.closeCopilot = function () {
@@ -1196,7 +1196,7 @@
                     ? `<span class="shrink-0 ml-2 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30" data-plan-paused="1" data-cp="planPaused">${escapeHtml(cpt('planPaused'))}</span>`
                     : `<span class="shrink-0 ml-2 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full ${cus.handoff_urgent ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'}" title="${escapeHtml(cus.handoff_reason || '')}">${cus.handoff_urgent ? 'Urgent' : 'Needs reply'}</span>`;
                 const reasonLine = !(cus.needs_human && cus.handoff_reason) ? '' : planPaused
-                    ? `<p class="text-[11px] text-amber-200/80 font-semibold"><span data-cp="planPausedHint">${escapeHtml(cpt('planPausedHint'))}</span> <a href="/plan?feature=ai_inbox" class="underline text-cyan-300 whitespace-nowrap" data-plan-link="1" data-cp="seePlans" onclick="event.stopPropagation()">${escapeHtml(cpt('seePlans'))}</a></p>`
+                    ? `<p class="text-[11px] text-amber-200/80 font-semibold"><span data-cp="planPausedHint">${escapeHtml(cpt('planPausedHint'))}</span>{% if not store_app %} <a href="/plan?feature=ai_inbox" class="underline text-cyan-300 whitespace-nowrap" data-plan-link="1" data-cp="seePlans" onclick="event.stopPropagation()">${escapeHtml(cpt('seePlans'))}</a>{% endif %}</p>`
                     : `<p class="text-[11px] text-amber-200/80 truncate font-semibold">${escapeHtml(cus.handoff_reason)}</p>`;
                 item.innerHTML = `
                     <div class="relative w-10 h-10 rounded-full bg-gradient-to-tr ${currentCustomerId === cus.id ? 'from-cyan-500 to-purple-600' : 'from-gray-700 to-gray-600'} flex items-center justify-center text-white font-bold shadow-md shrink-0">
