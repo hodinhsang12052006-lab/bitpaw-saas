@@ -261,11 +261,16 @@ def _covers(res, night):
 
 def _claim_live(claim, res, now):
     """Phiếu còn hiệu lực: đặt phòng của nó còn sống, đúng phòng, đêm nằm trong khoảng ở; hoặc chưa có đặt phòng nhưng
-    phiếu vừa tạo (lượt đặt khác đang ghi dở)."""
+    phiếu vừa tạo (lượt đặt khác đang ghi dở). Đặt phòng còn sống nhưng CHƯA khớp phòng / đêm của phiếu = đang xếp phòng
+    (assign_room) hoặc đổi ngày (change_dates) dở dang — phiếu giữ trước, room_id / ngày ghi sau — nên phiếu vừa tạo cũng
+    còn hiệu lực (trước đây lượt đặt khác lấy lại được đúng phiếu đó giữa 2 bước)."""
     if res is None:
         return _young(claim, now)
-    return (res.get('status') in LIVE_STATUSES and res.get('room_id') == claim.get('room_id')
-            and _covers(res, claim.get('night') or ''))
+    if res.get('status') not in LIVE_STATUSES:
+        return False
+    if res.get('room_id') == claim.get('room_id') and _covers(res, claim.get('night') or ''):
+        return True
+    return _young(claim, now)
 
 
 def _claim_still_live(business_id, claim, now):
@@ -600,6 +605,12 @@ def assign_room(business_id, res, room_id, now=None):
         return False
     if db.hotel_reservations.update_one({'id': res['id'], 'business_id': business_id},
                                         {'$set': {'room_id': room_id}}).matched_count == 0:
+        _drop_claims(taken, res['id'])
+        return False
+    if overlaps(business_id, room_id, ci.isoformat(), co.isoformat(), exclude_id=res['id']):
+        # Lượt khác vừa ghi đúng phòng này đúng lúc này (giống kiểm lại sau khi ghi của create_hold): trả lại phòng cũ.
+        db.hotel_reservations.update_one({'id': res['id'], 'business_id': business_id, 'room_id': room_id},
+                                         {'$set': {'room_id': res.get('room_id')}})
         _drop_claims(taken, res['id'])
         return False
     release_claims(business_id, res['id'], keep=[_claim_key(business_id, room_id, n) for n in nights_of(ci, co)])

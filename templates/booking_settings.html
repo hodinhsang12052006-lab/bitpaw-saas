@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="{{ default_lang }}">
+{% set rk = {'fnb': 'table', 'karaoke': 'karaoke', 'hotel': 'hotel'}.get(active_industry_code) %}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ 'Cài đặt đặt lịch' if default_lang == 'vi' else 'Booking settings' }} - BitPaw Software</title>
+    <title>{{ ('Cài đặt đặt chỗ' if default_lang == 'vi' else 'Reservation settings') if rk else ('Cài đặt đặt lịch' if default_lang == 'vi' else 'Booking settings') }} - BitPaw Software</title>
     <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='logo_b.jpg') }}">
     <link href="{{ url_for('static', filename='css/tailwind.output.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -42,6 +43,11 @@
         .btn { border: 0; border-radius: 11px; padding: 11px 18px; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; background: var(--accent); color: #150b2e; }
         .btn.ghost { background: rgba(255,255,255,.07); color: var(--ink); border: 1px solid var(--line); }
         .btn[disabled] { opacity: .6; cursor: progress; }
+        [hidden] { display: none !important; }
+        .hint { font-size: 12px; color: var(--muted); margin: 5px 0 0; line-height: 1.45; }
+        .rvnow { font-size: 13px; font-weight: 600; line-height: 1.5; border-radius: 12px; padding: 10px 12px; margin: 0 0 14px; background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.25); color: #a7f3d0; }
+        .rvnow.pend { background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.25); color: var(--warn); }
+        .rvnow:empty { display: none; }
         .warnbox { font-size: 13px; color: var(--warn); background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.25); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; }
         @media (max-width: 760px) { .grid3, .grid2 { grid-template-columns: 1fr 1fr; } .day { grid-template-columns: 70px 56px 1fr 1fr; } .svc { grid-template-columns: 1fr 70px 90px; } }
         @media (max-width: 640px) { .bs-main { padding: 72px 14px 90px; } .grid3, .grid2 { grid-template-columns: 1fr; } }
@@ -51,39 +57,135 @@
 </head>
 <body class="flex min-h-screen relative antialiased overflow-x-hidden">
 {% set vi = default_lang == 'vi' %}
+{% set place_vi = 'khách sạn' if rk == 'hotel' else ('quán' if rk else 'tiệm') %}
 {% include 'components/app_sidebar.html' %}
 <main class="bs-main">
-    <h1><i class="fas fa-calendar-check" style="color: var(--accent)"></i> {{ 'Cài đặt đặt lịch' if vi else 'Booking settings' }}</h1>
+    <h1><i class="fas fa-calendar-check" style="color: var(--accent)"></i> {{ ('Cài đặt đặt chỗ' if vi else 'Reservation settings') if rk else ('Cài đặt đặt lịch' if vi else 'Booking settings') }}</h1>
+    {% if rk == 'table' %}
+    <p class="lead">{{ 'Giờ mở cửa, luật đặt bàn và thông tin quán. AI lễ tân dùng đúng những thông tin này: không nhận bàn ngoài giờ mở cửa, không vượt sức chứa bạn nhập, và chỉ trả lời điều bạn ghi ở đây.' if vi else 'Opening hours, table booking rules and venue info. The AI receptionist uses exactly this: no tables outside opening hours, never more guests than the capacity you enter, and it only states what you write here.' }}</p>
+    {% elif rk == 'karaoke' %}
+    <p class="lead">{{ 'Giờ mở cửa, luật đặt phòng theo giờ và thông tin quán. AI lễ tân dùng đúng những thông tin này: không nhận phòng ngoài giờ mở cửa, không xếp trùng giờ một phòng, và chỉ trả lời điều bạn ghi ở đây.' if vi else 'Opening hours, hourly room booking rules and venue info. The AI receptionist uses exactly this: no rooms outside opening hours, never two bookings in one room at once, and it only states what you write here.' }}</p>
+    {% elif rk == 'hotel' %}
+    <p class="lead">{{ 'Luật đặt phòng, giờ nhận / trả phòng, giờ lễ tân và thông tin khách sạn. AI lễ tân dùng đúng những thông tin này: chỉ bán phòng còn trống thật từng đêm, và chỉ trả lời điều bạn ghi ở đây.' if vi else 'Room booking rules, check-in / check-out times, front-desk hours and hotel info. The AI receptionist uses exactly this: it only sells rooms that are really free each night, and it only states what you write here.' }}</p>
+    {% else %}
     <p class="lead">{{ 'Giờ mở cửa, luật đặt lịch, thời lượng từng dịch vụ và thông tin tiệm. Form đặt lịch online và trợ lý AI dùng đúng những thông tin này: không nhận lịch ngoài giờ, không quá số thợ đang có ca, và AI chỉ trả lời điều bạn ghi ở đây.' if vi else 'Opening hours, booking rules, service durations and business info. The online booking form and the AI assistant use exactly this: no bookings outside hours, never more clients than technicians on shift, and the AI only states what you write here.' }}</p>
+    {% endif %}
+    {% if rk %}
+    <div class="warnbox" id="defaultWarn" hidden><i class="fas fa-circle-info"></i> {{ ('Chưa lưu giờ mở cửa — AI đang coi như ' ~ place_vi ~ ' chưa công bố giờ (không nói giờ mở cửa' ~ ('' if rk == 'hotel' else ', không tự xác nhận đặt chỗ') ~ '). Giờ bên dưới chỉ là gợi ý: chỉnh cho đúng rồi bấm Lưu.') if vi else ('Opening hours are not saved yet — the AI treats them as not published (it will not state opening hours' ~ ('' if rk == 'hotel' else ' or confirm any booking by itself') ~ '). The times below are only a starting point: adjust them and press Save.') }}</div>
+    {% else %}
     <div class="warnbox" id="defaultWarn" hidden><i class="fas fa-circle-info"></i> {{ 'Đang dùng giờ mở cửa mặc định — hãy chỉnh cho đúng tiệm rồi bấm Lưu.' if vi else 'Default opening hours are in use — adjust them to your business and press Save.' }}</div>
+    {% endif %}
 
     <section class="box">
-        <h2><i class="fas fa-clock" style="color: var(--accent)"></i> {{ 'Giờ mở cửa' if vi else 'Opening hours' }}</h2>
+        <h2><i class="fas fa-clock" style="color: var(--accent)"></i> {{ ('Giờ mở cửa / lễ tân' if vi else 'Opening / front-desk hours') if rk == 'hotel' else ('Giờ mở cửa' if vi else 'Opening hours') }}</h2>
+        {% if rk == 'table' %}
+        <p class="sub">{{ 'AI lễ tân chỉ nhận đặt bàn trong giờ này. Đóng cửa lúc nửa đêm: chọn giờ đóng 00:00. Mở qua nửa đêm (vd 18:00–02:00) hiện chưa nhập được.' if vi else 'The AI receptionist only takes table bookings within these hours. Closing at midnight: set the closing time to 00:00. Hours past midnight (e.g. 18:00–02:00) cannot be entered yet.' }}</p>
+        {% elif rk == 'karaoke' %}
+        <p class="sub">{{ 'AI lễ tân chỉ nhận lượt đặt bắt đầu và kết thúc trong giờ này. Đóng cửa lúc nửa đêm: chọn giờ đóng 00:00. Mở qua nửa đêm (vd tới 02:00) hiện chưa nhập được — AI chưa nhận lượt hát kéo qua 24:00.' if vi else 'The AI receptionist only takes bookings that start and end within these hours. Closing at midnight: set the closing time to 00:00. Hours past midnight (e.g. until 02:00) cannot be entered yet, so the AI does not take sessions that run past 24:00.' }}</p>
+        {% elif rk == 'hotel' %}
+        <p class="sub">{{ 'Chỉ để AI trả lời khi khách hỏi giờ mở cửa / lễ tân (lễ tân 24/7: mở 00:00, đóng 00:00). Giờ nhận và trả phòng đặt ở mục Đặt chỗ bên dưới.' if vi else 'Only used when guests ask for your opening / front-desk hours (24/7 front desk: open 00:00, close 00:00). Check-in and check-out times are set under Reservations below.' }}</p>
+        {% endif %}
         <div id="hours"></div>
     </section>
 
-    <section class="box">
-        <h2><i class="fas fa-sliders" style="color: var(--warn)"></i> {{ 'Luật đặt lịch' if vi else 'Booking rules' }}</h2>
+    {% if rk %}
+    <section class="box" id="resv">
+        <h2><i class="fas {{ 'fa-chair' if rk == 'table' else ('fa-microphone' if rk == 'karaoke' else 'fa-bed') }}" style="color: var(--ok)"></i>
+            {% if rk == 'table' %}{{ 'Đặt chỗ — luật đặt bàn' if vi else 'Reservations — table rules' }}{% elif rk == 'karaoke' %}{{ 'Đặt chỗ — luật đặt phòng theo giờ' if vi else 'Reservations — room booking rules' }}{% else %}{{ 'Đặt chỗ — luật đặt phòng' if vi else 'Reservations — room booking rules' }}{% endif %}</h2>
+        <p class="sub">{{ 'AI lễ tân dùng đúng các luật này khi nhận đặt chỗ qua chat. Yêu cầu gửi từ trang đặt chỗ công khai luôn vào danh sách ở trạng thái "Chờ xác nhận" để nhân viên duyệt.' if vi else 'The AI receptionist follows exactly these rules when it takes a booking in chat. Requests sent from your public booking page always arrive as "Pending" for your team to approve.' }}</p>
+        <p class="rvnow pend" id="rvNow"></p>
+        {% if rk == 'table' %}
+        <div class="grid3">
+            <div><label class="f" for="rv_max_covers_per_slot">{{ 'Khách đến tối đa mỗi khung giờ' if vi else 'Max guests arriving per time slot' }}</label>
+                <input class="in" id="rv_max_covers_per_slot" data-rv="max_covers_per_slot" type="number" inputmode="numeric">
+                <p class="hint">{{ '0 = chưa nhập sức chứa: AI chỉ nhận YÊU CẦU, nhân viên xác nhận từng đặt bàn.' if vi else '0 = no capacity set: the AI only takes REQUESTS and your staff confirms each one.' }} <span id="rvSeats"></span></p></div>
+            <div><label class="f" for="rv_slot_minutes">{{ 'Khung giờ đếm khách (phút)' if vi else 'Time slot for counting guests (min)' }}</label>
+                <select class="in" id="rv_slot_minutes" data-rv="slot_minutes"><option value="15">15</option><option value="30">30</option></select>
+                <p class="hint">{{ 'Số khách ở ô bên cạnh được tính cho mỗi khung giờ dài chừng này.' if vi else 'The guest limit next to this counts per slot of this length.' }}</p></div>
+            <div><label class="f" for="rv_max_party">{{ 'Nhóm lớn nhất đặt online (khách)' if vi else 'Largest party online (guests)' }}</label>
+                <input class="in" id="rv_max_party" data-rv="max_party" type="number" inputmode="numeric">
+                <p class="hint">{{ 'Đông hơn: AI không tự đặt, mời khách để lại yêu cầu cho nhân viên.' if vi else 'Larger groups: the AI does not book them itself and offers to pass the request to your team.' }}</p></div>
+            <div><label class="f" for="rv_max_party_auto">{{ 'Nhóm trên N khách luôn cần quán duyệt' if vi else 'Parties above N always need approval' }}</label>
+                <input class="in" id="rv_max_party_auto" data-rv="max_party_auto" type="number" inputmode="numeric">
+                <p class="hint">{{ '0 = không đặt ngưỡng riêng.' if vi else '0 = no separate limit.' }}</p></div>
+            <div><label class="f" for="rv_dining_minutes">{{ 'Thời gian một lượt ngồi (phút)' if vi else 'Dining time per booking (min)' }}</label>
+                <input class="in" id="rv_dining_minutes" data-rv="dining_minutes" type="number" inputmode="numeric">
+                <p class="hint">{{ 'Bàn bận bao lâu sau giờ đến — chỉ dùng khi bàn đã có số ghế.' if vi else 'How long a table stays taken — only used when your tables have seat counts.' }}</p></div>
+            <div><label class="f" for="rv_last_booking_before_close">{{ 'Nhận đặt muộn nhất trước giờ đóng (phút)' if vi else 'Last booking before closing (min)' }}</label>
+                <input class="in" id="rv_last_booking_before_close" data-rv="last_booking_before_close" type="number" inputmode="numeric"></div>
+            <div><label class="f" for="rv_hold_minutes">{{ 'Giữ bàn khi khách tới trễ (phút)' if vi else 'Hold the table for late guests (min)' }}</label>
+                <input class="in" id="rv_hold_minutes" data-rv="hold_minutes" type="number" inputmode="numeric">
+                <p class="hint">{{ '0 = chưa công bố (AI không hứa giữ bàn).' if vi else '0 = not published (the AI promises nothing).' }}</p></div>
+            <div><label class="f" for="rv_auto_confirm">{{ 'Tự xác nhận đặt bàn' if vi else 'Auto-confirm table bookings' }}</label>
+                <select class="in" id="rv_auto_confirm" data-rv="auto_confirm"><option value="follow"></option><option value="always">{{ 'Luôn tự xác nhận khi đủ điều kiện' if vi else 'Always, when everything checks out' }}</option><option value="never">{{ 'Không bao giờ — nhân viên duyệt từng đặt bàn' if vi else 'Never — staff approves every booking' }}</option></select>
+                <p class="hint">{{ 'Chỉ tự xác nhận khi đã lưu giờ mở cửa, đã có sức chứa (khách mỗi khung giờ hoặc số ghế từng bàn) và nhóm không vượt ngưỡng nhóm lớn.' if vi else 'It only confirms on its own when opening hours are saved, a capacity is set (guests per slot or seats per table) and the party is within the large-party limit.' }}</p></div>
+        </div>
+        {% elif rk == 'karaoke' %}
+        <div class="grid3">
+            <div><label class="f" for="rv_min_hours">{{ 'Số giờ đặt tối thiểu' if vi else 'Minimum hours per booking' }}</label>
+                <input class="in" id="rv_min_hours" data-rv="min_hours" type="number" step="0.5" inputmode="decimal"></div>
+            <div><label class="f" for="rv_max_hours">{{ 'Số giờ đặt tối đa' if vi else 'Maximum hours per booking' }}</label>
+                <input class="in" id="rv_max_hours" data-rv="max_hours" type="number" step="0.5" inputmode="decimal"></div>
+            <div><label class="f" for="rv_max_party">{{ 'Nhóm lớn nhất đặt online (người)' if vi else 'Largest group online (people)' }}</label>
+                <input class="in" id="rv_max_party" data-rv="max_party" type="number" inputmode="numeric"></div>
+            <div><label class="f" for="rv_hold_minutes">{{ 'Giữ phòng khi khách tới trễ (phút)' if vi else 'Hold the room for late guests (min)' }}</label>
+                <input class="in" id="rv_hold_minutes" data-rv="hold_minutes" type="number" inputmode="numeric">
+                <p class="hint">{{ '0 = chưa công bố (AI không hứa giữ phòng).' if vi else '0 = not published (the AI promises nothing).' }}</p></div>
+            <div><label class="f" for="rv_in_use_buffer_hours">{{ 'Phòng đang có khách: không nhận đặt trong (giờ)' if vi else 'Room in use: no bookings starting within (hours)' }}</label>
+                <input class="in" id="rv_in_use_buffer_hours" data-rv="in_use_buffer_hours" type="number" step="0.5" inputmode="decimal">
+                <p class="hint">{{ 'Tính từ bây giờ — khách vãng lai đang hát có thể ở lâu hơn dự kiến.' if vi else 'Counted from now — walk-in guests who are singing may stay longer than planned.' }}</p></div>
+            <div><label class="f" for="rv_auto_confirm">{{ 'Tự xác nhận đặt phòng' if vi else 'Auto-confirm room bookings' }}</label>
+                <select class="in" id="rv_auto_confirm" data-rv="auto_confirm"><option value="follow"></option><option value="always">{{ 'Luôn tự xác nhận khi còn phòng' if vi else 'Always, when a room is free' }}</option><option value="never">{{ 'Không bao giờ — nhân viên duyệt từng đặt phòng' if vi else 'Never — staff approves every booking' }}</option></select>
+                <p class="hint">{{ 'Chỉ tự xác nhận khi đã lưu giờ mở cửa và còn phòng phù hợp.' if vi else 'It only confirms on its own when opening hours are saved and a suitable room is free.' }}</p></div>
+        </div>
+        {% else %}
+        <div class="warnbox"><i class="fas fa-triangle-exclamation"></i> {{ 'Chỉ bật "Tự xác nhận" nếu BitPaw là lịch phòng DUY NHẤT của bạn. Nếu bạn còn bán phòng trên Booking.com, Airbnb, Agoda… thì phòng có thể đã bán ở đó mà BitPaw không biết — AI sẽ xác nhận nhầm cho khách.' if vi else 'Only switch on auto-confirm if BitPaw is your ONLY room calendar. If you also sell rooms on Booking.com, Airbnb, Agoda…, a room may already be sold there without BitPaw knowing, and the AI would confirm it to a guest by mistake.' }}</div>
+        <div class="grid3">
+            <div><label class="f" for="rv_auto_confirm">{{ 'Đặt phòng qua AI' if vi else 'Bookings taken by the AI' }}</label>
+                <select class="in" id="rv_auto_confirm" data-rv="auto_confirm"><option value="0">{{ 'Chờ khách sạn duyệt (an toàn)' if vi else 'Hotel approves each one (safe)' }}</option><option value="1">{{ 'Tự xác nhận khi còn phòng' if vi else 'Confirm instantly when a room is free' }}</option></select></div>
+            <div><label class="f" for="rv_min_nights">{{ 'Số đêm tối thiểu' if vi else 'Minimum nights' }}</label>
+                <input class="in" id="rv_min_nights" data-rv="min_nights" type="number" inputmode="numeric">
+                <p class="hint">{{ 'AI không nhận đặt ngắn hơn số đêm này.' if vi else 'The AI does not take shorter stays.' }}</p></div>
+            <div><label class="f" for="rv_free_cancel_hours">{{ 'Huỷ miễn phí tới (giờ trước giờ nhận phòng)' if vi else 'Free cancellation until (hours before check-in)' }}</label>
+                <input class="in" id="rv_free_cancel_hours" data-rv="free_cancel_hours" type="number" inputmode="numeric" placeholder="{{ 'Chưa đặt' if vi else 'Not set' }}">
+                <p class="hint">{{ 'Để trống: khách huỷ qua chat được tới trước ngày nhận phòng; sau đó khách sạn quyết.' if vi else 'Empty: guests can cancel in chat until the day before check-in; after that the hotel decides.' }}</p></div>
+            <div><label class="f" for="rv_checkin_time">{{ 'Giờ nhận phòng (từ)' if vi else 'Check-in from' }}</label>
+                <input class="in" id="rv_checkin_time" data-rv="checkin_time" type="time">
+                <p class="hint">{{ 'Để trống: AI nói là khách sạn chưa công bố.' if vi else 'Empty: the AI says it has not been published.' }}</p></div>
+            <div><label class="f" for="rv_checkout_time">{{ 'Giờ trả phòng (trước)' if vi else 'Check-out by' }}</label>
+                <input class="in" id="rv_checkout_time" data-rv="checkout_time" type="time"></div>
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="box" {% if rk == 'hotel' %}hidden{% endif %}>
+        <h2><i class="fas fa-sliders" style="color: var(--warn)"></i> {{ ('Luật chung' if vi else 'General rules') if rk else ('Luật đặt lịch' if vi else 'Booking rules') }}</h2>
         <p class="sub" id="capHint"></p>
         <div class="grid3">
-            <div><label class="f" for="slot">{{ 'Bước giờ (phút)' if vi else 'Start-time step (min)' }}</label><select class="in" id="slot"><option>10</option><option>15</option><option>20</option><option>30</option><option>60</option></select></div>
+            <div {% if rk %}hidden{% endif %}><label class="f" for="slot">{{ 'Bước giờ (phút)' if vi else 'Start-time step (min)' }}</label><select class="in" id="slot"><option>10</option><option>15</option><option>20</option><option>30</option><option>60</option></select></div>
             <div><label class="f" for="lead">{{ 'Đặt trước tối thiểu (phút)' if vi else 'Minimum notice (min)' }}</label><input class="in" id="lead" type="number" min="0" inputmode="numeric"></div>
             <div><label class="f" for="adv">{{ 'Đặt trước tối đa (ngày)' if vi else 'Book up to (days ahead)' }}</label><input class="in" id="adv" type="number" min="1" inputmode="numeric"></div>
-            <div><label class="f" for="dur">{{ 'Thời lượng mặc định (phút)' if vi else 'Default duration (min)' }}</label><input class="in" id="dur" type="number" min="5" inputmode="numeric"></div>
-            <div><label class="f" for="cap">{{ 'Số khách cùng lúc (0 = theo số thợ có ca)' if vi else 'Clients at once (0 = technicians on shift)' }}</label><input class="in" id="cap" type="number" min="0" inputmode="numeric"></div>
+            <div {% if rk %}hidden{% endif %}><label class="f" for="dur">{{ 'Thời lượng mặc định (phút)' if vi else 'Default duration (min)' }}</label><input class="in" id="dur" type="number" min="5" inputmode="numeric"></div>
+            <div {% if rk %}hidden{% endif %}><label class="f" for="cap">{{ 'Số khách cùng lúc (0 = theo số thợ có ca)' if vi else 'Clients at once (0 = technicians on shift)' }}</label><input class="in" id="cap" type="number" min="0" inputmode="numeric"></div>
+            {% if rk %}
+            <div><label class="f" for="autoc">{{ 'Công tắc chung: xác nhận đặt chỗ' if vi else 'General switch: confirmations' }}</label>
+                <select class="in" id="autoc"><option value="1">{{ 'Tự xác nhận khi đủ điều kiện' if vi else 'Confirm instantly when everything checks out' }}</option><option value="0">{{ 'Chờ ' ~ place_vi ~ ' duyệt' if vi else 'I approve each request' }}</option></select></div>
+            {% else %}
             <div><label class="f" for="autoc">{{ 'Xác nhận lịch online' if vi else 'Online bookings' }}</label>
                 <select class="in" id="autoc"><option value="1">{{ 'Tự xác nhận ngay (khuyên dùng)' if vi else 'Confirm instantly (recommended)' }}</option><option value="0">{{ 'Chờ tiệm duyệt' if vi else 'I approve each request' }}</option></select></div>
+            {% endif %}
         </div>
     </section>
 
-    <section class="box">
+    <section class="box" {% if rk %}hidden{% endif %}>
         <h2><i class="fas fa-stopwatch" style="color: var(--ok)"></i> {{ 'Thời lượng từng dịch vụ' if vi else 'Service durations' }}</h2>
         <p class="sub">{{ 'Dùng để tính giờ trống và để dịch vụ kết thúc trước giờ đóng cửa.' if vi else 'Used to work out free times and to finish before closing.' }}</p>
         <div id="svcs"></div>
     </section>
 
     <section class="box">
-        <h2><i class="fas fa-store" style="color: #38bdf8"></i> {{ 'Thông tin tiệm cho khách và AI' if vi else 'Business info for clients and the AI' }}</h2>
+        <h2><i class="fas fa-store" style="color: #38bdf8"></i> {{ ('Thông tin ' ~ place_vi ~ ' cho khách và AI') if vi else 'Business info for guests and the AI' }}</h2>
         <p class="sub">{{ 'Trợ lý AI chỉ trả lời những gì ghi ở đây; câu hỏi khác nó sẽ chuyển cho nhân viên thay vì đoán.' if vi else 'The AI assistant only answers from what is written here; anything else it passes to your team instead of guessing.' }}</p>
         <div class="grid2" id="info"></div>
         <div id="gapsBox" hidden style="margin-top:14px">
@@ -93,7 +195,7 @@
         </div>
     </section>
 
-    <section class="box">
+    <section class="box" {% if rk %}hidden{% endif %}>
         <h2><i class="fas fa-magnifying-glass" style="color: var(--accent)"></i> {{ 'Thử xem giờ trống' if vi else 'Preview free times' }}</h2>
         <div class="grid2"><div><label class="f" for="pvDate">{{ 'Ngày' if vi else 'Date' }}</label><input class="in" id="pvDate" type="date"></div>
             <div><label class="f" for="pvSvc">{{ 'Dịch vụ' if vi else 'Service' }}</label><select class="in" id="pvSvc"></select></div></div>
@@ -106,6 +208,8 @@
 (function () {
     const VI = {{ 'true' if vi else 'false' }};
     const BID = {{ (session.get('business_id') or session.get('user_id')) | tojson }};
+    const RK = {{ (rk or '') | tojson }};   // '' (lịch hẹn) | 'table' | 'karaoke' | 'hotel' — mục Đặt chỗ theo ngành
+    const RV_URL = '/api/booking/reservation_settings/' + RK;
     const DAYS = VI ? { mon: 'Thứ 2', tue: 'Thứ 3', wed: 'Thứ 4', thu: 'Thứ 5', fri: 'Thứ 6', sat: 'Thứ 7', sun: 'Chủ nhật' }
                     : { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
     const INFO = VI ? { address: 'Địa chỉ', parking: 'Chỗ gửi xe', payments: 'Cách thanh toán nhận', gift_cards: 'Thẻ quà tặng / voucher', cancellation_policy: 'Chính sách huỷ / đến trễ', other: 'Ghi chú khác (dị ứng, trẻ em, thú cưng...)' }
@@ -113,6 +217,7 @@
     const $ = (id) => document.getElementById(id);
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     let state = null;
+    let rv = null;
     async function api(url, method, body) {
         const r = await fetch(url, { method: method || 'GET', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
         const j = await r.json().catch(() => ({}));
@@ -125,7 +230,7 @@
         $('hours').innerHTML = Object.keys(DAYS).map((d) => {
             const v = r.hours[d];
             return `<div class="day" data-d="${d}"><b>${DAYS[d]}</b><label class="sw" aria-label="${DAYS[d]}"><input type="checkbox" ${v ? 'checked' : ''}><span></span></label>
-                ${v ? `<input class="in" type="time" value="${v[0]}" aria-label="open"><input class="in" type="time" value="${v[1]}" aria-label="close">` : `<span class="closed">${VI ? 'Nghỉ' : 'Closed'}</span>`}</div>`;
+                ${v ? `<input class="in" type="time" value="${v[0]}" aria-label="open"><input class="in" type="time" value="${v[1] === '24:00' ? '00:00' : v[1]}" aria-label="close">` : `<span class="closed">${VI ? 'Nghỉ' : 'Closed'}</span>`}</div>`;
         }).join('');
         $('hours').querySelectorAll('.day input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
             const d = cb.closest('.day').dataset.d;
@@ -134,8 +239,10 @@
         }));
         $('slot').value = r.slot_minutes; $('lead').value = r.min_lead_minutes; $('adv').value = r.max_advance_days;
         $('dur').value = r.default_duration; $('cap').value = r.capacity; $('autoc').value = r.auto_confirm === false ? '0' : '1';
-        $('capHint').textContent = VI ? `Hiện có ${state.staff_count} nhân viên. Nếu tuần đó đã có Lịch ca công bố, số khách cùng lúc = số thợ có ca giờ đó.`
-                                      : `You have ${state.staff_count} team members. When the week has a published roster, clients at once = technicians on shift at that time.`;
+        $('capHint').textContent = RK ? (VI ? 'Đặt trước tối thiểu / tối đa áp dụng cho mọi đặt chỗ qua AI. "Công tắc chung" là lựa chọn "theo công tắc chung" ở mục Đặt chỗ phía trên.'
+                                            : 'Minimum notice and how far ahead apply to every booking taken by the AI. The general switch is what "follow the general switch" in Reservations above uses.')
+            : VI ? `Hiện có ${state.staff_count} nhân viên. Nếu tuần đó đã có Lịch ca công bố, số khách cùng lúc = số thợ có ca giờ đó.`
+                 : `You have ${state.staff_count} team members. When the week has a published roster, clients at once = technicians on shift at that time.`;
         $('svcs').innerHTML = state.services.map((s) => `<div class="svc" data-id="${s.id}"><b>${esc(s.name)}</b><span>${s.price}</span>
             <input class="in" type="number" min="5" max="600" step="5" value="${s.duration}" aria-label="${esc(s.name)} ${VI ? 'phút' : 'minutes'}"></div>`).join('')
             || `<p class="sub">${VI ? 'Chưa có dịch vụ.' : 'No services yet.'}</p>`;
@@ -149,7 +256,7 @@
         const hours = {};
         document.querySelectorAll('#hours .day').forEach((row) => {
             const t = row.querySelectorAll('input[type=time]');
-            hours[row.dataset.d] = row.querySelector('input[type=checkbox]').checked && t.length ? [t[0].value, t[1].value] : null;
+            hours[row.dataset.d] = row.querySelector('input[type=checkbox]').checked && t.length ? [t[0].value, t[1].value === '00:00' ? '24:00' : t[1].value] : null;
         });
         const durations = {};
         document.querySelectorAll('#svcs .svc').forEach((row) => { durations[row.dataset.id] = +row.querySelector('input').value; });
@@ -158,8 +265,61 @@
         return { hours, durations, info, slot_minutes: +$('slot').value, min_lead_minutes: +$('lead').value, max_advance_days: +$('adv').value,
                  default_duration: +$('dur').value, capacity: +$('cap').value, auto_confirm: $('autoc').value === '1' };
     }
+    function followLabel() {
+        const o = document.querySelector('#rv_auto_confirm option[value="follow"]');
+        if (!o) return;
+        const on = $('autoc').value === '1';
+        o.textContent = VI ? `Theo công tắc chung (đang: ${on ? 'tự xác nhận' : 'chờ duyệt'})`
+                           : `Follow general switch (now: ${on ? 'instant' : 'approve'})`;
+    }
+    function rvNow() {
+        const s = rv.settings;
+        if (RK === 'hotel') return s.auto_confirm
+            ? [VI ? 'Đang áp dụng: AI xác nhận đặt phòng ngay khi còn phòng trống (loại phòng đã có giá).' : 'In effect now: the AI confirms a booking as soon as a room is free (room types with a price).', true]
+            : [VI ? 'Đang áp dụng: đặt phòng qua AI là yêu cầu chờ khách sạn duyệt.' : 'In effect now: bookings taken by the AI are requests the hotel approves.', false];
+        if (!rv.hours_published) return [VI ? 'Đang áp dụng: chưa lưu giờ mở cửa nên AI chỉ nhận yêu cầu, nhân viên xác nhận.' : 'In effect now: opening hours are not saved, so the AI only takes requests for your team to confirm.', false];
+        if (RK === 'table' && rv.capacity_model === 'none') return [VI ? 'Đang áp dụng: chưa có sức chứa nên AI chỉ nhận yêu cầu, nhân viên xác nhận.' : 'In effect now: no capacity is set, so the AI only takes requests for your team to confirm.', false];
+        if (!rv.effective_auto_confirm) return [VI ? 'Đang áp dụng: AI kiểm chỗ trống thật, nhưng mọi đặt chỗ vẫn chờ nhân viên duyệt.' : 'In effect now: the AI checks real availability, but every booking still waits for your team to approve.', false];
+        const big = RK === 'table' && s.max_party_auto ? (VI ? ` Nhóm trên ${s.max_party_auto} khách vẫn chờ duyệt.` : ` Parties above ${s.max_party_auto} still wait for approval.`) : '';
+        return [(VI ? 'Đang áp dụng: AI kiểm chỗ trống thật và tự xác nhận đặt chỗ hợp lệ.' : 'In effect now: the AI checks real availability and confirms valid bookings on its own.') + big, true];
+    }
+    function renderRv() {
+        if (!RK || !rv) return;
+        const s = rv.settings, lim = rv.limits || {};
+        // Chưa lưu công tắc chung lần nào: AI đang coi là "chờ duyệt" (mặc định "tự xác nhận" của lịch hẹn Nails/Spa
+        // không áp dụng) -> hiện đúng như vậy, để bấm Lưu không âm thầm bật tự xác nhận.
+        if (rv.general_auto_confirm === null) $('autoc').value = '0';
+        document.querySelectorAll('[data-rv]').forEach((el) => {
+            const k = el.dataset.rv;
+            if (lim[k]) { el.min = lim[k][0]; el.max = lim[k][1]; }
+            if (RK === 'hotel' && k === 'auto_confirm') el.value = s[k] ? '1' : '0';
+            else el.value = s[k] == null ? '' : s[k];
+        });
+        followLabel();
+        const seats = $('rvSeats');
+        if (seats) seats.textContent = rv.tables_with_seats ? (VI ? `Có ${rv.tables_with_seats} bàn đã nhập số ghế — AI vẫn kiểm chỗ theo số ghế.` : `${rv.tables_with_seats} of your tables have seat counts — the AI still checks seats.`) : '';
+        const now = rvNow();
+        $('rvNow').textContent = now[0];
+        $('rvNow').className = 'rvnow' + (now[1] ? '' : ' pend');
+    }
+    function collectRv() {
+        const out = {};
+        document.querySelectorAll('[data-rv]').forEach((el) => {
+            const k = el.dataset.rv;
+            if (k === 'auto_confirm') out[k] = RK === 'hotel' ? el.value === '1' : el.value;
+            else if (el.type === 'time') out[k] = el.value || null;
+            else out[k] = el.value === '' ? null : +el.value;
+        });
+        return out;
+    }
+    if ($('autoc')) $('autoc').addEventListener('change', followLabel);
+    const hotelAuto = RK === 'hotel' ? $('rv_auto_confirm') : null;
+    if (hotelAuto) hotelAuto.addEventListener('change', () => {
+        if (hotelAuto.value === '1' && !window.confirm(VI ? 'Chỉ bật nếu BitPaw là lịch phòng DUY NHẤT của bạn (không bán phòng song song trên Booking.com, Airbnb...). Bật tự xác nhận?'
+                                                           : 'Only switch this on if BitPaw is your ONLY room calendar (you do not also sell rooms on Booking.com, Airbnb...). Turn on auto-confirm?')) hotelAuto.value = '0';
+    });
     async function preview() {
-        if (!$('pvDate').value) return;
+        if (RK || !$('pvDate').value) return;
         try {
             const r = await api(`/api/public/booking_slots/${encodeURIComponent(BID)}?date=${$('pvDate').value}&service_id=${$('pvSvc').value}`);
             $('pvOut').innerHTML = !r.open ? `<em class="sub">${VI ? 'Tiệm nghỉ ngày này.' : 'Closed that day.'}</em>`
@@ -169,15 +329,28 @@
     $('pvDate').addEventListener('change', preview); $('pvSvc').addEventListener('change', preview);
     $('saveBtn').addEventListener('click', async (ev) => {
         const b = ev.currentTarget; b.disabled = true;
+        const sent = RK && rv ? collectRv() : null;
         try {
             state = await api('/api/booking/settings', 'POST', collect());
-            render(); $('note').className = 'note ok'; $('note').textContent = VI ? 'Đã lưu.' : 'Saved.'; preview();
+            render();
+            let adjusted = false;
+            if (sent) {
+                rv = await api(RV_URL, 'POST', sent);
+                // module kẹp giới hạn khi lưu -> báo cho chủ biết ô nào đã bị đưa về giới hạn cho phép
+                adjusted = Object.keys(sent).some((k) => typeof sent[k] === 'number' && rv.settings[k] !== sent[k]);
+                renderRv();
+            }
+            $('note').className = 'note ok';
+            $('note').textContent = adjusted ? (VI ? 'Đã lưu — vài giá trị đã được đưa về giới hạn cho phép, hãy xem lại.' : 'Saved — some values were moved into the allowed range, please check them.')
+                                             : (VI ? 'Đã lưu.' : 'Saved.');
+            preview();
         } catch (e) { $('note').className = 'note err'; $('note').textContent = e.message; }
         b.disabled = false;
     });
     api('/api/booking/settings').then((r) => {
         state = r; render();
         const d = new Date(); d.setDate(d.getDate() + 1); $('pvDate').value = d.toLocaleDateString('en-CA'); preview();
+        return RK ? api(RV_URL).then((x) => { rv = x; renderRv(); }) : null;
     }).catch((e) => { $('note').className = 'note err'; $('note').textContent = e.message; });
 })();
 </script>
