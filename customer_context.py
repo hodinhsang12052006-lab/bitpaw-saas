@@ -22,7 +22,6 @@ import booking_rules
 _VI_RE = re.compile(r'[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]'
                     r'|\b(khong|duoc|bao nhieu|nhieu|em oi|anh oi|chi oi|minh|cho em|cua|nhe|nha|vay|gium|giup|tiem|quan)\b', re.I)
 _PLACEHOLDER_NAME_RE = re.compile(r'^(client|khách|customer)\b', re.I)
-DAY_NAMES = {'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'}
 
 # Customer-facing words per industry (en, vi). 'technician' only for nail, 'therapist' for spa (plan: vocabulary per pack;
 # prompts for the other 7 industries must not contain 'salon', 'technician' or 'manicure').
@@ -156,40 +155,21 @@ def info_line(business_id, rules=None, appointment=False):
     return head + ('; '.join(f"{k}: {v}" for k, v in items) if items else 'none published yet.')
 
 
-def _ampm(m):
-    h, mi = divmod(int(m) % (24 * 60), 60)
-    return f"{h % 12 or 12}:{mi:02d} {'am' if h < 12 else 'pm'}"
-
-
-def _day_hours(d, v):
-    """'Mon 09:00-19:00' / 'Tue closed'. A day open PAST midnight (closing time earlier than opening time — only reservation
-    venues can save it, booking_rules.save_rules allow_overnight) states the real close and the next day:
-    'Fri 6:00 pm – 2:00 am (Sat)'. Before: 'Fri 18:00-02:00', easy to read as closing at 2 am the SAME day."""
-    name = DAY_NAMES.get(d, d)
-    if not v:
-        return f"{name} closed"
-    try:
-        o, c = booking_rules._hm(v[0]), booking_rules._hm(v[1])
-    except (ValueError, IndexError, TypeError):
-        o = c = None
-    if o is not None and 0 < c < o and d in booking_rules.DAY_KEYS:
-        nxt = booking_rules.DAY_KEYS[(booking_rules.DAY_KEYS.index(d) + 1) % 7]
-        return f"{name} {_ampm(o)} – {_ampm(c)} ({DAY_NAMES[nxt]})"
-    return f"{name} {v[0]}-{v[1]}"
-
-
-def hours_lines(business_id, rules=None, include_defaults=False):
+def hours_lines(business_id, rules=None, include_defaults=False, lang='en'):
     """OPENING HOURS + RIGHT NOW. Default hours (9-19) are NOT the shop's real hours, so they are only shown where bookings
-    are really checked against them (appointment pack, include_defaults=True)."""
+    are really checked against them (appointment pack, include_defaults=True). Wording = the ONE hours style every customer /
+    AI text uses (reservations_core.week_hours_text / right_now_text), in the chat language: 'Fri 6:00 pm – 2:00 am (Sat)',
+    VI 'T6 18:00 – 02:00 (sáng T7)'. Before: same-day days in 24 h ('Mon 09:00-19:00') next to 12 h overnight days, and a
+    third style in the karaoke / F&B pack facts. No hours at all (rules could not be read) -> nothing, never 'closed'."""
+    import reservations_core
     rules = rules or booking_rules.get_rules(business_id)
-    if not rules.get('configured') and not include_defaults:
+    if (not rules.get('configured') and not include_defaults) or not rules.get('hours'):
         return []
-    hours = ', '.join(_day_hours(d, v) for d, v in (rules.get('hours') or {}).items())
-    out = [f"OPENING HOURS: {hours}."]
+    out = [f"OPENING HOURS: {reservations_core.week_hours_text(rules.get('hours'), lang)}."]
     try:
-        st = booking_rules.open_status(business_id, rules)
-        out.append('RIGHT NOW: ' + (f"open until {st['closes_at']}." if st['open_now'] else
-                                    f"closed — next opening {st['next_open'] or 'not set'}. A team member can reply when the business opens."))
+        now = booking_rules.local_now(business_id)
+        st = booking_rules.open_status(business_id, rules, now)
+        out.append('RIGHT NOW: ' + reservations_core.right_now_text(rules, now, st, lang))
     except Exception as e:
         print(f"[customer_context] open status: {e}")
     return out
@@ -258,7 +238,7 @@ def facts(business_id, pack=None, now_str=None, weekday=None, lang='en'):
             pl = price_list(business_id, "PRICE LIST (information only — nothing here can be booked, reserved, held or ordered in this chat):")
             if pl:
                 lines.append(pl)
-            hours = hours_lines(business_id, rules)
+            hours = hours_lines(business_id, rules, lang=lang)
             if hours:
                 lines.append("\n".join(hours))
             lines.append(info_line(business_id, rules))
@@ -271,7 +251,7 @@ def facts(business_id, pack=None, now_str=None, weekday=None, lang='en'):
                                              "through the booking tools):")
                 if pl:
                     lines.append(pl)
-            hours = hours_lines(business_id, rules, include_defaults=pack.resource == 'appointment')
+            hours = hours_lines(business_id, rules, include_defaults=pack.resource == 'appointment', lang=lang)
             if hours:
                 lines.append("\n".join(hours))
             lines.append(info_line(business_id, rules, appointment=True))

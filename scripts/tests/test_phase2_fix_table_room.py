@@ -511,25 +511,24 @@ class OpeningHoursFieldKnowsOvernightShifts(T.Base):
         T.settings(hours=LATE_SAT, table={'max_covers_per_slot': 20})
         sun = self.call(fnb, 'fnb_check_tables', {'date': T.SUN, 'time': '01:00', 'party_size': 2})
         self.assertNotEqual(sun['opening_hours'], 'closed')
-        self.assertIn('00:00-02:00', sun['opening_hours'])
-        self.assertIn('Saturday night', sun['opening_hours'])
+        self.assertEqual(sun['opening_hours'], 'Sat 6:00 pm – 2:00 am (Sun), Sun closed')   # vòng 3: kiểu giờ chung
         self.assertTrue(sun['requested_time']['free'])                    # 01:00 Chủ nhật đặt được thật
         sat = self.call(fnb, 'fnb_check_tables', {'date': SAT, 'party_size': 2})
-        self.assertEqual(sat['opening_hours'], '18:00-02:00 (2:00 am the next day)')
+        self.assertEqual(sat['opening_hours'], 'Sat 6:00 pm – 2:00 am (Sun)')
         mon = self.call(fnb, 'fnb_check_tables', {'date': '2026-11-02', 'party_size': 2})
-        self.assertEqual(mon['opening_hours'], 'closed')
+        self.assertEqual(mon['opening_hours'], 'Mon closed')
 
     def test_karaoke_closed_day_after_a_late_night_is_not_closed(self):
         T.biz('karaoke')
         T.settings(hours=LATE_SAT, auto_confirm=True)
         T.room(1, 'Room A (2-10 people)', 20)
         sun = self.call(karaoke, 'karaoke_check_rooms', {'date': T.SUN, 'time': '00:00', 'hours': 1, 'group_size': 4})
-        self.assertIn('00:00-02:00', sun['opening_hours'])
+        self.assertEqual(sun['opening_hours'], 'Sat 6:00 pm – 2:00 am (Sun), Sun closed')   # vòng 3: kiểu giờ chung
         self.assertNotEqual(sun['opening_hours'], 'closed')
         self.assertTrue(sun['requested_time']['free'])
         self.assertEqual(self.call(karaoke, 'karaoke_check_rooms', {'date': SAT})['opening_hours'],
-                         '18:00-02:00 (2:00 am the next day)')
-        self.assertEqual(self.call(karaoke, 'karaoke_check_rooms', {'date': '2026-11-02'})['opening_hours'], 'closed')
+                         'Sat 6:00 pm – 2:00 am (Sun)')
+        self.assertEqual(self.call(karaoke, 'karaoke_check_rooms', {'date': '2026-11-02'})['opening_hours'], 'Mon closed')
 
     def test_not_published_is_still_said(self):
         T.biz('karaoke')

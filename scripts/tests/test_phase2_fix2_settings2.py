@@ -57,13 +57,13 @@ class CustomerHoursLines(unittest.TestCase):
         self.assertNotIn('18:00-02:00', line)
         self.assertNotIn('17:30-01:30', line)
 
-    def test_same_day_hours_are_unchanged(self):
+    def test_same_day_hours_use_the_same_style(self):
         line = self.opening_line()
-        self.assertIn('Mon 11:00-22:00, Tue closed, Wed 16:00-24:00, Thu 00:00-24:00', line)   # như cũ (test lõi dựa vào)
+        # vòng 3: ngày trong ngày cùng 1 kiểu với ngày qua đêm (trước: 'Mon 11:00-22:00' 24 giờ cạnh 'Fri 6:00 pm – 2:00 am')
+        self.assertIn('Mon 11:00 am – 10:00 pm, Tue closed, Wed 4:00 pm – midnight, Thu 12:00 am – midnight', line)
         nail = customer_context.hours_lines('nail-1', {'configured': True, 'hours': booking_rules.DEFAULT_HOURS})
-        self.assertTrue(nail[0].startswith('OPENING HOURS: Mon 09:00-19:00, Tue 09:00-19:00'), nail[0])
-        self.assertNotIn(' am', nail[0])
-        self.assertNotIn(' pm', nail[0])
+        self.assertTrue(nail[0].startswith('OPENING HOURS: Mon 9:00 am – 7:00 pm, Tue 9:00 am – 7:00 pm'), nail[0])
+        self.assertNotIn('09:00-19:00', nail[0])
 
     def test_unreadable_saved_value_is_printed_as_before(self):
         line = customer_context.hours_lines('x', {'configured': True, 'hours': {'mon': ['late', '02:00'], 'tue': None}})[0]
@@ -79,7 +79,7 @@ class CustomerHoursLines(unittest.TestCase):
             lines = customer_context.hours_lines(BID, rules)
         finally:
             booking_rules.local_now = orig
-        self.assertEqual(lines[1], 'RIGHT NOW: open until 02:00 (after midnight).')
+        self.assertEqual(lines[1], 'RIGHT NOW: open until 2:00 am (Sat).')     # vòng 3: cùng kiểu giờ với OPENING HOURS
 
 
 # ================================================================ (2) giả lập + báo cáo demo == luật AI

@@ -378,17 +378,16 @@ def _business_phone_db(business_id):
 
 
 def describe_for_ai(business_id):
-    """Khối dữ kiện ngắn cho AI: giờ mở cửa, quy tắc đặt, thời lượng dịch vụ, thông tin tiệm."""
+    """Khối dữ kiện ngắn cho AI: giờ mở cửa, quy tắc đặt, thời lượng dịch vụ, thông tin tiệm. Giờ mở cửa + RIGHT NOW theo
+    đúng 1 kiểu giờ chung (reservations_core.week_hours_text / right_now_text — cùng chữ customer_context đưa AI khách)."""
+    import reservations_core
     r = get_rules(business_id)
-    names = {'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'}
-    hours = ', '.join(f"{names[d]} {v[0]}-{v[1]}" if v else f"{names[d]} closed" for d, v in (r['hours'] or {}).items())
-    lines = [f"OPENING HOURS: {hours}.",
+    lines = [f"OPENING HOURS: {reservations_core.week_hours_text(r['hours'])}.",
              f"BOOKING RULES: book at least {r['min_lead_minutes']} min ahead, up to {r['max_advance_days']} days ahead; "
              f"start times every {r['slot_minutes']} min; a service must finish before closing. "
              "Always use check_availability before promising a time."]
-    st = open_status(business_id, r)
-    lines.append('RIGHT NOW: ' + (f"open until {st['closes_at']}." if st['open_now'] else
-                                  f"closed — next opening {st['next_open'] or 'not set'}. A team member can reply when the business opens."))
+    now = local_now(business_id)
+    lines.append('RIGHT NOW: ' + reservations_core.right_now_text(r, now, open_status(business_id, r, now)))
     lines.append('CONFIRMATION: ' + ('bookings that pass these checks are CONFIRMED instantly (tool returns status "confirmed").'
                                      if r.get('auto_confirm', True) else
                                      'online bookings are REQUESTS the business approves (tool returns status "pending") — '

@@ -151,7 +151,7 @@ def facts(business_id, lang, now_local):
     rooms = rc.karaoke_rooms(business_id)
     lines = [f"ROOM BOOKINGS BY THE HOUR — current local date/time at the venue: {now:%Y-%m-%d %H:%M} ({now:%A}). Resolve "
              "'tonight', 'Saturday', 'tối nay'... from this and pass date YYYY-MM-DD + start time HH:MM in local time."]
-    ht = rc.hours_text(rules)
+    ht = rc.hours_text(rules, lang)   # 1 kiểu giờ chung với customer_context + ô opening_hours (theo ngôn ngữ chat)
     lines.append(f"OPENING HOURS: {ht}. A booking must end by closing time." if ht else
                  "OPENING HOURS: not published — do not state opening hours.")
     if rooms:
@@ -180,6 +180,10 @@ def facts(business_id, lang, now_local):
 # ---------------------------------------------------------------- công cụ
 def _vi(ctx):
     return (ctx or {}).get('lang') == 'vi'
+
+
+def _lang(ctx):
+    return 'vi' if _vi(ctx) else 'en'
 
 
 def _when(day, minute):
@@ -299,7 +303,7 @@ def _check(args, ctx):
     kind, room_type = _kind(args, rooms), args.get('room_type')
     want = rc.parse_hm(args['time']) if str(args.get('time') or '').strip() else None
     out = {'success': True, 'date': day.isoformat(), 'weekday': day.strftime('%A'), 'hours': hours, 'group_size': group,
-           'room_kind': kind, 'opening_hours': rc.day_hours_text(rules, day) or 'not published'}
+           'room_kind': kind, 'opening_hours': rc.day_hours_text(rules, day, _lang(ctx)) or 'not published'}
     if assumed:
         out['hours_assumed'] = 'The customer has not said how long — 2 hours was assumed; ask them.'
     if group is None:
@@ -309,7 +313,7 @@ def _check(args, ctx):
         start = _when(day, want)
         out.update(start=rc.fmt_min(want), end=_stamp(start + timedelta(hours=hours))[11:])
         try:
-            rc.check_window(rules, start, now, int(hours * 60))
+            rc.check_window(rules, start, now, int(hours * 60), lang=_lang(ctx))
             fits, unknown = rc.karaoke_free(rules, rooms, rows, start, hours, now, group, kind, room_type)
             out['rooms'] = [_room_out(r, hours, cur) for r in (fits + unknown)[:6]]
             out['requested_time'] = {'free': bool(out['rooms'])}
@@ -339,18 +343,22 @@ def _check(args, ctx):
     return out
 
 
-def _dup_result(dup, ctx, name, note, cur, asked=None):
+def _dup_result(dup, ctx, name, note, cur, asked=None, start=None, hours=None):
     if not rc.is_owned(dup, ctx):
-        # Chat chưa chứng minh là chủ: KHÔNG nói "SĐT này đã có phòng đúng giờ này" (dò được giờ người khác tới quán). Không tạo
-        # đặt phòng thứ 2; ghi chú cho quán tự liên hệ khách — trả lời như 1 yêu cầu chờ quán xác nhận.
+        # Chat chưa chứng minh là chủ: KHÔNG nói "SĐT này đã có phòng giờ này" (dò được giờ người khác tới quán). Không tạo
+        # đặt phòng thứ 2 (cùng giờ bắt đầu hay chỉ CHỒNG giờ); ghi chú cho quán (giờ khách vừa hỏi + đặt phòng đang giữ) tự
+        # liên hệ khách — trả lời như 1 yêu cầu chờ quán xác nhận.
         when = str(dup.get('reserved_time') or '')[:16].replace('T', ' ')
+        held = f"{when}, {float(dup.get('duration_hours') or rc.KARAOKE_DEFAULT_HOURS):g}h"
+        ask = f"{_stamp(start)} ({hours:g}h)" if start and hours else when
         want = f" ({asked['name']})" if asked else ''
-        _staff_note(ctx, f"🎤 Chat AI xin đặt phòng {when}{want} cho {name} — SĐT này đã có đặt phòng #{dup.get('id')} đúng giờ "
-                         "đó nên AI KHÔNG tạo thêm (chat chưa xác minh là chủ). Quán liên hệ khách để xác nhận đổi phòng "
-                         "hay thêm phòng.",
-                    f"🎤 The AI chat asked for a room at {when}{want} for {name} — this phone number already has booking "
-                    f"#{dup.get('id')} at that time, so nothing new was created (the chat isn't verified as its owner). "
-                    "Please confirm with the customer whether they want to switch rooms or add one.")
+        _staff_note(ctx, f"🎤 Chat AI xin đặt phòng {ask}{want} cho {name} — SĐT này đang giữ đặt phòng #{dup.get('id')} "
+                         f"({held}) trùng giờ đó nên AI KHÔNG tạo thêm (chat chưa xác minh là chủ). Quán liên hệ khách "
+                         "để xác nhận đổi phòng / đổi giờ hay thêm phòng.",
+                    f"🎤 The AI chat asked for a room at {ask}{want} for {name} — this phone number already has booking "
+                    f"#{dup.get('id')} ({held}) overlapping that time, so nothing new was created (the chat isn't "
+                    "verified as its owner). Please confirm with the customer whether they want to switch rooms or "
+                    "times, or add a room.")
         return {'success': True, 'request_sent_to_team': True, 'confirmed': False, 'status': 'pending',
                 'say': _say('pending'),
                 'note': 'Passed to the venue, which confirms it with the customer by phone. Nothing new was booked in this '
@@ -396,12 +404,15 @@ def _flag(value):
     return value is True or str(value).strip().lower() in ('true', '1', 'yes')
 
 
+def _overlaps(r, start, end):
+    hours = float(r.get('duration_hours') or rc.KARAOKE_DEFAULT_HOURS)
+    return r['_start'] < end and r['_start'] + timedelta(hours=hours) > start
+
+
 def _held(rows, ctx, start, end):
     """Đặt phòng còn hiệu lực CHỨNG MINH được là của chính chat này (rc.is_owned) chồng giờ với [start, end) — chỉ những dòng
     này mới được nói ra; đặt phòng không chứng minh được là của chat thì không bao giờ tiết lộ."""
-    return [r for r in rows if r['_start'] < end
-            and r['_start'] + timedelta(hours=float(r.get('duration_hours') or rc.KARAOKE_DEFAULT_HOURS)) > start
-            and rc.is_owned(r, ctx)]
+    return [r for r in rows if _overlaps(r, start, end) and rc.is_owned(r, ctx)]
 
 
 def _held_out(r, rooms):
@@ -431,7 +442,7 @@ def _reserve(args, ctx):
             raise ai_packs.PackError(f"{chosen['name']} fits up to {chosen['max_guests']} people — offer a bigger room.")
         kind, room_type = chosen['kind'], None
     try:
-        rc.check_window(rules, start, now, int(hours * 60))
+        rc.check_window(rules, start, now, int(hours * 60), lang=_lang(ctx))
     except rc.ReservationError as e:
         return {'success': False, 'reason': e.reason, 'message': rc.explain(e),
                 **_alternatives(bid, rules, rooms, day, hours, group, now, kind, room_type, want)}
@@ -448,8 +459,9 @@ def _reserve(args, ctx):
                         if r['_start'].replace(second=0) == start and rc.same_phone(r.get('customer_phone'), phone, country)
                         and _same_booking(r, rooms, kind, chosen, extra)), None)
         if dup:
-            return _dup_result(dup, ctx, name, args.get('note'), cur)
-        held = _held(rows, ctx, start, start + timedelta(hours=hours))
+            return _dup_result(dup, ctx, name, args.get('note'), cur, start=start, hours=hours)
+        end = start + timedelta(hours=hours)
+        held = _held(rows, ctx, start, end)
         if not extra:
             # Chat đã giữ 1 phòng giờ này mà khách hỏi phòng khác = thường là ĐỔI phòng: không lặng lẽ giữ thêm phòng thứ 2
             # (phòng cũ vẫn bị khoá dưới SĐT khách) — đổi qua karaoke_change_reservation, thêm phòng phải nói rõ extra_room.
@@ -462,11 +474,13 @@ def _reserve(args, ctx):
                                    'room is released. Only if they clearly want ANOTHER room as well (a big group split '
                                    'across rooms, a karaoke room plus a billiards table), confirm it and call '
                                    'karaoke_reserve_room again with extra_room=true.'}
+            # Cùng SĐT, CHỒNG giờ (không chỉ đúng giờ bắt đầu: giữ A 20:00-22:00 rồi hỏi "phòng B lúc 21:00") mà chat
+            # không chứng minh được là chủ (nên không đổi được qua karaoke_change_reservation): không giữ thêm phòng thứ 2
+            # — quán tự hỏi khách đổi hay thêm, không lộ gì về đặt phòng kia.
             other = next(({k: v for k, v in r.items() if k != '_start'} for r in rows
-                          if r['_start'].replace(second=0) == start
-                          and rc.same_phone(r.get('customer_phone'), phone, country)), None)
-            if other:   # cùng SĐT, cùng giờ nhưng chat không chứng minh được là chủ: quán tự hỏi khách, không lộ gì
-                return _dup_result(other, ctx, name, args.get('note'), cur, asked=chosen)
+                          if _overlaps(r, start, end) and rc.same_phone(r.get('customer_phone'), phone, country)), None)
+            if other:
+                return _dup_result(other, ctx, name, args.get('note'), cur, asked=chosen, start=start, hours=hours)
         fits, unknown = rc.karaoke_free(rules, rooms, rows, start, hours, now, group, kind, room_type)
         room = _pick(fits, unknown, args.get('room_id'))
         if room is not None and rc.karaoke_overlaps(bid, room['id'], stamp, hours):  # đúng luật màn xếp phòng, lần cuối
@@ -606,7 +620,7 @@ def _change(args, ctx):
         return {'success': True, 'unchanged': True, 'reservation_id': rid, 'start': _stamp(old), 'status': doc.get('status')}
     kind = chosen['kind'] if chosen else current['kind'] if current else rc.unassigned_kind(doc, rooms)
     try:
-        rc.check_window(rules, start, now, int(hours * 60))
+        rc.check_window(rules, start, now, int(hours * 60), lang=_lang(ctx))
     except rc.ReservationError as e:
         return {'success': False, 'reason': e.reason, 'message': rc.explain(e), 'reservation_unchanged': True,
                 **_alternatives(bid, rules, rooms, day, hours, group, now, kind, None, want, exclude_id=rid)}

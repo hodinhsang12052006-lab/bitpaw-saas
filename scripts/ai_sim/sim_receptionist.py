@@ -411,6 +411,9 @@ def mock_fixture(fdb, industry):
     fdb.messaging_settings.insert_one({'business_id': MOCK_BIZ, 'timezone': tz})
     hours = {d: (['12:00', '23:59'] if industry == 'karaoke' else ['07:00', '23:00'] if industry == 'hotel' else ['09:00', '22:00'])
              for d in ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')}
+    # auto_confirm=True KHÔNG kèm reservations_general_saved_at: đúng giá trị trang Cài đặt đặt lịch cũ ghi cho mọi ngành
+    # -> F&B / karaoke mẫu cố ý chỉ nhận YÊU CẦU (AI + sự thật giả lập = pending, khớp MOCK_STATUS); --mock kiểm khung
+    # chấm, không kiểm đường tự xác nhận. Nails / Spa (booking_rules) vẫn tự xác nhận.
     fdb.booking_settings.insert_one({'business_id': MOCK_BIZ, 'hours': hours, 'info': dict(_MOCK_INFO), 'auto_confirm': True})
     # 1 khách thật của tiệm có SĐT trong dải ví dụ -> bộ chọn SĐT giả phải BỎ QUA số này (không đụng khách thật)
     fdb.customers.insert_one({'id': 1, 'business_id': MOCK_BIZ, 'name': 'Existing Customer',

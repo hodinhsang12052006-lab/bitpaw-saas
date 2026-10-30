@@ -753,7 +753,7 @@ class CustomerContextTests(_Base):
         self.assertIn('Address: 12 King St, Newtown NSW', facts)      # từ hồ sơ tiệm khi trang Cài đặt đặt lịch chưa ghi
         self.assertIn('Parking: Free parking behind the shop', facts)
         self.assertIn('Phone: +61290000001', facts)
-        self.assertIn('OPENING HOURS: Mon 09:00-19:00', facts)
+        self.assertIn('OPENING HOURS: Mon 9:00 am – 7:00 pm', facts)
         self.assertIn('No deposit for bookings under 3 people.', facts)
         self.assertNotIn('Kids welcome', facts)                        # mục đang tắt
         self.assertIn("OWNER'S ANSWERS", facts)
