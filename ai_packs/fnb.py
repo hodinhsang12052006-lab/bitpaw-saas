@@ -227,8 +227,7 @@ def _check(args, ctx):
     model = rc.table_model(rules, tables)
     hrs = rc.hours_on(rules, day)
     out = {'success': True, 'date': day.isoformat(), 'weekday': day.strftime('%A'), 'party_size': party,
-           'opening_hours': ('not published' if hrs == rc.UNKNOWN else 'closed' if hrs is None
-                             else f"{rc.fmt_min(hrs[0])}-{rc.fmt_min(hrs[1])}"),
+           'opening_hours': rc.day_hours_text(rules, day) or 'not published',   # cả phần sau nửa đêm của ca hôm trước
            'availability': 'request_only' if model == 'none' else 'live'}
     rows = rc.table_rows(bid, day) if model != 'none' else []
     fit_reason = None
