@@ -179,13 +179,25 @@ def _same_phone(a, b, country=None):
 
 
 def _country(c):
-    """Nước của khách sạn để chuẩn hoá SĐT: ctx.country, không thì hồ sơ khách sạn (country, thiếu thì suy từ tiền tệ)."""
+    """Nước của khách sạn để chuẩn hoá SĐT: ctx.country (customer_context), không thì ai_packs.shop_country — CÙNG 1 nguồn với
+    mọi chỗ chuẩn hoá SĐT (hồ sơ -> múi giờ trang Nhắn tin -> tiền tệ). Nước BitPaw chưa có luật ('SG', 'OTHER') hay lỗi ->
+    None: số nội địa không bị đoán. Gói nạp riêng (registry chưa có shop_country): hồ sơ khách sạn (nước, thiếu thì theo
+    tiền tệ)."""
     if c.country is None:
-        shop = _shop(c.business_id)
-        cur = str(shop.get('currency') or '').strip().upper()
-        c.country = (str(shop.get('country') or '').strip().upper()
-                     or next((k for k, v in _COUNTRY_CURRENCY.items() if v == cur), ''))
-    return c.country or None
+        fn = getattr(ai_packs, 'shop_country', None)
+        try:
+            if callable(fn):
+                c.country = fn(c.business_id) or ''
+            else:
+                shop = _shop(c.business_id)
+                cur = str(shop.get('currency') or '').strip().upper()
+                c.country = (str(shop.get('country') or '').strip().upper()
+                             or next((k for k, v in _COUNTRY_CURRENCY.items() if v == cur), ''))
+        except Exception as e:
+            print(f"[hotel] shop country: {e}")
+            c.country = ''
+    country = {'UK': 'GB'}.get(c.country, c.country)
+    return country if country in _COUNTRY_CURRENCY else None   # = ai_packs.SHOP_COUNTRIES
 
 
 def _typed_phone(c):

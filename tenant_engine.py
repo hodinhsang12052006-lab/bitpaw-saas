@@ -47,8 +47,15 @@ class TenantEngine:
 
     @staticmethod
     def get_region_config(business_id=None):
-        """Returns {'country': 'VN'|'US', 'currency': 'VND'|'USD'} for a tenant."""
-        default = {"country": "VN", "currency": "VND"}
+        """{'country': 'US'|'AU'|'VN'|'CA'|'NZ'|'GB'|'', 'currency': 'USD'|'AUD'|'VND'|...} của 1 tiệm.
+        country: ai_packs.shop_country — 1 nguồn cho mọi module (nước trên hồ sơ -> múi giờ trang Nhắn tin -> tiền tệ); nước
+        BitPaw chưa có luật ('OTHER', 'SG'...) hoặc chưa rõ -> '' (không còn mặc định 'VN': tiệm Mỹ/Úc/Singapore chưa lưu nước
+        từng bị coi là tiệm Việt, hiện '₫').
+        currency: businesses.currency; chưa lưu thì VN -> VND, AU -> AUD, còn lại (kể cả chưa rõ nước) -> USD — cùng quy ước
+        ai_copilot_tools.business_currency / app._shop_lang_currency (gói chỉ bán USD/AUD, format_money chỉ định dạng
+        VND/USD/AUD), không còn mặc định VND.
+        Không có tiệm / không có dòng businesses / lỗi DB: {'country': '', 'currency': 'USD'}."""
+        default = {"country": "", "currency": "USD"}
         
         if not business_id or db is None:
             return default
@@ -56,12 +63,16 @@ class TenantEngine:
         try:
             # Chỉ query đúng 2 trường country và currency để tối ưu tốc độ
             row = db.businesses.find_one({'id': business_id}, {'country': 1, 'currency': 1, '_id': 0})
-            if row:
-                return {
-                    "country": row.get('country') or 'VN',
-                    "currency": row.get('currency') or 'VND'
-                }
         except Exception as e:
             print(f"[!] get_region_config failed for business_id={business_id}: {str(e)}")
-            
-        return default
+            return default
+        if not row:
+            return default
+        try:
+            import ai_packs
+            country = ai_packs.shop_country(dict(row, id=business_id)) or ''
+        except Exception as e:
+            print(f"[!] get_region_config country failed for business_id={business_id}: {str(e)}")
+            country = ''
+        currency = str(row.get('currency') or '').strip().upper() or {'VN': 'VND', 'AU': 'AUD'}.get(country, 'USD')
+        return {"country": country, "currency": currency}

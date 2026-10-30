@@ -140,7 +140,8 @@ class RegisterCountryTests(core._Base):
     def test_country_comes_from_the_form_first_then_the_vercel_header(self):
         cases = [  # (ô form, header Vercel) -> (country, currency) lưu trên businesses
             ('AU', 'US', ('AU', 'AUD')), ('us', None, ('US', 'USD')), ('VN', 'AU', ('VN', 'VND')),
-            ('CA', None, ('CA', 'USD')), ('NZ', None, ('NZ', 'USD')), ('GB', None, ('GB', 'USD')), ('uk', None, ('GB', 'USD')),
+            # CA/NZ/GB: chỉ lưu nước — tiền tệ để trống (CAD/NZD/GBP chưa định dạng được; mỗi module tự theo nước, fix4)
+            ('CA', None, ('CA', None)), ('NZ', None, ('NZ', None)), ('GB', None, ('GB', None)), ('uk', None, ('GB', None)),
             (None, 'AU', ('AU', 'AUD')), (None, 'vn', ('VN', 'VND')), (None, 'US', ('US', 'USD')),
             ('other', 'AU', (None, None)), ('', 'US', (None, None)), ('ZZ<script>', None, (None, None)),
             (None, 'DE', (None, None)), (None, None, (None, None)),
@@ -165,6 +166,9 @@ class RegisterCountryTests(core._Base):
         import ai_copilot_tools
         for n, country in enumerate(COUNTRIES):
             biz = self._register(100 + n, country)
+            if country in ('CA', 'NZ', 'GB'):   # fix4: không lưu tiền tệ app chưa định dạng được (test_phase2_fix4_country4.py)
+                self.assertNotIn('currency', biz, country)
+                continue
             self.assertEqual(biz['currency'], ai_copilot_tools.business_currency(None, {'country': country}), country)
             self.assertIn(biz['currency'], sold_in | {'VND'}, country)
             # tiền tệ lưu luôn định dạng đúng ('$1,200.50' / '1.201đ'): CAD/NZD/GBP sẽ bị format_money in thành 'đ'

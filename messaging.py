@@ -100,17 +100,32 @@ def _business(business_id):
     return db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'country': 1, 'currency': 1, 'industry_code': 1}) or {}
 
 
+def _shop_country(business_id, biz=None):
+    """Nước của tiệm cho MỌI số điện thoại gửi tin (nhắc lịch, xin đánh giá, tin thử, ca làm, job): ai_packs.shop_country —
+    CÙNG 1 nguồn với lễ tân AI + mã SMS (nước trên hồ sơ -> múi giờ trang Nhắn tin -> tiền tệ). Chưa rõ / nước BitPaw chưa có
+    luật ('OTHER', 'SG') / lỗi -> '' : normalize_phone khi đó chỉ nhận số có mã nước '+...', không còn tự coi là số Mỹ."""
+    if not business_id:
+        return ''
+    try:
+        import ai_packs
+        return ai_packs.shop_country(dict(biz, id=business_id) if biz is not None else business_id) or ''
+    except Exception as e:
+        print(f"[messaging] shop country: {e}")
+        return ''
+
+
 def get_settings(business_id):
     s = dict(DEFAULT_SETTINGS)
     row = db.messaging_settings.find_one({'business_id': business_id}, {'_id': 0}) or {}
     s.update({k: v for k, v in row.items() if k in DEFAULT_SETTINGS})
     biz = _business(business_id)
-    if not s['timezone']:
-        s['timezone'] = DEFAULT_TZ.get((biz.get('country') or 'US').upper(), 'America/New_York')
+    country = _shop_country(business_id, biz)
+    if not s['timezone']:   # chỉ là giờ gửi tin mặc định (New York khi chưa rõ nước) — không bao giờ là nước của SĐT
+        s['timezone'] = DEFAULT_TZ.get(country, 'America/New_York')
     if not s['language']:
-        s['language'] = 'vi' if (biz.get('country') or '').upper() == 'VN' else 'en'
+        s['language'] = 'vi' if country == 'VN' else 'en'
     s['business_name'] = biz.get('name') or 'our shop'
-    s['country'] = (biz.get('country') or 'US').upper()
+    s['country'] = country
     token = nurture_channel_tokens.get_channel_token(business_id, 'twilio') if s['twilio_account_sid'] else None
     s['twilio_ready'] = bool(s['sms_enabled'] and s['twilio_account_sid'] and s['twilio_from'] and token and token.get('access_token'))
     return s
@@ -138,9 +153,10 @@ def save_settings(business_id, data):
             raise ValueError('Unknown time zone')
     if clean.get('google_review_url') and not re.match(r'^https://', clean['google_review_url']):
         raise ValueError('Review link must start with https://')
+    country = data.get('country') or _shop_country(business_id)   # chưa rõ nước: giữ nguyên số đã gõ (không đoán số Mỹ)
     for k in ('twilio_from', 'shop_phone'):
         if clean.get(k):
-            clean[k] = normalize_phone(clean[k], data.get('country') or 'US') or clean[k]
+            clean[k] = normalize_phone(clean[k], country) or clean[k]
     clean['send_window_start'] = max(8, min(clean.get('send_window_start', 9), 20)) if 'send_window_start' in clean else None
     clean['send_window_end'] = max(9, min(clean.get('send_window_end', 20), 21)) if 'send_window_end' in clean else None
     if 'review_cooldown_days' in clean:
