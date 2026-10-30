@@ -24,6 +24,7 @@ tiền tệ, chống trùng (insert_once), báo nhân viên (_notify).
 import hashlib
 import json
 import re
+import time
 import unicodedata
 from datetime import datetime, time as dtime, timedelta
 
@@ -47,6 +48,9 @@ STATUSES = ('pending', 'ready', 'picked_up', 'cancelled', 'expired')
 STAFF_NEXT = {'pending': ('ready', 'picked_up', 'cancelled'), 'ready': ('picked_up', 'cancelled')}
 MAX_HOLD_QTY = 10                                   # 1 lần giữ tối đa bấy nhiêu cái (chống giữ cả kho qua chat)
 MAX_ACTIVE_HOLDS = 3                                # mỗi khách / cuộc chat tối đa bấy nhiêu hold đang giữ
+# _recount_held chỉ sửa held_qty khi số này ĐỨNG YÊN ít nhất bấy nhiêu giây (products.held_qty_at): lệnh giữ / huỷ đang
+# chạy dở (đã cộng / trừ held_qty nhưng chưa ghi xong dòng hold, hoặc ngược lại) không bao giờ bị "sửa" nhầm thành thiếu.
+HELD_GRACE_SECONDS = 120
 MAX_RESULTS = 8
 PLATFORM_CHANNELS = ('messenger', 'instagram', 'whatsapp', 'zalo', 'viber', 'sms')
 COUNTRY_CURRENCY = {'US': 'USD', 'AU': 'AUD', 'VN': 'VND', 'CA': 'CAD', 'NZ': 'NZD', 'GB': 'GBP'}
@@ -156,7 +160,7 @@ def _e164_local(phone, country=None):
     if raw.startswith('+') or raw.startswith('00'):
         d = d if raw.startswith('+') else d[2:]
         return '+' + d if 8 <= len(d) <= 15 else ''
-    c = str(country or 'US').upper()
+    c = str(country or '').upper()          # chưa biết nước của tiệm -> KHÔNG đoán là số Mỹ (+1)
     cc = _CC.get(c)
     if c in ('US', 'CA'):
         if len(d) == 10:
@@ -179,7 +183,12 @@ def _e164_local(phone, country=None):
 
 def phone_key(phone, country=None):
     """SĐT dạng E.164 ĐẦY ĐỦ ('+61412345678'), hoặc None. So khớp quyền sở hữu bằng NGUYÊN số — không bao giờ so 'đuôi
-    9 số' (ở Mỹ '(212) 345-6789' và '(312) 345-6789' trùng 9 số cuối)."""
+    9 số' (ở Mỹ '(212) 345-6789' và '(312) 345-6789' trùng 9 số cuối).
+    Số nội địa đổi theo NƯỚC CỦA TIỆM. Tiệm chưa nhập nước mà số không có mã nước ('+' / '00') -> None: không đoán là
+    số Mỹ ('0912 345 678' không phải +10912345678) — nơi gọi giữ nguyên số khách gõ."""
+    raw = str(phone or '').strip()
+    if not str(country or '').strip() and not (raw.startswith('+') or raw.startswith('00')):
+        return None
     fn = getattr(ai_packs, 'normalize_phone', None)
     out = ''
     if callable(fn):
@@ -187,7 +196,10 @@ def phone_key(phone, country=None):
             out = fn(phone, country) or ''
         except Exception:
             out = ''
-    return (out or _e164_local(phone, country)) or None
+    out = out or _e164_local(phone, country)
+    if re.fullmatch(r'\+1[01]\d{9}', out or ''):   # mã vùng Mỹ / Canada không bắt đầu bằng 0 / 1 -> không phải số Mỹ
+        out = ''
+    return out or None
 
 
 def phone_regex(phone, country=None):
@@ -357,7 +369,7 @@ def insert_once(coll, business_id, key, doc, key_field='dedupe_key'):
 
 def request_key(ctx, phone, *parts):
     """Khoá chống trùng: người gửi (hội thoại, hoặc SĐT) + nội dung chính + ngày tại tiệm."""
-    who = ctx.get('customer_id') or phone_key(phone, _country(ctx)) or ''
+    who = ctx.get('customer_id') or phone_key(phone, _country(ctx)) or _clean_phone(phone) or ''   # chưa biết nước: số khách gõ
     return hashlib.sha1('|'.join([str(who)] + [_fold(p) for p in parts]).encode('utf-8')).hexdigest()[:24]
 
 
@@ -405,10 +417,19 @@ def hold_deadline(business_id, now_local):
 
 def _release(business_id, hold):
     try:
-        db.products.update_one({'id': hold.get('product_id'), 'business_id': business_id}, {'$inc': {'held_qty': -int(hold.get('quantity') or 0)}})
+        db.products.update_one({'id': hold.get('product_id'), 'business_id': business_id},
+                               {'$inc': {'held_qty': -int(hold.get('quantity') or 0)}, '$set': {'held_qty_at': time.time()}})
         db.products.update_one({'id': hold.get('product_id'), 'business_id': business_id, 'held_qty': {'$lt': 0}}, {'$set': {'held_qty': 0}})
     except Exception as e:
         print(f"[ai_packs.retail] release: {e}")
+
+
+def _touch_held(business_id, product_id):
+    """Đánh dấu held_qty của món "đang đổi" (held_qty_at = bây giờ) để _recount_held chờ, không sửa giữa chừng."""
+    try:
+        db.products.update_one({'id': product_id, 'business_id': business_id}, {'$set': {'held_qty_at': time.time()}})
+    except Exception as e:
+        print(f"[ai_packs.retail] touch held: {e}")
 
 
 def _transition(business_id, hold_id, new_status, extra_filter=None, by='customer_ai_chat'):
@@ -424,6 +445,12 @@ def _transition(business_id, hold_id, new_status, extra_filter=None, by='custome
     upd = {'$set': {'status': new_status, f'{new_status}_at': now, 'updated_at': now, 'updated_by': by}}
     if new_status not in ACTIVE:
         upd['$unset'] = {'active_key': ''}   # hết giữ -> khách giữ lại món này được
+        # đánh dấu held_qty "đang đổi" TRƯỚC khi hold rời trạng thái giữ: _recount_held chạy giữa lệnh đổi trạng thái và
+        # _release (hold đã hết giữ, held_qty chưa trừ) sẽ bỏ qua, không trừ thêm lần nữa
+        cur = db.retail_holds.find_one(flt, {'_id': 0, 'product_id': 1})
+        if not cur:
+            return None
+        _touch_held(business_id, cur.get('product_id'))
     before = db.retail_holds.find_one_and_update(flt, upd)
     if before and before.get('status') in ACTIVE and new_status not in ACTIVE:
         _release(business_id, before)
@@ -454,14 +481,20 @@ def staff_set_status(business_id, hold_id, new_status, by='staff'):
 
 
 def _recount_held(business_id, product_id):
-    """Sửa held_qty lệch (vd tiến trình chết giữa 2 lệnh ghi): đặt lại = tổng hold đang giữ. Có điều kiện để không đè lệnh khác."""
-    p = db.products.find_one({'id': product_id, 'business_id': business_id}, {'_id': 0, 'held_qty': 1}) or {}
+    """Sửa held_qty lệch (vd tiến trình chết giữa 2 lệnh ghi): đặt lại = tổng hold đang giữ. Có điều kiện để không đè lệnh khác.
+    Chỉ sửa khi held_qty ĐỨNG YÊN >= HELD_GRACE_SECONDS: mọi lệnh cộng / trừ held_qty (và mọi hold sắp rời trạng thái giữ)
+    ghi held_qty_at, nên lệnh giữ đã cộng held_qty mà chưa ghi xong dòng hold không bị đặt lại thành thiếu (2 khách cùng giữ
+    được món cuối cùng). Ghi có điều kiện held_qty + held_qty_at y như lúc đọc."""
+    p = db.products.find_one({'id': product_id, 'business_id': business_id}, {'_id': 0, 'held_qty': 1, 'held_qty_at': 1}) or {}
+    at = p.get('held_qty_at')
+    if isinstance(at, (int, float)) and time.time() - at < HELD_GRACE_SECONDS:
+        return False
     actual = sum(int(h.get('quantity') or 0) for h in db.retail_holds.find(
         {'business_id': business_id, 'product_id': product_id, 'status': {'$in': list(ACTIVE)}}, {'_id': 0, 'quantity': 1}))
     if int(_num(p.get('held_qty'))) > actual:
-        db.products.update_one({'id': product_id, 'business_id': business_id, 'held_qty': p.get('held_qty')},
-                               {'$set': {'held_qty': actual}})
-        return True
+        res = db.products.update_one({'id': product_id, 'business_id': business_id, 'held_qty': p.get('held_qty'),
+                                      'held_qty_at': at}, {'$set': {'held_qty': actual, 'held_qty_at': time.time()}})
+        return bool(res.matched_count)
     return False
 
 
@@ -470,7 +503,7 @@ def _reserve(business_id, product_id, qty):
     return db.products.find_one_and_update(
         {'id': product_id, 'business_id': business_id,
          '$expr': {'$gte': [{'$subtract': [{'$ifNull': ['$stock', 0]}, {'$ifNull': ['$held_qty', 0]}]}, qty]}},
-        {'$inc': {'held_qty': qty}}, projection={'_id': 0, 'id': 1, 'stock': 1, 'held_qty': 1},
+        {'$inc': {'held_qty': qty}, '$set': {'held_qty_at': time.time()}}, projection={'_id': 0, 'id': 1, 'stock': 1, 'held_qty': 1},
         return_document=ReturnDocument.AFTER)
 
 
@@ -561,6 +594,11 @@ def hold_for_pickup(args, ctx):
            for c in caps):
         raise _err(f'This customer / phone number already has the maximum of {MAX_ACTIVE_HOLDS} active holds. Nothing new '
                    'was held — they can cancel one (retail_my_holds) or ask_team for a bigger order.')
+    # hạn lấy / mã hold / khoá tính TRƯỚC khi cộng held_qty: giữa _reserve và insert_one không còn lệnh DB nào khác
+    deadline = hold_deadline(bid, now)
+    hold_id = next_mongo_id('retail_holds')
+    note = re.sub(r'\s+', ' ', str(args.get('note') or '')).strip()[:300]
+    akey = _active_key(ctx, bid, pid, pkey or phone)
     reserved = _reserve(bid, pid, qty)
     if reserved is None and _recount_held(bid, pid):
         reserved = _reserve(bid, pid, qty)
@@ -570,10 +608,6 @@ def hold_for_pickup(args, ctx):
         if avail <= 0:
             raise _err(f"'{p.get('name')}' is out of stock right now (nothing left that can be held). Nothing was held.")
         raise _err(f"Only {avail} of '{p.get('name')}' can be held right now — offer to hold {avail} instead. Nothing was held.")
-    deadline = hold_deadline(bid, now)
-    hold_id = next_mongo_id('retail_holds')
-    note = re.sub(r'\s+', ' ', str(args.get('note') or '')).strip()[:300]
-    akey = _active_key(ctx, bid, pid, pkey or phone)
     doc = {'id': hold_id, 'business_id': bid, 'product_id': pid, 'product_name': p.get('name'),
            'unit_price': _num(p.get('price')), 'currency': cur, 'quantity': qty, 'customer_name': name,
            'customer_phone': phone, 'phone_key': pkey, 'note': note, 'status': 'pending', 'active_key': akey,

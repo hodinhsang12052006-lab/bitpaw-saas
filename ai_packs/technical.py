@@ -19,6 +19,7 @@ Dùng chung tiện ích SĐT / quyền sở hữu / tiền tệ / giờ tiệm v
 import os
 import re
 import sys
+import unicodedata
 from datetime import datetime, timedelta
 
 import ai_packs
@@ -47,6 +48,27 @@ _EMERGENCY_RE = re.compile(
     r"có khói|mùi khét|đang cháy|bốc cháy|cháy nổ|hỏa hoạn|hoả hoạn"
     r"|\b(ro ri gas|xi gas|mui gas|chap dien|tia lua|dien giat|giat dien|vo ong nuoc|ngap nuoc|nuoc ngap|boc khoi|mui khet|boc chay)\b",
     re.I)
+# Từ khoá bị PHỦ ĐỊNH trong cùng mệnh đề không phải khẩn cấp: AI hỏi sàng lọc nguy hiểm nên mô tả hay có "No burning smell
+# or sparks" / "không có mùi khét". Chỉ tính là phủ định khi giữa từ phủ định và từ khoá CHỈ có từ đệm (có, bị, thấy, any,
+# sign of...) hoặc 1 từ khoá khác nối bằng "or / hay"; mệnh đề cắt ở dấu câu và and / but / và / nhưng... — nên
+# "not cooling, burning smell", "không chạy có mùi khét" vẫn là KHẨN CẤP. Không chắc thì coi là khẩn cấp.
+_NEGATIONS = frozenset((
+    "no", "not", "never", "without", "none", "nothing", "nor", "neither", "isn't", "aren't", "wasn't", "weren't", "don't",
+    "doesn't", "didn't", "haven't", "hasn't", "hadn't", "can't", "cannot", "couldn't", "isnt", "arent", "wasnt", "dont",
+    "doesnt", "didnt", "havent", "hasnt", "cant", "couldnt",
+    "không", "chẳng", "chả", "chưa", "hông", "khong", "ko", "k", "kh", "hok", "chua"))
+_NEG_FILLER = frozenset((
+    "a", "an", "the", "any", "sign", "signs", "evidence", "trace", "traces", "hint", "of", "there", "there's", "theres",
+    "is", "are", "was", "were", "be", "been", "it", "it's", "its", "i", "we", "they", "you", "do", "does", "did", "have",
+    "has", "had", "see", "seen", "saw", "notice", "noticed", "smell", "smelled", "smelt", "detect", "detected", "feel",
+    "felt", "hear", "heard", "seem", "seems", "seemed", "appear", "appears", "to", "look", "looks", "like", "real",
+    "actual", "obvious", "visible", "more", "longer", "other", "also", "either", "even", "at", "all", "kind", "sort",
+    "có", "bị", "thấy", "gì", "dấu", "hiệu", "hiện", "tượng", "nào", "hề", "còn", "cũng", "ngửi", "nghe", "là", "phải",
+    "bất", "kỳ", "kì", "tí", "chút", "co", "bi", "thay", "gi", "dau", "hieu", "nao", "he", "con", "cung", "ngui"))
+_NEG_JOIN = frozenset(("or", "nor", "hay", "hoặc", "hoac"))
+_CLAUSE_BREAK = re.compile(r"[.,;:!?\n()\[\]]|\s[-–—]\s|\b(?:and|but|then|however|although|though|yet|now|và|nhưng|mà|"
+                           r"rồi|thì|giờ|va|nhung|roi|thi|gio)\b", re.I)
+_WORD = re.compile(r"\x00|[^\W_]+(?:'[^\W_]+)?")
 
 
 def _fn(name, desc, props, required=()):
@@ -96,8 +118,29 @@ def _err(msg):
     return ai_packs.PackError(msg)
 
 
+def _negated(text, start):
+    """Từ khoá bắt đầu ở vị trí start có bị PHỦ ĐỊNH trong cùng mệnh đề không ('no gas smell', 'không có mùi khét',
+    'No burning smell or sparks'). Từ khoá khác đứng trước trong mệnh đề được thay bằng dấu \\x00."""
+    clause = _CLAUSE_BREAK.split(text[:start])[-1]
+    toks = _WORD.findall(_EMERGENCY_RE.sub(' \x00 ', clause).lower())
+    neg = max((i for i, t in enumerate(toks) if t in _NEGATIONS), default=-1)
+    if neg < 0 or len(toks) - neg - 1 > 6:
+        return False
+    joined = False   # vừa qua 1 từ khoá khác: chỉ "or / hay" mới nối tiếp phủ định ("No burning smell or sparks")
+    for t in toks[neg + 1:]:
+        if t == '\x00':
+            joined = True
+        elif joined and t in _NEG_JOIN:
+            joined = False
+        elif joined or t not in _NEG_FILLER:
+            return False
+    return not joined
+
+
 def is_emergency(text):
-    return bool(_EMERGENCY_RE.search(str(text or '')))
+    """Có từ khoá nguy hiểm KHÔNG bị phủ định: 'sparks from the outlet' -> True; 'no sparks', 'không có mùi khét' -> False."""
+    t = unicodedata.normalize('NFC', str(text or '')).replace('\u2019', "'")
+    return any(not _negated(t, m.start()) for m in _EMERGENCY_RE.finditer(t))
 
 
 def _clean(v, n):
@@ -151,6 +194,29 @@ def _flag_urgent(ctx, job_id, problem):
             'handoff_at': now, 'handoff_urgent': True, 'handoff_by_ai': True, 'hold_notice_at': now}})
     except Exception as e:
         print(f"[ai_packs.technical] flag urgent: {e}")
+
+
+def _escalate(business_id, job, problem, svi):
+    """Việc đã có (cùng khách + địa chỉ + ngày) mà giờ khách báo NGUY HIỂM -> urgency 'emergency' (nguyên tử: chỉ 1 lệnh
+    nâng) + ghi vào noi_dung (Bảng điều phối / app nhân viên đọc trường này). True nếu lệnh này vừa nâng."""
+    now = datetime.now().isoformat()
+    before = db.tasks.find_one_and_update(
+        {'business_id': business_id, 'id': job.get('id'), 'urgency': {'$ne': 'emergency'}},
+        {'$set': {'urgency': 'emergency', 'emergency_problem': problem, 'escalated_at': now, 'escalated_by': 'ai_bot'}})
+    if not before:
+        return False
+    body = before.get('noi_dung') or ''
+    old = URGENCY.get(before.get('urgency') or 'normal', URGENCY['normal'])
+    new = (body.replace(f"| Mức độ: {old[0]}", f"| Mức độ: {URGENCY['emergency'][0]}", 1)
+               .replace(f"| Urgency: {old[1]}", f"| Urgency: {URGENCY['emergency'][1]}", 1)
+           + (f"\n--- KHẨN CẤP, khách báo thêm qua chat AI: {problem}" if svi else
+              f"\n--- EMERGENCY, the customer added in the AI chat: {problem}"))
+    try:   # có điều kiện: không đè nếu nhân viên vừa sửa nội dung việc (urgency + báo chủ vẫn đã có)
+        db.tasks.update_one({'business_id': business_id, 'id': job.get('id'), 'noi_dung': before.get('noi_dung')},
+                            {'$set': {'noi_dung': new}})
+    except Exception as e:
+        print(f"[ai_packs.technical] escalate: {e}")
+    return True
 
 
 def _reply_expectation(business_id, vi):
@@ -209,22 +275,41 @@ def request_job(args, ctx):
         doc['lat'], doc['lng'] = pt
     # Tạo nguyên tử theo khoá (cùng khách + cùng địa chỉ + cùng ngày): khách nói "gửi giúp em" 2 lần -> vẫn 1 việc trên bảng
     saved, created = _c.insert_once(db.tasks, bid, key, doc, key_field='ai_dedupe_key')
+    emergency = urgency == 'emergency'
+    if not created and emergency and (saved or {}).get('trang_thai') == DONE:
+        # việc cũ cùng địa chỉ hôm nay đã XONG: nguy hiểm là việc MỚI trên bảng (khoá riêng: khách báo lại vẫn chỉ 1 việc)
+        saved, created = _c.insert_once(db.tasks, bid, key + ':emergency', doc, key_field='ai_dedupe_key')
+    escalated = False
     if not created:
         old_id = (saved or {}).get('id')
-        return {'success': True, 'already_requested': True, 'job_id': old_id, 'status': 'pending',
-                'note': f"A job request for this address was already sent today (job #{old_id}) — do not create "
-                        "another. If this is a different problem, use ask_team to add it."}
-    emergency = urgency == 'emergency'
+        if not emergency or old_id is None:
+            return {'success': True, 'already_requested': True, 'job_id': old_id, 'status': 'pending',
+                    'note': f"A job request for this address was already sent today (job #{old_id}) — do not create "
+                            "another. If this is a different problem, use ask_team to add it."}
+        # KHẨN CẤP không bao giờ bị chống trùng nuốt mất: việc đang có được nâng lên khẩn cấp (báo chủ 1 lần), cuộc chat
+        # vẫn chuyển người thật và khách vẫn được dặn ra chỗ an toàn + gọi số khẩn cấp
+        job_id = old_id
+        escalated = _escalate(bid, saved, problem, svi)
     if emergency:
         _flag_urgent(ctx, job_id, problem)
-    _c._notify(ctx, shop,
-               f"{'KHẨN CẤP — ' if emergency else ''}Việc mới #{job_id} từ chat AI (đang Chờ Nhận trên Bảng điều phối): "
-               f"{name} {phone}, {address}. {problem[:200]} ({when_vi})",
-               f"{'EMERGENCY — ' if emergency else ''}New job #{job_id} from the AI chat (waiting on the dispatch board): "
-               f"{name} {phone}, {address}. {problem[:200]} ({when_en})",
-               f"{'URGENT — ' if emergency else ''}New job request #{job_id} from the AI chat: {name} {phone}, {address}. "
-               f"Problem: {problem[:300]}. Preferred: {when_en}. It is waiting on the dispatch board — please call the customer.",
-               'technical_emergency' if emergency else 'technical_job', phone)
+    if escalated:
+        _c._notify(ctx, shop,
+                   f"KHẨN CẤP — việc #{job_id} (đã có trên Bảng điều phối) giờ khách báo NGUY HIỂM qua chat AI: "
+                   f"{name} {phone}, {address}. {problem[:200]}",
+                   f"EMERGENCY — job #{job_id} (already on the dispatch board): the customer now reports DANGER in the AI "
+                   f"chat: {name} {phone}, {address}. {problem[:200]}",
+                   f"URGENT — Job request #{job_id} is now an EMERGENCY (the customer reported danger in the AI chat): "
+                   f"{name} {phone}, {address}. Problem: {problem[:300]}. It is on the dispatch board — please call the "
+                   "customer now.", 'technical_emergency', phone)
+    elif created:
+        _c._notify(ctx, shop,
+                   f"{'KHẨN CẤP — ' if emergency else ''}Việc mới #{job_id} từ chat AI (đang Chờ Nhận trên Bảng điều phối): "
+                   f"{name} {phone}, {address}. {problem[:200]} ({when_vi})",
+                   f"{'EMERGENCY — ' if emergency else ''}New job #{job_id} from the AI chat (waiting on the dispatch board): "
+                   f"{name} {phone}, {address}. {problem[:200]} ({when_en})",
+                   f"{'URGENT — ' if emergency else ''}New job request #{job_id} from the AI chat: {name} {phone}, {address}. "
+                   f"Problem: {problem[:300]}. Preferred: {when_en}. It is waiting on the dispatch board — please call the customer.",
+                   'technical_emergency' if emergency else 'technical_job', phone)
     num = EMERGENCY_NUMBER.get(str(shop.get('country') or '').upper(), '')
     if emergency:
         tell = ((f"Nếu có nguy hiểm (mùi gas, tia lửa, khói, nước ngập gần ổ điện), mọi người ra chỗ an toàn và gọi {num or 'cấp cứu'} ngay. "
@@ -237,9 +322,17 @@ def request_job(args, ctx):
                 "cho tới khi đội xác nhận." if vi else
                 f"Your job request #{job_id} is in. The team will call you to confirm a time ({when_en}) — nothing is "
                 "scheduled until they confirm.")
-    return {'success': True, 'job_id': job_id, 'status': 'pending', 'board_status': 'waiting_for_assignment',
-            'urgency': urgency, 'preferred': when_en, 'located_on_map': bool(pt), 'tell_customer': tell,
-            'note': 'Never promise an arrival time, a price or who will come. The job is not scheduled yet.'}
+    out = {'success': True, 'job_id': job_id, 'status': 'pending', 'board_status': 'waiting_for_assignment',
+           'urgency': urgency, 'preferred': when_en, 'located_on_map': bool(pt), 'tell_customer': tell,
+           'note': 'Never promise an arrival time, a price or who will come. The job is not scheduled yet.'}
+    if not created:   # khẩn cấp trên việc đã có từ trước hôm nay
+        out.update({'already_requested': True, 'escalated': escalated,
+                    'board_status': {WAITING: 'waiting_for_assignment', TAKEN: 'assigned', DONE: 'completed'}.get(saved.get('trang_thai'), 'in_progress'),
+                    'located_on_map': saved.get('lat') is not None,
+                    'note': f"Job #{job_id} for this address was already on the dispatch board today — it is now marked "
+                            "EMERGENCY and the team has been alerted. Do not create another. Never promise an arrival "
+                            "time, a price or who will come."})
+    return out
 
 
 def _job_view(t, business_id, shop):
