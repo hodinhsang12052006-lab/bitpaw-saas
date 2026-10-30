@@ -225,6 +225,13 @@ def _can_verify(c):
     return bool(c.phone or c.token_hash or c.platform)
 
 
+def _unverified(c):
+    """Chat CHƯA xác minh danh tính: không SĐT đã xác minh (SMS/WhatsApp, mã SMS 1 lần), không hội thoại nền tảng đã ký —
+    tức chat web thường (mã trình duyệt chỉ để quản lý đặt phòng của chính chat đó, không phải danh tính). Phòng loại này giữ
+    bị giới hạn theo khách sạn (reservations_hotel.web_holds_full)."""
+    return not (c.phone or c.platform)
+
+
 def _shop(business_id):
     try:
         return db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'phone': 1, 'hotline': 1, 'address': 1,
@@ -363,32 +370,46 @@ def _nearby(c, ci, nights, guests, key, min_nights, cur, ignore_id=None, skip=No
     return found
 
 
+_WHOLE_UNIT_CURRENCIES = ('VND',)   # tiền không có số lẻ: _money in số đã làm tròn ('1.234đ' cho 1234.5)
+
+
 def _same_total(given, total, cur):
     """quoted_total AI gửi lại ('$450.00' / '450' / '450.000đ' / số) có đúng tổng tiền hiện tại không. total None (giá chưa
     công bố): không có gì để so. Không bao giờ bỏ hết dấu rồi so chữ số trần ('450000' khớp nhầm $4,500.00, '4500' khớp
-    nhầm $45.00) — dấu chấm / phẩy chỉ là dấu nghìn khi đúng nhóm 3 chữ số (_amounts)."""
+    nhầm $45.00) — dấu chấm / phẩy chỉ là dấu nghìn khi đúng nhóm 3 chữ số (_amounts). Tiền không có số lẻ (VND): số khách
+    nghe là số làm tròn _money đã in, nên '1.234 VND' / '1234' khớp tổng 1234.5 ('1.234đ')."""
     if total is None:
         return True
     if isinstance(given, bool):
         return False
+    heard = {float(total)}
+    if str(cur or '').upper() in _WHOLE_UNIT_CURRENCIES:
+        heard.add(float(int(round(float(total)))))
     if isinstance(given, (int, float)):
-        return abs(float(given) - float(total)) < 0.005
+        return any(abs(float(given) - t) < 0.005 for t in heard)
     s = str(given).strip()
     if s == _money(total, cur):
         return True
-    return any(abs(v - float(total)) < 0.005 for v in _amounts(s))
+    return any(abs(v - t) < 0.005 for v in _amounts(s, cur) for t in heard)
 
 
-def _amounts(s):
-    """Các cách đọc HỢP LỆ của 1 số tiền: '1,200.50' / '1200.5' / '450' (chấm thập phân), '450.000' / '1.200.000' /
-    '450,000' (dấu nghìn đúng nhóm 3 chữ số, kiểu VND), '1.200,50' (phẩy thập phân)."""
-    num = re.sub(r'[^\d.,]', '', s)
+def _amounts(s, cur=None):
+    """Các cách đọc HỢP LỆ của SỐ ĐẦU TIÊN trong chuỗi ('$1,350.00 for 3 nights' -> 1350, không phải 1350.003; '$450.00.' ->
+    450): '1,200.50' / '1200.5' / '450' (chấm thập phân), '1.200.000' / '450,000' / '1 200 000' (dấu nghìn đúng nhóm 3 chữ
+    số), '1.200,50' / '1350,00' (phẩy thập phân). '450.000' (đúng 1 nhóm sau 1 dấu chấm) là 450 nghìn với tiền không có số
+    lẻ (VND) và là 450 với tiền khác — không bao giờ cả 2 cách (lệch 1000 lần)."""
+    m = re.search(r'\d[\d.,]*', re.sub(r'(?<=\d)[ \u00a0\u202f](?=\d{3}(?!\d))', '', str(s)))
+    if not m:
+        return []
+    num = m.group(0).rstrip('.,')
+    whole = str(cur or '').upper() in _WHOLE_UNIT_CURRENCIES
+    one_dot_group = re.fullmatch(r'\d{1,3}\.\d{3}', num) is not None
     out = []
-    if re.fullmatch(r'\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?', num):
+    if re.fullmatch(r'\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?', num) and not (whole and one_dot_group):
         out.append(float(num.replace(',', '')))
-    if re.fullmatch(r'\d{1,3}([.,])\d{3}(?:\1\d{3})*', num):
+    if re.fullmatch(r'\d{1,3}([.,])\d{3}(?:\1\d{3})*', num) and (whole or not one_dot_group):
         out.append(float(re.sub(r'[.,]', '', num)))
-    if re.fullmatch(r'\d{1,3}(?:\.\d{3})*,\d{1,2}', num):
+    if re.fullmatch(r'\d{1,3}(?:\.\d{3})*,\d{1,2}|\d+,\d{1,2}', num):
         out.append(float(num.replace('.', '').replace(',', '.')))
     return out
 
@@ -473,6 +494,12 @@ def _check_availability(args, c):
             if t['_room'] is not None and t['_room']['id'] in av['_walkins']:
                 # phòng duy nhất còn lại đang có khách vãng lai chưa rõ ngày đi -> đặt sẽ là yêu cầu chờ khách sạn xác nhận
                 pub["booking_is"] = 'a request the hotel confirms (status pending)'
+    if _unverified(c):
+        for pub, t in zip(out["room_types"], shown):
+            if t['available'] and rh.web_holds_full(c.business_id, av['_rooms'], av['_types'], t['key'], av['checkin'],
+                                                    av['checkout']):
+                pub["booking_is"] = ('a request passed to the hotel team, which calls the guest to confirm — no room can be '
+                                     'held online for these dates right now')
     if key is not None and not shown[0]['available']:
         others = [_type_public(t, cur, c) for t in av['types'] if t['key'] != key and t['available']]
         if others:
@@ -600,17 +627,20 @@ def _create_booking(args, c):
         note_bits.append(("Yêu cầu: " if staff_vi else "Requests: ") + requests_)
     if email:
         note_bits.append("Email: " + email)
+    unverified = _unverified(c)
     extra = {'source': 'ai_bot', 'ai_conversation_id': c.customer_id, 'ai_channel': c.channel or 'web',
              'chat_token_hash': c.token_hash, 'guest_email': email or None, 'arrival_time': arrival,
              'special_requests': requests_, 'currency': cur,
-             'note': ('; '.join(note_bits) or None)}
+             'note': ('; '.join(note_bits) or None), 'ai_verified': not unverified}
     if c.client_key:
         extra['client_key'] = c.client_key   # giới hạn số phòng theo mạng (_caps)
     try:
         doc, av = rh.create_hold(c.business_id, checkin=ci, checkout=co, guests=guests, room_type_key=key, guest_name=name,
                                  guest_phone=phone, status=status, today=c.today, min_nights=settings['min_nights'],
-                                 extra=extra)
+                                 extra=extra, unverified=unverified)
     except rh.HotelRequestError as e:
+        if e.code == 'web_hold_cap':
+            return _web_cap_request(c, types[key]['name'], ci, co, guests, name, phone, note_bits)
         _hotel_error(c, e)
     if doc is None:
         t = next((x for x in av['types'] if x['key'] == key), None)
@@ -650,6 +680,31 @@ def _create_booking(args, c):
     out["manage_hint"] = ("The guest can message in this chat to see, change or cancel it." if _can_verify(c) else
                           "To change it later the guest should call the hotel.")
     return out
+
+
+def _web_cap_request(c, type_name, ci, co, guests, name, phone, note_bits):
+    """Loại phòng đã chạm trần giữ phòng của chat web chưa xác minh (reservations_hotel.web_holds_full): KHÔNG giữ phòng nào,
+    chuyển nguyên yêu cầu (tên, SĐT khách gõ, ngày, loại phòng, số khách, ghi chú) cho nhân viên — hộp thư AI + email chủ —
+    để gọi lại xác nhận. Không số đặt phòng, không nói đã đặt / đã xác nhận."""
+    if not c.customer_id:   # không có hội thoại để ghi chú cho nhân viên -> không hứa "đã chuyển"
+        _refuse(c.t("Online booking isn't available for these dates right now — nothing was booked. ",
+                    "Hiện chưa đặt online được những ngày này — chưa đặt gì. ") + _call_hotel(c))
+    nights = (co - ci).days
+    bits = ('; ' + '; '.join(note_bits)) if note_bits else ''
+    _tell_staff(c, f"🛏️ Yêu cầu đặt phòng qua chat AI — CHƯA giữ phòng: {name}, SĐT khách gõ {phone} (chưa xác minh) — "
+                   f"{type_name}, {ci.isoformat()} → {co.isoformat()} ({nights} đêm), {guests} khách{bits}. Loại phòng này đã "
+                   "có nhiều phòng được giữ qua chat online chưa xác minh những đêm đó nên AI không giữ thêm: gọi khách xác "
+                   "nhận; nhận khách thì nhập đặt phòng qua link đặt phòng công khai (trang Đặt phòng trước) rồi xếp phòng.",
+                f"🛏️ Booking request from the AI chat — NO room held: {name}, phone typed {phone} (not verified) — "
+                f"{type_name}, {ci.isoformat()} to {co.isoformat()} ({nights} night(s)), {guests} guest(s){bits}. Many rooms "
+                "of this type are already held by unverified online chats for those nights, so the AI did not hold another: "
+                "call the guest to confirm; to take it, enter it through the public booking link on the Bookings page, then "
+                "assign a room.",
+                "hotel_webcap")
+    return {"success": True, "request_sent_to_team": True, "room_held": False, "confirmed": False, "status": "pending",
+            "say": _status_say('pending', c),
+            "note": "No room was held online: the request went to the hotel team, who will call the guest to confirm. Give "
+                    "no booking number and never say it is booked or confirmed."}
 
 
 def _my_bookings(args, c):
@@ -752,6 +807,13 @@ def _change_dates(args, c):
         _hotel_error(c, e)
     if not q['available']:
         return _change_unavailable(c, res, ci, nights, guests, q['key'], settings, cur, q['av'])
+    # Giữ nhiều đêm lẻ dưới trần rồi dời hết vào 1 đêm cũng không vượt được trần (ngày mới chưa ai ở khách sạn duyệt).
+    if rh.unverified_web_hold(dict(res, staff_confirmed_at=None)) and rh.web_holds_full(
+            c.business_id, q['av']['_rooms'], q['av']['_types'], q['key'], ci, co, ignore_id=res['id']):
+        _refuse(c.t("Many rooms of this type are already held by unverified online chats for the new dates, so this change "
+                    "goes through the hotel team. Pass the request with ask_team — the booking is NOT changed.",
+                    "Loại phòng này đã có nhiều phòng được giữ qua chat online chưa xác minh vào ngày mới, nên thay đổi này "
+                    "do nhân viên khách sạn xử lý. Chuyển yêu cầu bằng ask_team — đặt phòng CHƯA được đổi."))
     keep_confirmed = settings['auto_confirm'] and res.get('status') == 'confirmed'
     new_total = _money(q['total'], cur) if q['total'] else None
     quoted = args.get('quoted_total')

@@ -87,6 +87,7 @@
                 <div>
                     <label for="expectedCheckout" class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_expected_checkout_label">Ngày trả phòng dự kiến (không bắt buộc)</label>
                     <input type="date" id="expectedCheckout" class="field-input">
+                    <label class="mt-2 flex items-start gap-2 text-[11px] text-gray-300 leading-snug cursor-pointer"><input type="checkbox" id="expectedCheckoutToday" class="mt-0.5 accent-purple-500" onchange="syncLeavesToday('expectedCheckout', this)"> <span data-i18n="hr_expected_today">Khách trả phòng trong hôm nay — tới sau nửa đêm hoặc ở ngắn (AI lễ tân sẽ có thể bán phòng này cho đêm nay)</span></label>
                     <p class="text-[11px] text-gray-500 mt-1.5 leading-snug" data-i18n="hr_expected_checkout_hint">Để trống nếu khách chưa biết — khi đó AI lễ tân sẽ không tự xác nhận phòng này cho các đêm sau (chờ bạn duyệt).</p>
                 </div>
             </div>
@@ -130,6 +131,8 @@
                 <div>
                     <label for="expectedEditDate" class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_expected_title">Ngày trả phòng dự kiến</label>
                     <input type="date" id="expectedEditDate" class="field-input">
+                    <p id="expectedEditNote" class="hidden text-[11px] text-amber-300 mt-1.5 leading-snug"></p>
+                    <label class="mt-2 flex items-start gap-2 text-[11px] text-gray-300 leading-snug cursor-pointer"><input type="checkbox" id="expectedEditToday" class="mt-0.5 accent-purple-500" onchange="syncLeavesToday('expectedEditDate', this)"> <span data-i18n="hr_expected_today">Khách trả phòng trong hôm nay — tới sau nửa đêm hoặc ở ngắn (AI lễ tân sẽ có thể bán phòng này cho đêm nay)</span></label>
                     <p class="text-[11px] text-gray-500 mt-1.5 leading-snug" data-i18n="hr_expected_checkout_hint">Để trống nếu khách chưa biết — khi đó AI lễ tân sẽ không tự xác nhận phòng này cho các đêm sau (chờ bạn duyệt).</p>
                 </div>
             </div>
@@ -268,6 +271,11 @@
                 hr_expected_short: 'Trả dự kiến', hr_expected_unknown: 'Chưa rõ ngày trả', hr_expected_edit: 'Sửa',
                 hr_expected_clear: 'Bỏ ngày', hr_expected_missing: 'Chọn ngày trả phòng dự kiến (hoặc bấm Bỏ ngày).',
                 hr_toast_expected_ok: 'Đã lưu ngày trả phòng dự kiến.', hr_toast_expected_cleared: 'Đã bỏ ngày trả phòng dự kiến.',
+                hr_expected_today: 'Khách trả phòng trong hôm nay — tới sau nửa đêm hoặc ở ngắn (AI lễ tân sẽ có thể bán phòng này cho đêm nay)',
+                hr_expected_today_short: 'Trả phòng hôm nay',
+                hr_expected_overdue: 'Quá ngày trả dự kiến ({date}) — chưa rõ ngày đi',
+                hr_expected_passed_note: 'Ngày đã lưu ({date}) đã qua — AI lễ tân đang coi như chưa rõ ngày đi. Chọn ngày mới, chọn "Khách trả phòng trong hôm nay" hoặc bấm Bỏ ngày.',
+                hr_expected_too_early: 'Chọn ngày sau hôm nay ({date}), hoặc chọn "Khách trả phòng trong hôm nay".',
             },
             en: {
                 hr_title: 'Room Management | BitPaw Software', hr_header: 'Room Management',
@@ -300,6 +308,11 @@
                 hr_expected_short: 'Expected out', hr_expected_unknown: 'Check-out date unknown', hr_expected_edit: 'Edit',
                 hr_expected_clear: 'Clear date', hr_expected_missing: 'Pick the expected check-out date (or tap Clear date).',
                 hr_toast_expected_ok: 'Expected check-out date saved.', hr_toast_expected_cleared: 'Expected check-out date cleared.',
+                hr_expected_today: 'Leaves today — arrived after midnight or a short stay (the AI receptionist can then sell this room for tonight)',
+                hr_expected_today_short: 'Leaves today',
+                hr_expected_overdue: 'Past expected check-out ({date}) — date unknown',
+                hr_expected_passed_note: 'The saved date ({date}) has passed — the AI receptionist treats the check-out date as unknown. Pick a new date, tick "Leaves today", or tap Clear date.',
+                hr_expected_too_early: 'Pick a date after today ({date}), or tick "Leaves today".',
             }
         };
         function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key; }
@@ -336,7 +349,9 @@
         let activeRoomId = null;
         // Hôm nay THEO GIỜ KHÁCH SẠN (máy chủ gửi) — ngày trả phòng dự kiến phải sau hôm nay; thiếu thì lấy ngày của máy này.
         const HOTEL_TODAY = {{ (hotel_today or '') | tojson }};
+        let liveToday = null;   // /api/hotel/rooms trả hotel_today mỗi lần tải: trang mở qua nửa đêm ở quầy vẫn đúng ngày
         function isoToday() {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(liveToday || '')) return liveToday;
             if (/^\d{4}-\d{2}-\d{2}$/.test(HOTEL_TODAY)) return HOTEL_TODAY;
             const d = new Date();
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -351,13 +366,14 @@
             return new Date(y, m - 1, d).toLocaleDateString(currentLang === 'vi' ? 'vi-VN' : 'en-US');
         }
 
-        async function loadRooms() {
+        async function loadRooms(silent) {
             try {
                 const body = await hrApi('/api/hotel/rooms');
                 rooms = body.data || [];
+                if (body.hotel_today) liveToday = body.hotel_today;
                 renderRooms();
             } catch (e) {
-                showToast(t('hr_toast_load_failed'));
+                if (!silent) showToast(t('hr_toast_load_failed'));
             }
         }
 
@@ -377,10 +393,14 @@
                 let body = '';
                 if (r.status === 'Đang ở') {
                     const since = r.checkin_date ? new Date(r.checkin_date).toLocaleDateString(currentLang === 'vi' ? 'vi-VN' : 'en-US') : '--';
+                    // Ngày đã qua: AI lễ tân coi như CHƯA rõ ngày đi (reservations_hotel._walkin_until) -> cùng cảnh báo vàng.
+                    const exp = r.expected_checkout_date || '', today = isoToday(), overdue = !!exp && exp < today;
+                    const expText = !exp ? t('hr_expected_unknown') : overdue ? t('hr_expected_overdue').replace('{date}', fmtDay(exp))
+                        : exp === today ? t('hr_expected_today_short') : t('hr_expected_short') + ': ' + fmtDay(exp);
                     body = `<div class="mt-3 text-xs text-gray-300"><i class="fas fa-user mr-1 text-blue-400"></i>${escapeHtml(r.guest_name || '')}</div>
                             <div class="mt-1 text-[10px] text-gray-500">${t('hr_since_label')}: ${since}</div>
                             <div class="mt-1 flex items-center justify-between gap-2 text-[10px]">
-                                <span class="${r.expected_checkout_date ? 'text-gray-400' : 'text-amber-400/90'}">${r.expected_checkout_date ? t('hr_expected_short') + ': ' + fmtDay(r.expected_checkout_date) : t('hr_expected_unknown')}</span>
+                                <span class="${exp && !overdue ? 'text-gray-400' : 'text-amber-400/90'}">${expText}</span>
                                 <button onclick="event.stopPropagation(); openExpectedModal(${r.id})" class="text-blue-300 hover:text-blue-200 font-bold underline underline-offset-2"><i class="fas fa-calendar-check mr-1"></i>${t('hr_expected_edit')}</button>
                             </div>
                             <button onclick="event.stopPropagation(); openAddChargeModal(${r.id})" class="mt-2 w-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[11px] font-bold py-2 rounded-lg transition"><i class="fas fa-concierge-bell mr-1"></i>${t('hr_add_charge_btn')}</button>`;
@@ -416,17 +436,37 @@
             document.getElementById('guestPhone').value = '';
             const exp = document.getElementById('expectedCheckout');
             exp.value = '';
+            exp.disabled = false;
             exp.min = addDaysIso(isoToday(), 1);
+            exp.max = addDaysIso(isoToday(), 366);
+            document.getElementById('expectedCheckoutToday').checked = false;
             document.getElementById('checkinModal').classList.add('active');
+        }
+        // "Khách trả phòng trong hôm nay": ô ngày = hôm nay (khoá lại); bỏ chọn -> ngày sớm nhất lại là ngày mai.
+        function syncLeavesToday(inputId, box) {
+            const inp = document.getElementById(inputId);
+            if (box.checked) { inp.min = isoToday(); inp.value = isoToday(); inp.disabled = true; return; }
+            inp.disabled = false;
+            inp.min = addDaysIso(isoToday(), 1);
+            if (inp.value && inp.value < inp.min) inp.value = '';
+        }
+        // Kiểm trước khi gửi (input type=date không tự chặn ngày gõ tay < min): '' = được.
+        function expectedProblem(value, sameDay) {
+            if (!value || (sameDay ? value === isoToday() : value > isoToday())) return '';
+            return t('hr_expected_too_early').replace('{date}', fmtDay(isoToday()));
         }
         async function submitCheckin() {
             const guestName = document.getElementById('guestName').value.trim();
             if (!guestName) return showToast(t('hr_toast_checkin_missing'));
+            const sameDay = document.getElementById('expectedCheckoutToday').checked;
+            if (sameDay) document.getElementById('expectedCheckout').value = isoToday();
+            const bad = expectedProblem(document.getElementById('expectedCheckout').value, sameDay);
+            if (bad) return showToast(bad);
             try {
                 await hrApi(`/api/hotel/rooms/${activeRoomId}/checkin`, {
                     method: 'POST',
                     body: JSON.stringify({ guest_name: guestName, guest_phone: document.getElementById('guestPhone').value.trim(),
-                                           expected_checkout_date: document.getElementById('expectedCheckout').value || null }),
+                                           expected_checkout_date: document.getElementById('expectedCheckout').value || null, same_day: sameDay }),
                 });
                 closeModal('checkinModal');
                 showToast(t('hr_toast_checkin_ok'));
@@ -434,22 +474,39 @@
             } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
         }
 
+        let expectedStaySince = null;   // giờ check-in của ĐÚNG khách đang hiện khi mở modal (phòng đổi khách -> máy chủ trả 409)
         function openExpectedModal(roomId) {
             const room = rooms.find(r => r.id === roomId);
             if (!room) return;
             activeRoomId = roomId;
+            expectedStaySince = room.checkin_date ?? null;
             document.getElementById('expectedRoomLabel').innerText = `#${room.room_number}`;
             const inp = document.getElementById('expectedEditDate');
+            const box = document.getElementById('expectedEditToday');
+            const note = document.getElementById('expectedEditNote');
+            const saved = room.expected_checkout_date || '', today = isoToday();
+            inp.disabled = false;
             inp.min = addDaysIso(isoToday(), 1);
-            inp.value = room.expected_checkout_date || '';
+            inp.max = addDaysIso(today, 366);
+            // Chỉ điền sẵn ngày còn chọn lại được: ngày đã lưu là HÔM NAY -> đánh dấu "trả phòng trong hôm nay"; đã qua -> để trống
+            // + dòng báo (trước đây điền sẵn ngày < min nên bấm Lưu luôn bị 400).
+            box.checked = saved === today;
+            inp.value = saved > today ? saved : '';
+            if (box.checked) syncLeavesToday('expectedEditDate', box);
+            note.textContent = saved && saved < today ? t('hr_expected_passed_note').replace('{date}', fmtDay(saved)) : '';
+            note.classList.toggle('hidden', !note.textContent);
             document.getElementById('expectedModal').classList.add('active');
         }
         async function submitExpected(clear) {
+            const sameDay = !clear && document.getElementById('expectedEditToday').checked;
+            if (sameDay) document.getElementById('expectedEditDate').value = isoToday();
             const value = clear ? null : (document.getElementById('expectedEditDate').value || null);
             if (!clear && !value) return showToast(t('hr_expected_missing'));
+            const bad = clear ? '' : expectedProblem(value, sameDay);
+            if (bad) return showToast(bad);
             try {
                 await hrApi(`/api/hotel/rooms/${activeRoomId}/expected_checkout`, {
-                    method: 'POST', body: JSON.stringify({ expected_checkout_date: value }),
+                    method: 'POST', body: JSON.stringify({ expected_checkout_date: value, same_day: sameDay, from_checkin_date: expectedStaySince }),
                 });
                 closeModal('expectedModal');
                 showToast(t(clear ? 'hr_toast_expected_cleared' : 'hr_toast_expected_ok'));
@@ -486,7 +543,8 @@
             document.getElementById('checkoutModal').classList.add('active');
             // Giữ lại thông tin phòng TRƯỚC khi checkout (backend xoá guest_name sau khi trả
             // phòng thành công) để có đủ dữ liệu in hoá đơn.
-            pendingCheckoutInfo = { roomNumber: room.room_number, guestName: room.guest_name, nights, pricePerNight: room.price_per_night || 0 };
+            pendingCheckoutInfo = { roomNumber: room.room_number, guestName: room.guest_name, nights, pricePerNight: room.price_per_night || 0,
+                                    since: room.checkin_date ?? null };
             try {
                 const body = await hrApi(`/api/hotel/rooms/${roomId}/charges`);
                 pendingCheckoutCharges = body.data || [];
@@ -505,7 +563,8 @@
             const orig = btn.innerHTML;
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             try {
-                const body = await hrApi(`/api/hotel/rooms/${activeRoomId}/checkout`, { method: 'POST', body: JSON.stringify({ payment_method: document.getElementById('checkoutPayMethod').value }) });
+                const body = await hrApi(`/api/hotel/rooms/${activeRoomId}/checkout`, { method: 'POST', body: JSON.stringify({ payment_method: document.getElementById('checkoutPayMethod').value,
+                                                                                                                    ...(pendingCheckoutInfo ? { from_checkin_date: pendingCheckoutInfo.since } : {}) }) });
                 closeModal('checkoutModal');
                 showToast(t('hr_toast_checkout_ok'));
                 if (pendingCheckoutInfo) {
@@ -527,9 +586,11 @@
             btn.disabled = false; btn.innerHTML = orig;
         }
 
+        let chargeStay = null;   // lượt ở đang hiện khi mở modal phụ thu (phòng đổi khách -> máy chủ trả 409)
         function openAddChargeModal(roomId) {
             const room = rooms.find(r => r.id === roomId);
             activeRoomId = roomId;
+            chargeStay = room ? { since: room.checkin_date ?? null } : null;
             document.getElementById('addChargeRoomLabel').innerText = room ? `#${room.room_number}` : '';
             document.getElementById('newChargeDesc').value = '';
             document.getElementById('newChargeAmount').value = '0';
@@ -542,7 +603,7 @@
             if (amount <= 0) return showToast(t('hr_toast_charge_amount_invalid'));
             try {
                 await hrApi(`/api/hotel/rooms/${activeRoomId}/charges`, {
-                    method: 'POST', body: JSON.stringify({ description, amount }),
+                    method: 'POST', body: JSON.stringify({ description, amount, ...(chargeStay ? { from_checkin_date: chargeStay.since } : {}) }),
                 });
                 closeModal('addChargeModal');
                 showToast(t('hr_toast_charge_added'));
@@ -616,6 +677,8 @@
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
         loadRooms();
+        setInterval(() => { if (!document.hidden) loadRooms(true); }, 5 * 60 * 1000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) loadRooms(true); });
     </script>
 </body>
 </html>

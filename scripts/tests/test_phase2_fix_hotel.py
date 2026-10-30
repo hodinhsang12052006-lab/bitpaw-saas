@@ -334,7 +334,7 @@ class TestWalkInGuest(hp.Base):
         av = run('hotel_check_availability', {'checkin_date': D(1), 'checkout_date': D(2), 'room_type': 'Standard'})
         self.assertEqual((av['room_types'][0]['rooms_left'], av['room_types'][0]['rate_per_night']), (2, '$110.00'))
         self.assertNotIn('booking_is', av['room_types'][0])
-        a = self.book(checkin_date=D(1), checkout_date=D(2))
+        a = self.book(c=ctx('whatsapp'), checkin_date=D(1), checkout_date=D(2))   # đã xác minh: không tính vào trần chat web
         self.assertEqual((find(a['booking_id'])['room_id'], a['status'], a['total']), (2, 'confirmed', '$110.00'))
         av = run('hotel_check_availability', {'checkin_date': D(1), 'checkout_date': D(2), 'room_type': 'Standard'})
         self.assertEqual(av['room_types'][0]['booking_is'], 'a request the hotel confirms (status pending)')

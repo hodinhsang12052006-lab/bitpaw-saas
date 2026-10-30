@@ -597,14 +597,15 @@ class TestCreateBooking(Base):
         self.assertEqual(len(self.live_rows()), 1)
 
     def test_another_room_and_per_guest_cap(self):
-        a = self.book()
-        b = self.book(another_room=True)
+        wa = ctx('whatsapp')   # SĐT đã xác minh: chat web chưa xác minh chỉ giữ được ~40% loại phòng (test_phase2_fix3_hotel3)
+        a = self.book(c=wa)
+        b = self.book(c=wa, another_room=True)
         self.assertNotEqual(a['booking_id'], b['booking_id'])
         rooms = {DB.hotel_reservations.find_one({'id': x['booking_id']})['room_id'] for x in (a, b)}
         self.assertEqual(rooms, {1, 2})
-        self.book(another_room=True, room_type='Suite')
+        self.book(c=wa, another_room=True, room_type='Suite')
         with self.assertRaises(PackError) as cm:
-            self.book(another_room=True, room_type='Deluxe')
+            self.book(c=wa, another_room=True, room_type='Deluxe')
         self.assertIn('group booking', str(cm.exception))
         self.assertEqual(len(self.live_rows()), 3)
         self.assertNoDoubleBooking()
@@ -677,10 +678,11 @@ class TestCreateBooking(Base):
         # phiếu mồ côi đã quá hạn (đặt phòng không bao giờ được ghi)
         DB.hotel_room_nights.insert_one({'_id': f'{BID}|2|{D(8)}', 'business_id': BID, 'room_id': 2, 'night': D(8),
                                          'reservation_id': 88888, 'claimed_at': old})
-        r = self.book()
+        wa = ctx('whatsapp')   # SĐT đã xác minh: chat web chưa xác minh chỉ giữ được ~40% loại phòng (test_phase2_fix3_hotel3)
+        r = self.book(c=wa)
         self.assertEqual(DB.hotel_reservations.find_one({'id': r['booking_id']})['room_id'], 1)
         self.assertEqual({c['reservation_id'] for c in DB.hotel_room_nights.docs if c['room_id'] == 1}, {r['booking_id']})
-        r2 = self.book(another_room=True)
+        r2 = self.book(c=wa, another_room=True)
         self.assertEqual(DB.hotel_reservations.find_one({'id': r2['booking_id']})['room_id'], 2)
         self.assertNoDoubleBooking()
 
