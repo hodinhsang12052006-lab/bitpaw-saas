@@ -129,7 +129,11 @@ _PRIVATE_NETS = ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', 'fc00::/7')
 def request_client_key():
     """Khoá ẩn danh của MẠNG đang chat web: băm (HMAC) IP thật của khách (security_shield.client_ip; IPv6 theo dải /64) —
     khách không tự đổi được bằng cách xoá mã trình duyệt hay gõ SĐT khác. Chỉ dùng để giới hạn số lần (gửi mã SMS, giữ phòng),
-    không lưu IP gốc. Máy dev / mạng nội bộ (127.0.0.1, 10.x, 192.168.x — sim, test), ngoài request, lỗi -> None."""
+    không lưu IP gốc. Máy dev / mạng nội bộ (127.0.0.1, 10.x, 192.168.x — sim, test), ngoài request, lỗi -> None.
+    Chưa cấu hình BITPAW_OTP_SECRET / FLASK_SECRET_KEY -> None: HMAC khoá rỗng dò ngược được IP (thử hết dải IPv4), mà khoá này
+    được lưu lâu dài (ai_chat_verifications, hotel_reservations) -> thà không giới hạn theo mạng còn hơn lưu IP gần như thô."""
+    if not (os.environ.get('BITPAW_OTP_SECRET') or os.environ.get('FLASK_SECRET_KEY')):
+        return None
     try:
         from flask import has_request_context, request
         if not has_request_context():
@@ -498,8 +502,11 @@ def check_availability(business_id, customer_id, date=None, service_id=None, sta
         full = booking_rules.available_slots(business_id, day, svc and svc['id'], staff and staff[0], limit=200, guests=guests)
         mins = lambda t: int(t[:2]) * 60 + int(t[3:5])  # noqa: E731
         slots = sorted(sorted(full, key=lambda t: abs(mins(t) - want))[:6])
+    # giờ đóng qua nửa đêm (vd 1560 = 02:00 hôm sau): hiện "18:00-02:00 (next day)", không phải "26:00"
+    close = (hrs[1] % 1440 if hrs[1] > 1440 else hrs[1]) if hrs else 0
     out = {"success": True, "date": day.isoformat(), "weekday": day.strftime('%A'),
-           "open": bool(hrs), "opening_hours": (f"{hrs[0] // 60:02d}:{hrs[0] % 60:02d}-{hrs[1] // 60:02d}:{hrs[1] % 60:02d}" if hrs else "closed"),
+           "open": bool(hrs), "opening_hours": (f"{hrs[0] // 60:02d}:{hrs[0] % 60:02d}-{close // 60:02d}:{close % 60:02d}"
+                                                + (" (next day)" if hrs[1] > 1440 else "") if hrs else "closed"),
            "service": svc and svc['name'], "duration_minutes": booking_rules.duration_of(rules, svc and svc['id']),
            "staff": staff and staff[1], "available_start_times": slots}
     if want is not None:
@@ -1056,7 +1063,11 @@ def send_verification_code(business_id, customer_id, phone=None):
     country = _country_of(business_id)
     e164 = ai_packs.normalize_phone(phone, country)
     if not e164:
-        raise ToolExecutionError("That doesn't look like a full phone number — ask for the number on the booking, with the area code.")
+        # tiệm chưa có nước (tự đăng ký): số nội địa không đoán được nước -> không bao giờ nhắn tới 1 số +1 bịa ra
+        raise ToolExecutionError("That doesn't look like a full phone number — ask for the number on the booking, with the area code."
+                                 if country else
+                                 "A local number can't be texted from here — ask for the number on the booking in international "
+                                 "format, starting with + and the country code (for example +61 412 345 678).")
     vi = _chat_lang(customer_id) == 'vi'
     shop_phone = ''
     try:

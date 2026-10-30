@@ -133,8 +133,10 @@ def test_portal_route():
     node = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == 'api_portal_messages_create')
     node.decorator_list = []
     db = MagicMock(name='db')
+    # _portal_conversation: hội thoại web + mã chat của đúng trình duyệt (test_phase2_identity2_fixes.py kiểm phần đó)
     ns = {'request': request, 'jsonify': jsonify, 'db': db, 'datetime': datetime,
-          '_resolve_portal_customer': lambda cid: {'id': cid, 'business_id': 'biz1'} if cid == 'biz1:0412345678' else None}
+          '_portal_conversation': lambda cid: (({'id': cid, 'business_id': 'biz1'}, 'h' * 64) if cid == 'biz1:0412345678'
+                                               else (None, None))}
     exec(compile(ast.fix_missing_locations(ast.Module(body=[node], type_ignores=[])), 'app.py::api_portal_messages_create', 'exec'), ns)
     app = Flask('t')
     app.add_url_rule('/api/portal/messages', 'c', ns['api_portal_messages_create'], methods=['POST'])

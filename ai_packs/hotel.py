@@ -558,8 +558,23 @@ def _create_booking(args, c):
                         "note": "This exact booking already exists in this chat — don't create another. If the guest wants "
                                 "an ADDITIONAL room, call again with another_room=true."}
             if c.customer_id and r.get('ai_conversation_id') == c.customer_id:
-                return {"success": True, "already_booked": True,
-                        "note": "Exactly this booking was already made a moment ago in this conversation — don't create another."}
+                if c.platform:   # hội thoại nền tảng đã ký (thực tế _owned đã nhận ở trên)
+                    return {"success": True, "already_booked": True,
+                            "note": "Exactly this booking was already made a moment ago in this conversation — don't create another."}
+                # Chat web '<khách sạn>:<SĐT tự gõ>': ai gõ cùng SĐT + tên + ngày + loại phòng cũng tới đây (trình duyệt khác, không
+                # mã). KHÔNG nói "đặt phòng này đã có" (dò được ai ở đâu, ngày nào), không mã / tên / ngày / ghi chú của đặt phòng
+                # đã có, không tạo thêm: trả lời như 1 yêu cầu chờ khách sạn xác nhận; khách sạn nhận ghi chú để tự liên hệ khách.
+                _tell_staff(c, f"🛏️ Chat AI xin đặt phòng {types[key]['name']} {ci.isoformat()} → {co.isoformat()} cho {name} — trùng "
+                               f"đặt phòng #{r.get('id')} (cùng SĐT, tên, ngày, loại phòng) nên AI KHÔNG tạo thêm (chat chưa xác "
+                               "minh là chủ). Khách sạn liên hệ khách để xác nhận.",
+                            f"🛏️ The AI chat asked for a {types[key]['name']} room {ci.isoformat()} to {co.isoformat()} for {name} — "
+                            f"it matches booking #{r.get('id')} (same phone, name, dates and room type), so nothing new was created "
+                            "(the chat isn't verified as its owner). Please confirm with the guest.",
+                            f"hotel_dup_{r.get('id')}")
+                return {"success": True, "request_sent_to_team": True, "confirmed": False, "status": "pending",
+                        "say": _status_say('pending', c),
+                        "note": "Passed to the hotel, which confirms it with the guest by phone. Nothing new was booked in this "
+                                "chat: give no booking number and never say it is confirmed."}
     _caps(c, phone)
 
     whole_type_priced = all(r['_rate'] for r in types[key]['rooms'])

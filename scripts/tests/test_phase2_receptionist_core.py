@@ -1459,6 +1459,8 @@ class IdentityHardeningTests(_Base):
             self.assertTrue(_call('send_verification_code', {'phone': '+61499000222'}, NAIL, f'{NAIL}:+61499000222')['success'])
 
     def test_client_key_is_a_hash_of_the_public_network_only(self):
+        self._p.append(patch.dict(os.environ, {'BITPAW_OTP_SECRET': 'unit-test-otp-secret'}))   # không có khoá bí mật: None
+        self._p[-1].start()
         with FLASK.test_request_context('/', headers={'X-Forwarded-For': '203.0.113.5'}):
             k1 = T.request_client_key()
         with FLASK.test_request_context('/', headers={'X-Forwarded-For': '203.0.113.5, 10.0.0.1'}):
