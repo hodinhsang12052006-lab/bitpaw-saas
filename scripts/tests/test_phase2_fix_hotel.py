@@ -49,7 +49,7 @@ def claims_of(rid):
 def change(bid, ci, co, c=None, **kw):
     args = {'booking_id': bid, 'new_checkin_date': ci, 'new_checkout_date': co, 'customer_confirmed': True}
     args.update(kw)
-    return run('hotel_change_dates', args, c)
+    return run('hotel_change_dates', hp.with_quote(args, c), c)
 
 
 def cancel(bid, c=None, confirmed=True):

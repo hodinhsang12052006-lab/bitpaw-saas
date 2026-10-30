@@ -31,6 +31,7 @@
         .modal-overlay.active .modal-box { transform: scale(1); }
         .field-input { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 14px; color: #fff; width: 100%; outline: none; font-weight: 600; }
         .field-input:focus { border-color: #a855f7; box-shadow: 0 0 0 3px rgba(168,85,247,0.15); }
+        .field-input[type="date"] { color-scheme: dark; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -83,6 +84,11 @@
                     <label class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_guest_phone_label">Số điện thoại</label>
                     <input type="text" id="guestPhone" class="field-input">
                 </div>
+                <div>
+                    <label for="expectedCheckout" class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_expected_checkout_label">Ngày trả phòng dự kiến (không bắt buộc)</label>
+                    <input type="date" id="expectedCheckout" class="field-input">
+                    <p class="text-[11px] text-gray-500 mt-1.5 leading-snug" data-i18n="hr_expected_checkout_hint">Để trống nếu khách chưa biết — khi đó AI lễ tân sẽ không tự xác nhận phòng này cho các đêm sau (chờ bạn duyệt).</p>
+                </div>
             </div>
             <div class="flex gap-3">
                 <button onclick="closeModal('checkinModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
@@ -112,6 +118,25 @@
             <div class="flex gap-3">
                 <button onclick="closeModal('checkoutModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
                 <button id="confirmCheckoutBtn" onclick="submitCheckout()" class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-black py-3 rounded-xl text-sm uppercase" data-i18n="hr_confirm_checkout">Xác nhận trả phòng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ngày trả phòng dự kiến của khách đang ở (khách báo ở thêm / về sớm) -->
+    <div id="expectedModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="text-base font-extrabold uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-white/5 pb-3"><i class="fas fa-calendar-check text-blue-400"></i> <span data-i18n="hr_expected_title">Ngày trả phòng dự kiến</span> <span id="expectedRoomLabel" class="text-purple-400"></span></h3>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label for="expectedEditDate" class="block text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-2" data-i18n="hr_expected_title">Ngày trả phòng dự kiến</label>
+                    <input type="date" id="expectedEditDate" class="field-input">
+                    <p class="text-[11px] text-gray-500 mt-1.5 leading-snug" data-i18n="hr_expected_checkout_hint">Để trống nếu khách chưa biết — khi đó AI lễ tân sẽ không tự xác nhận phòng này cho các đêm sau (chờ bạn duyệt).</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('expectedModal')" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_cancel">Huỷ</button>
+                <button onclick="submitExpected(true)" class="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 font-bold py-3 rounded-xl text-sm uppercase" data-i18n="hr_expected_clear">Bỏ ngày</button>
+                <button onclick="submitExpected(false)" class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-black py-3 rounded-xl text-sm uppercase" data-i18n="hr_save">Lưu</button>
             </div>
         </div>
     </div>
@@ -238,6 +263,11 @@
                 hr_charge_desc_label: 'Dịch vụ / Mô tả', hr_charge_amount_label: 'Số tiền', hr_charge_add_btn: 'Thêm',
                 hr_toast_charge_desc_missing: 'Vui lòng nhập tên dịch vụ/phụ thu.', hr_toast_charge_amount_invalid: 'Số tiền phải lớn hơn 0.',
                 hr_toast_charge_added: 'Đã thêm phụ thu!',
+                hr_expected_checkout_label: 'Ngày trả phòng dự kiến (không bắt buộc)', hr_expected_title: 'Ngày trả phòng dự kiến',
+                hr_expected_checkout_hint: 'Để trống nếu khách chưa biết — khi đó AI lễ tân sẽ không tự xác nhận phòng này cho các đêm sau (chờ bạn duyệt).',
+                hr_expected_short: 'Trả dự kiến', hr_expected_unknown: 'Chưa rõ ngày trả', hr_expected_edit: 'Sửa',
+                hr_expected_clear: 'Bỏ ngày', hr_expected_missing: 'Chọn ngày trả phòng dự kiến (hoặc bấm Bỏ ngày).',
+                hr_toast_expected_ok: 'Đã lưu ngày trả phòng dự kiến.', hr_toast_expected_cleared: 'Đã bỏ ngày trả phòng dự kiến.',
             },
             en: {
                 hr_title: 'Room Management | BitPaw Software', hr_header: 'Room Management',
@@ -265,6 +295,11 @@
                 hr_charge_desc_label: 'Service / Description', hr_charge_amount_label: 'Amount', hr_charge_add_btn: 'Add',
                 hr_toast_charge_desc_missing: 'Please enter a service/charge name.', hr_toast_charge_amount_invalid: 'Amount must be greater than 0.',
                 hr_toast_charge_added: 'Charge added!',
+                hr_expected_checkout_label: 'Expected check-out date (optional)', hr_expected_title: 'Expected check-out date',
+                hr_expected_checkout_hint: "Leave empty if the guest doesn't know yet — the AI receptionist then won't auto-confirm this room for later nights (you approve them).",
+                hr_expected_short: 'Expected out', hr_expected_unknown: 'Check-out date unknown', hr_expected_edit: 'Edit',
+                hr_expected_clear: 'Clear date', hr_expected_missing: 'Pick the expected check-out date (or tap Clear date).',
+                hr_toast_expected_ok: 'Expected check-out date saved.', hr_toast_expected_cleared: 'Expected check-out date cleared.',
             }
         };
         function t(key) { return (translations[currentLang] && translations[currentLang][key]) || translations.vi[key] || key; }
@@ -299,6 +334,22 @@
 
         let rooms = [];
         let activeRoomId = null;
+        // Hôm nay THEO GIỜ KHÁCH SẠN (máy chủ gửi) — ngày trả phòng dự kiến phải sau hôm nay; thiếu thì lấy ngày của máy này.
+        const HOTEL_TODAY = {{ (hotel_today or '') | tojson }};
+        function isoToday() {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(HOTEL_TODAY)) return HOTEL_TODAY;
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+        function addDaysIso(iso, n) {
+            const [y, m, d] = iso.split('-').map(Number);
+            return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+        }
+        function fmtDay(iso) {
+            const [y, m, d] = String(iso || '').split('-').map(Number);
+            if (!y || !m || !d) return '--';
+            return new Date(y, m - 1, d).toLocaleDateString(currentLang === 'vi' ? 'vi-VN' : 'en-US');
+        }
 
         async function loadRooms() {
             try {
@@ -328,6 +379,10 @@
                     const since = r.checkin_date ? new Date(r.checkin_date).toLocaleDateString(currentLang === 'vi' ? 'vi-VN' : 'en-US') : '--';
                     body = `<div class="mt-3 text-xs text-gray-300"><i class="fas fa-user mr-1 text-blue-400"></i>${escapeHtml(r.guest_name || '')}</div>
                             <div class="mt-1 text-[10px] text-gray-500">${t('hr_since_label')}: ${since}</div>
+                            <div class="mt-1 flex items-center justify-between gap-2 text-[10px]">
+                                <span class="${r.expected_checkout_date ? 'text-gray-400' : 'text-amber-400/90'}">${r.expected_checkout_date ? t('hr_expected_short') + ': ' + fmtDay(r.expected_checkout_date) : t('hr_expected_unknown')}</span>
+                                <button onclick="event.stopPropagation(); openExpectedModal(${r.id})" class="text-blue-300 hover:text-blue-200 font-bold underline underline-offset-2"><i class="fas fa-calendar-check mr-1"></i>${t('hr_expected_edit')}</button>
+                            </div>
                             <button onclick="event.stopPropagation(); openAddChargeModal(${r.id})" class="mt-2 w-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[11px] font-bold py-2 rounded-lg transition"><i class="fas fa-concierge-bell mr-1"></i>${t('hr_add_charge_btn')}</button>`;
                 } else if (r.status === 'Đang dọn') {
                     body = `<button onclick="event.stopPropagation(); markClean(${r.id})" class="mt-3 w-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-[11px] font-bold py-2 rounded-lg transition"><i class="fas fa-broom mr-1"></i>${t('hr_mark_clean_btn')}</button>`;
@@ -359,6 +414,9 @@
             document.getElementById('checkinRoomLabel').innerText = room ? `#${room.room_number}` : '';
             document.getElementById('guestName').value = '';
             document.getElementById('guestPhone').value = '';
+            const exp = document.getElementById('expectedCheckout');
+            exp.value = '';
+            exp.min = addDaysIso(isoToday(), 1);
             document.getElementById('checkinModal').classList.add('active');
         }
         async function submitCheckin() {
@@ -367,10 +425,34 @@
             try {
                 await hrApi(`/api/hotel/rooms/${activeRoomId}/checkin`, {
                     method: 'POST',
-                    body: JSON.stringify({ guest_name: guestName, guest_phone: document.getElementById('guestPhone').value.trim() }),
+                    body: JSON.stringify({ guest_name: guestName, guest_phone: document.getElementById('guestPhone').value.trim(),
+                                           expected_checkout_date: document.getElementById('expectedCheckout').value || null }),
                 });
                 closeModal('checkinModal');
                 showToast(t('hr_toast_checkin_ok'));
+                loadRooms();
+            } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
+        }
+
+        function openExpectedModal(roomId) {
+            const room = rooms.find(r => r.id === roomId);
+            if (!room) return;
+            activeRoomId = roomId;
+            document.getElementById('expectedRoomLabel').innerText = `#${room.room_number}`;
+            const inp = document.getElementById('expectedEditDate');
+            inp.min = addDaysIso(isoToday(), 1);
+            inp.value = room.expected_checkout_date || '';
+            document.getElementById('expectedModal').classList.add('active');
+        }
+        async function submitExpected(clear) {
+            const value = clear ? null : (document.getElementById('expectedEditDate').value || null);
+            if (!clear && !value) return showToast(t('hr_expected_missing'));
+            try {
+                await hrApi(`/api/hotel/rooms/${activeRoomId}/expected_checkout`, {
+                    method: 'POST', body: JSON.stringify({ expected_checkout_date: value }),
+                });
+                closeModal('expectedModal');
+                showToast(t(clear ? 'hr_toast_expected_cleared' : 'hr_toast_expected_ok'));
                 loadRooms();
             } catch (e) { showToast(t('hr_toast_generic_error') + e.message); }
         }

@@ -75,7 +75,7 @@
                             <td class="px-6 py-4 text-gray-300">{{ r.guest_phone or '—' }}</td>
                             <td class="px-6 py-4 text-gray-300"><i class="fas fa-user-friends text-gray-500"></i> {{ r.party_size }}</td>
                             <td class="px-6 py-4 text-gray-400">{{ r.room_type or ('Bất kỳ' if vi else 'Any') }}</td>
-                            <td class="px-6 py-4" data-room-cell data-status="{{ r.status }}">
+                            <td class="px-6 py-4" data-room-cell data-status="{{ r.status }}" data-checkin="{{ r.checkin_date or '' }}" data-checkout="{{ r.checkout_date or '' }}" data-party="{{ r.party_size if r.party_size is not none else '' }}" data-room="{{ r.room_id if r.room_id is not none else '' }}">
                                 <select class="room-select" onchange="assignRoom({{ r.id }}, this)" {% if r.status == 'cancelled' %}disabled{% endif %}>
                                     <option value="">{{ '-- Chưa xếp --' if vi else '— Not assigned —' }}</option>
                                     {% for rm in rooms %}
@@ -150,6 +150,14 @@
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
+        // Gửi kèm đúng những gì dòng này đang HIỆN (trạng thái, ngày, số khách, phòng): khách vừa huỷ / dời ngày / đổi số
+        // khách trong chat AI thì máy chủ trả 409 "tải lại trang" — không duyệt / xếp phòng cho những ngày nhân viên chưa thấy.
+        function shownState(row) {
+            const cell = row.querySelector('[data-room-cell]');
+            return { from_status: cell.dataset.status, from_checkin_date: cell.dataset.checkin, from_checkout_date: cell.dataset.checkout,
+                     from_party_size: cell.dataset.party, from_room_id: cell.dataset.room };
+        }
+
         async function updateStatus(id, status, btn) {
             const row = document.querySelector(`tr[data-res-id="${id}"]`);
             const buttons = row.querySelectorAll('button');
@@ -158,11 +166,12 @@
                 const res = await fetch(`/api/hotel_reservations/${id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status }),
+                    body: JSON.stringify({ status, ...shownState(row) }),
                 });
                 const result = await res.json();
                 if (!result.success) throw new Error(result.message || (VI ? 'Lỗi không xác định' : 'Unknown error'));
 
+                row.querySelector('[data-room-cell]').dataset.status = status;
                 row.querySelector('[data-status-cell]').innerHTML = STATUS_BADGE[status];
                 row.classList.toggle('is-pending', status === 'pending');
                 row.querySelector('[data-actions-cell]').innerHTML = `<div class="flex gap-2 flex-wrap">${NEXT_ACTIONS[status](id)}</div>`;
@@ -181,16 +190,18 @@
 
         async function assignRoom(id, select) {
             const roomId = select.value ? parseInt(select.value) : null;
+            const row = document.querySelector(`tr[data-res-id="${id}"]`);
             select.disabled = true;
             try {
                 const res = await fetch(`/api/hotel_reservations/${id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ room_id: roomId }),
+                    body: JSON.stringify({ room_id: roomId, ...shownState(row) }),
                 });
                 const result = await res.json();
                 if (!result.success) throw new Error(result.message || (VI ? 'Lỗi không xác định' : 'Unknown error'));
                 select.dataset.lastValid = select.value;
+                row.querySelector('[data-room-cell]').dataset.room = select.value;
                 showToast((VI ? 'Đã xếp phòng' : 'Room assigned'));
             } catch (err) {
                 // 409 = trùng lịch phòng — khôi phục lựa chọn cũ, KHÔNG được để dropdown hiện sai
