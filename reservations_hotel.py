@@ -31,9 +31,14 @@ MAX_ADVANCE_DAYS = 366      # giống _public_reservation_check (trong vòng 1 n
 MAX_GUESTS = 50             # ô "Số khách" của form công khai max=50
 CLAIM_GRACE_SECONDS = 120   # phiếu giữ chưa kịp có đặt phòng (đang ghi dở) được coi là còn hiệu lực trong ngần này giây
 # Chat web CHƯA xác minh (không SĐT đã xác minh, không hội thoại nền tảng đã ký) giữ tối đa ~40% số phòng MỖI LOẠI MỖI ĐÊM
-# (ít nhất 1 phòng) — giới hạn theo khách sạn, KHÔNG dựa vào danh tính người chat: xoá mã trình duyệt, đổi SĐT, đổi mạng
-# cũng không giữ được hết phòng. Vượt trần -> AI chuyển yêu cầu cho nhân viên thay vì giữ phòng (ai_packs/hotel.py).
+# VÀ ~40% TỔNG số phòng của khách sạn mỗi đêm (ít nhất 1 phòng) — giới hạn theo khách sạn, KHÔNG dựa vào danh tính người
+# chat: xoá mã trình duyệt, đổi SĐT, đổi mạng cũng không giữ được hết phòng (kể cả khách sạn nhỏ mỗi phòng / villa là 1
+# loại riêng). Chỉ tính lượt giữ CHƯA người thật nào của khách sạn ghi nhận (unverified_web_hold). Vượt trần -> AI KHÔNG giữ
+# phòng mà ghi 1 yêu cầu STAFF_REQUEST cho nhân viên (ai_packs/hotel.py).
 UNVERIFIED_WEB_SHARE = 0.4
+# Yêu cầu đặt phòng AI chuyển cho nhân viên mà KHÔNG giữ phòng (create_staff_request): hiện trên /hotel/reservations để nhân
+# viên Duyệt / Từ chối. KHÔNG thuộc LIVE_STATUSES: không chiếm phòng, không tính vào trần, khách không đổi / huỷ qua chat.
+STAFF_REQUEST = 'requested'
 OCCUPIED = 'Đang ở'
 DEFAULT_ROOM_TYPE = 'Standard'
 _DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
@@ -511,10 +516,15 @@ def _capacity_ok(business_id, rooms, types, ci, co, room, today, ignore_id, now)
 
 # ---------------------------------------------------------------- trần giữ phòng của chat web CHƯA xác minh
 def unverified_web_hold(res):
-    """Đặt phòng còn hiệu lực do AI giữ từ chat web CHƯA xác minh mà nhân viên chưa duyệt. Đặt phòng cũ (trước khi có trường
-    ai_verified) tính theo kênh: 'web' = chưa xác minh. Nhân viên đã xác nhận (staff_confirmed_at, còn 'confirmed') = người
-    thật của khách sạn đã nhận -> không tính vào trần nữa."""
+    """Đặt phòng còn hiệu lực do AI giữ từ chat web CHƯA xác minh mà CHƯA người thật nào của khách sạn ghi nhận. Đặt phòng cũ
+    (trước khi có trường ai_verified) tính theo kênh: 'web' = chưa xác minh. Không tính vào trần nữa khi: nhân viên đã xem /
+    duyệt / sửa / xếp phòng / bấm "Đã xem" trên /hotel/reservations (staff_reviewed_at — khách sạn bật tự xác nhận thì AI ghi
+    thẳng 'confirmed', nhân viên không có nút Duyệt), khách đã nhận phòng tại quầy (checked_in_at), hoặc nhân viên đã xác
+    nhận (staff_confirmed_at, còn 'confirmed' — dấu của vòng trước). Khách tự đổi ngày trong chat -> change_dates xoá các
+    dấu đó (ngày mới chưa ai xem)."""
     if res.get('source') != 'ai_bot':
+        return False
+    if res.get('staff_reviewed_at') or res.get('checked_in_at'):
         return False
     if res.get('status') == 'confirmed' and res.get('staff_confirmed_at'):
         return False
@@ -530,8 +540,10 @@ def web_hold_cap(rooms_in_type):
 
 
 def web_holds_full(business_id, rooms, types, key, checkin, checkout, ignore_id=None, extra=1):
-    """True nếu ở 1 đêm nào trong [checkin, checkout), số phòng loại `key` đang bị chat web chưa xác minh giữ (+ `extra` lượt
-    sắp giữ) vượt web_hold_cap. Đếm theo KHÁCH SẠN — không theo khách / mã trình duyệt / mạng (những thứ đổi được)."""
+    """True nếu ở 1 đêm nào trong [checkin, checkout), số phòng đang bị chat web chưa xác minh giữ (+ `extra` lượt sắp giữ)
+    vượt trần THEO LOẠI `key` (web_hold_cap của số phòng loại đó) HOẶC THEO CẢ KHÁCH SẠN (web_hold_cap của tổng số phòng `rooms`,
+    mọi loại cộng lại — khách sạn nhỏ mỗi phòng / villa là 1 loại thì trần theo loại = 100% từng phòng). Đếm theo KHÁCH SẠN —
+    không theo khách / mã trình duyệt / mạng (những thứ đổi được)."""
     t = types.get(key)
     if not t:
         return False
@@ -540,31 +552,76 @@ def web_holds_full(business_id, rooms, types, key, checkin, checkout, ignore_id=
     if not nights:
         return False
     cap = web_hold_cap(len(t['rooms']))
+    hotel_cap = web_hold_cap(len(rooms))
     room_key = {r['id']: r['_key'] for r in rooms}
-    held = Counter()
+    held, held_all = Counter(), Counter()
     for res in db.hotel_reservations.find(
             {'business_id': business_id, 'source': 'ai_bot', 'status': {'$in': list(LIVE_STATUSES)},
              'checkin_date': {'$lt': co.isoformat()}, 'checkout_date': {'$gt': ci.isoformat()}},
             {'_id': 0, 'id': 1, 'source': 1, 'status': 1, 'room_id': 1, 'room_type': 1, 'checkin_date': 1,
-             'checkout_date': 1, 'ai_verified': 1, 'ai_channel': 1, 'staff_confirmed_at': 1}).limit(20000):
+             'checkout_date': 1, 'ai_verified': 1, 'ai_channel': 1, 'staff_confirmed_at': 1, 'staff_reviewed_at': 1,
+             'checked_in_at': 1}).limit(20000):
         if ignore_id is not None and res.get('id') == ignore_id:
             continue
         if not unverified_web_hold(res):
             continue
-        if (room_key.get(res.get('room_id')) or type_key(res.get('room_type'))) != key:
-            continue
+        same_type = (room_key.get(res.get('room_id')) or type_key(res.get('room_type'))) == key
         for n in nights:
             if _covers(res, n):
-                held[n] += 1
-    return any(held[n] + extra > cap for n in nights)
+                held_all[n] += 1
+                if same_type:
+                    held[n] += 1
+    return any(held[n] + extra > cap or held_all[n] + extra > hotel_cap for n in nights)
 
 
 def _web_cap_error():
     return HotelRequestError('web_hold_cap',
-                             'Too many rooms of this type are already held by unverified online chats for these dates — '
-                             'nothing was held; the hotel team takes this request.',
-                             'Loại phòng này đã có nhiều phòng được giữ qua chat online chưa xác minh những ngày này — chưa '
-                             'giữ phòng nào; nhân viên khách sạn sẽ nhận yêu cầu này.')
+                             'Too many rooms (of this room type or in the whole hotel) are already held by unverified online '
+                             'chats for these dates — nothing was held; the hotel team takes this request.',
+                             'Đã có nhiều phòng (của loại phòng này hoặc của cả khách sạn) được giữ qua chat online chưa xác '
+                             'minh những ngày này — chưa giữ phòng nào; nhân viên khách sạn sẽ nhận yêu cầu này.')
+
+
+def create_staff_request(business_id, *, checkin, checkout, guests, room_type, guest_name, guest_phone, extra=None):
+    """Yêu cầu đặt phòng mà AI KHÔNG giữ phòng (chat web chưa xác minh vượt trần — web_holds_full): ghi 1 dòng
+    db.hotel_reservations trạng thái STAFF_REQUEST, chưa xếp phòng, để nhân viên thấy trên /hotel/reservations (Duyệt = kiểm
+    lại phòng trống rồi thành đặt phòng thật; Từ chối = huỷ) — không chỉ là 1 dòng trong hộp thư AI + email chủ (email gộp theo
+    giờ, bỏ qua nếu chủ chưa có email). STAFF_REQUEST không thuộc LIVE_STATUSES nên KHÔNG chiếm phòng trong bảng phòng trống
+    và không tính vào trần. Cùng hội thoại + ngày + loại phòng + tên đã có 1 yêu cầu đang chờ -> trả lại yêu cầu đó, không
+    ghi thêm. Trả (doc, created)."""
+    _require_db()
+    ci, co = parse_day(checkin), parse_day(checkout)
+    extra = dict(extra or {})
+    conv = extra.get('ai_conversation_id')
+    if conv:
+        for r in db.hotel_reservations.find({'business_id': business_id, 'status': STAFF_REQUEST, 'ai_conversation_id': conv,
+                                             'checkin_date': ci.isoformat(), 'checkout_date': co.isoformat()},
+                                            {'_id': 0}).limit(50):
+            if type_key(r.get('room_type')) == type_key(room_type) and \
+                    clean_name(r.get('guest_name')).casefold() == clean_name(guest_name).casefold():
+                return r, False
+    doc = {'id': next_mongo_id('hotel_reservations'), 'business_id': business_id, 'guest_name': guest_name,
+           'guest_phone': guest_phone, 'party_size': max(1, int(guests or 1)), 'checkin_date': ci.isoformat(),
+           'checkout_date': co.isoformat(), 'room_type': room_type, 'nights': (co - ci).days,
+           'created_at': datetime.now().isoformat()}
+    doc.update(extra)
+    doc.update({'status': STAFF_REQUEST, 'room_id': None})
+    db.hotel_reservations.insert_one(doc)
+    doc.pop('_id', None)
+    return doc, True
+
+
+def mark_checked_in(business_id, room_id, today, now=None):
+    """Nhân viên vừa nhận khách vào phòng room_id tại quầy (/api/hotel/rooms/<id>/checkin): đặt phòng còn hiệu lực của CHÍNH
+    phòng đó phủ đêm nay (nhận phòng <= hôm nay < trả phòng, theo giờ khách sạn) = người thật đã tới -> checked_in_at +
+    staff_reviewed_at, không còn tính vào trần giữ phòng của chat web chưa xác minh. Trả số đặt phòng được đánh dấu."""
+    _require_db()
+    t = today.isoformat()
+    stamp = (now or _utcnow()).isoformat()
+    return db.hotel_reservations.update_many(
+        {'business_id': business_id, 'room_id': room_id, 'status': {'$in': list(LIVE_STATUSES)},
+         'checkin_date': {'$lte': t}, 'checkout_date': {'$gt': t}},
+        {'$set': {'checked_in_at': stamp, 'staff_reviewed_at': stamp}}).modified_count
 
 
 # ---------------------------------------------------------------- giữ phòng + tạo / đổi / huỷ đặt phòng
@@ -591,9 +648,12 @@ def create_hold(business_id, *, checkin, checkout, guests, room_type_key, guest_
                 today=None, min_nights=1, extra=None, now=None, unverified=False):
     """Đặt phòng GIỮ PHÒNG CỤ THỂ (dùng cho trợ lý AI): chọn phòng rẻ nhất còn trống của loại khách chọn, giữ nguyên tử
     từng đêm, ghi db.hotel_reservations với room_id. Trả (doc, availability) — doc None nếu hết phòng.
-    unverified=True (chat web chưa xác minh — đặt phòng ghi source='ai_bot', ai_verified=False): loại phòng đã chạm trần
-    web_hold_cap ở 1 đêm nào -> HotelRequestError 'web_hold_cap', không giữ gì. Kiểm cả SAU khi ghi (2 chat cùng lúc tranh
-    suất cuối: bên vượt trần tự huỷ phiếu của mình)."""
+    unverified=True (chat web chưa xác minh — đặt phòng ghi source='ai_bot', ai_verified=False): loại phòng hoặc cả khách
+    sạn đã chạm trần (web_holds_full) ở 1 đêm nào -> HotelRequestError 'web_hold_cap', không giữ gì. Kiểm lại SAU khi ghi
+    (đếm cả lượt vừa ghi): 2 chat cùng lúc tranh suất cuối mà cả 2 đều qua bước kiểm trước rồi cùng ghi xong trước khi bên nào
+    kiểm lại thì CẢ 2 đều thấy vượt trần và CẢ 2 cùng huỷ phiếu của mình (an toàn: không bao giờ vượt trần — cả 2 thành yêu
+    cầu cho nhân viên, suất đó để trống cho khách đã xác minh / nhân viên); chỉ khi 1 bên kiểm lại sau lúc bên kia đã huỷ thì
+    bên kia mới giữ được."""
     _require_db()
     now = now or _utcnow()
     av = availability(business_id, checkin, checkout, guests=guests, today=today, min_nights=min_nights, now=now)
@@ -636,7 +696,7 @@ def create_hold(business_id, *, checkin, checkout, guests, room_type_key, guest_
                 release_claims(business_id, res_id)
                 break
             if unverified and web_holds_full(business_id, rooms, types, room_type_key, ci, co, extra=0):
-                # Chat web chưa xác minh khác vừa giữ đúng suất cuối dưới trần cùng lúc: nhường, không vượt trần.
+                # Chat web chưa xác minh khác vừa giữ cùng lúc: tự huỷ, không vượt trần (bên kia cũng có thể huỷ — xem docstring).
                 db.hotel_reservations.update_one({'id': res_id, 'business_id': business_id},
                                                  {'$set': {'status': 'cancelled', 'cancelled_by': 'system',
                                                            'cancel_reason': 'unverified online hold limit reached',
@@ -717,6 +777,8 @@ def change_dates(business_id, res, checkin, checkout, guests=None, today=None, m
         upd['was_confirmed'] = True   # hạn huỷ của đặt phòng đã xác nhận vẫn áp dụng khi chờ khách sạn xác nhận lại
     if res.get('staff_confirmed_at'):
         upd['staff_confirmed_at'] = None   # nhân viên duyệt NGÀY CŨ; ngày mới chưa ai duyệt (trần chat web chưa xác minh)
+    if res.get('staff_reviewed_at'):
+        upd['staff_reviewed_at'] = None    # nhân viên xem NGÀY CŨ (Đã xem / sửa / xếp phòng)
 
     if res.get('room_id') is None or cur_room is None:
         if not plan['available']:

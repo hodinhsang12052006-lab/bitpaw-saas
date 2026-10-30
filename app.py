@@ -7030,6 +7030,12 @@ def api_hotel_room_checkin(room_id):
         )
         if not result:
             return jsonify({"success": False, "message": "Phòng không tồn tại hoặc đang không trống."}), 409
+        try:
+            # Đặt phòng của chính phòng này phủ đêm nay = khách thật đã tới quầy: không còn tính vào trần giữ phòng của chat
+            # web chưa xác minh (reservations_hotel.unverified_web_hold). Không làm hỏng lượt nhận phòng đã ghi.
+            reservations_hotel.mark_checked_in(business_id, room_id, tenant_today(business_id))
+        except Exception as e:
+            print(f"[api_hotel_room_checkin] mark_checked_in: {e}")
         return jsonify({"success": True, "data": result})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -7334,8 +7340,12 @@ def hotel_reservations_page():
         print(f"[hotel_reservations_page] Lỗi tra cứu db.hotel_rooms: {e}")
         rooms = []
     room_labels = {r['id']: r['room_number'] for r in rooms}
+    import reservations_hotel
     for r in reservations:
         r['room_label'] = room_labels.get(r.get('room_id'))
+        # AI giữ từ chat web chưa xác minh và ghi thẳng 'confirmed' (khách sạn bật tự xác nhận — không có nút Duyệt): nút
+        # "Đã xem" để nhân viên ghi nhận, lượt giữ thôi tính vào trần giữ phòng online (reservations_hotel.unverified_web_hold).
+        r['needs_review'] = r.get('status') == 'confirmed' and reservations_hotel.unverified_web_hold(r)
     return render_template(
         'hotel_reservations.html', reservations=reservations, rooms=rooms, today=today_str,
         reservation_link=url_for('public_hotel_reservation', business_id=business_id, _external=True),
@@ -7372,7 +7382,8 @@ def api_hotel_reservation_update(reservation_id):
             if not db.hotel_rooms.find_one({'id': room_id, 'business_id': business_id}, {'id': 1, '_id': 0}):
                 return jsonify({'success': False, 'message': 'Phòng không tồn tại.'}), 404
         update_fields['room_id'] = room_id
-    if not update_fields:
+    # reviewed=true: nút "Đã xem" của trang — chỉ ghi nhận nhân viên đã xem (không đổi trạng thái / phòng).
+    if not update_fields and data.get('reviewed') is not True:
         return jsonify({'success': False, 'message': 'Không có gì để cập nhật.'}), 400
     import reservations_hotel
     live = reservations_hotel.LIVE_STATUSES
@@ -7380,10 +7391,16 @@ def api_hotel_reservation_update(reservation_id):
     new_status = update_fields.get('status', old_status)
     room_id = update_fields.get('room_id', reservation.get('room_id'))
     reopening = old_status not in live and new_status in live
+    # Yêu cầu AI chuyển cho nhân viên mà KHÔNG giữ phòng (vượt trần chat web chưa xác minh): Duyệt = nhận yêu cầu, kiểm lại
+    # phòng trống như mở lại (không cần reopen=true — đây không phải đặt phòng đã huỷ).
+    staff_request = old_status == reservations_hotel.STAFF_REQUEST
     if new_status == 'confirmed' and old_status != 'confirmed':
         # Người thật của khách sạn đã nhận đặt phòng: không tính vào trần giữ phòng của chat web chưa xác minh nữa
         # (reservations_hotel.unverified_web_hold).
         update_fields['staff_confirmed_at'] = reservations_hotel._utcnow().isoformat()
+    # Mọi thao tác của nhân viên trên đặt phòng này (duyệt, xếp phòng, sửa, huỷ, "Đã xem") = người thật đã xem: lượt giữ của
+    # chat web chưa xác minh thôi tính vào trần (khách sạn bật tự xác nhận thì không có nút Duyệt nào để bấm).
+    update_fields['staff_reviewed_at'] = reservations_hotel._utcnow().isoformat()
     changed_elsewhere = _vi_en('Đặt phòng này vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại.',
                                'This booking was just changed elsewhere — reload the page and try again.')
     if 'from_status' in data and data.get('from_status') != old_status:
@@ -7395,7 +7412,7 @@ def api_hotel_reservation_update(reservation_id):
         if _key in data and ('' if data.get(_key) is None else str(data.get(_key))) != \
                 ('' if reservation.get(_field) is None else str(reservation.get(_field))):
             return jsonify({'success': False, 'message': changed_elsewhere}), 409
-    if reopening and data.get('reopen') is not True:
+    if reopening and data.get('reopen') is not True and not staff_request:
         by_guest = reservation.get('cancelled_by') == 'customer_ai_chat'
         return jsonify({'success': False, 'message': _vi_en(
             ('Khách đã tự huỷ đặt phòng này trong chat AI' if by_guest else 'Đặt phòng này đã bị huỷ')
@@ -7405,6 +7422,10 @@ def api_hotel_reservation_update(reservation_id):
     assigned = False
     try:
         if reopening and room_id is None and not _hotel_request_has_room(business_id, reservation):
+            if staff_request:
+                return jsonify({'success': False, 'message': _vi_en(
+                    'Không còn phòng trống cho khoảng ngày này nên chưa nhận được yêu cầu — bàn ngày khác với khách hoặc từ chối yêu cầu.',
+                    'No room is free for these dates, so the request was not accepted — agree other dates with the guest or decline it.')}), 409
             return jsonify({'success': False, 'message': _vi_en(
                 'Không còn phòng trống cho khoảng ngày này nên chưa mở lại được đặt phòng — đổi ngày hoặc xếp phòng khác.',
                 'No room is free for these dates any more, so the booking was not reopened — change the dates or assign another room.')}), 409

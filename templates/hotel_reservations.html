@@ -68,7 +68,7 @@
                     </thead>
                     <tbody class="divide-y divide-white/5" id="reservationsBody">
                         {% for r in reservations %}
-                        <tr class="hover:bg-white/[0.03] transition-colors{% if r.status == 'pending' %} is-pending{% endif %}" data-res-id="{{ r.id }}">
+                        <tr class="hover:bg-white/[0.03] transition-colors{% if r.status in ('pending', 'requested') %} is-pending{% endif %}" data-res-id="{{ r.id }}">
                             <td class="px-6 py-4 font-bold text-purple-300 whitespace-nowrap">{{ r.checkin_date }}</td>
                             <td class="px-6 py-4 font-bold text-pink-300 whitespace-nowrap">{{ r.checkout_date }}</td>
                             <td class="px-6 py-4 font-medium">{{ r.guest_name or ('Không rõ' if vi else 'Unknown') }}{% if r.source == 'ai_bot' %}<span class="ai-chip" title="{{ 'AI lễ tân đặt' if default_lang == 'vi' else 'Booked by the AI receptionist' }}" aria-label="{{ 'AI lễ tân đặt' if default_lang == 'vi' else 'Booked by the AI receptionist' }}"><i class="fas fa-robot" aria-hidden="true"></i> AI</span>{% endif %}</td>
@@ -76,7 +76,7 @@
                             <td class="px-6 py-4 text-gray-300"><i class="fas fa-user-friends text-gray-500"></i> {{ r.party_size }}</td>
                             <td class="px-6 py-4 text-gray-400">{{ r.room_type or ('Bất kỳ' if vi else 'Any') }}</td>
                             <td class="px-6 py-4" data-room-cell data-status="{{ r.status }}" data-checkin="{{ r.checkin_date or '' }}" data-checkout="{{ r.checkout_date or '' }}" data-party="{{ r.party_size if r.party_size is not none else '' }}" data-room="{{ r.room_id if r.room_id is not none else '' }}">
-                                <select class="room-select" onchange="assignRoom({{ r.id }}, this)" {% if r.status == 'cancelled' %}disabled{% endif %}>
+                                <select class="room-select" onchange="assignRoom({{ r.id }}, this)" {% if r.status in ('cancelled', 'requested') %}disabled{% endif %}>
                                     <option value="">{{ '-- Chưa xếp --' if vi else '— Not assigned —' }}</option>
                                     {% for rm in rooms %}
                                     <option value="{{ rm.id }}" {% if r.room_id == rm.id %}selected{% endif %}>{{ rm.room_number }} ({{ rm.room_type }})</option>
@@ -88,6 +88,8 @@
                                 <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">{{ 'Đã xác nhận' if vi else 'Confirmed' }}</span>
                                 {% elif r.status == 'cancelled' %}
                                 <span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">{{ 'Đã huỷ' if vi else 'Cancelled' }}</span>
+                                {% elif r.status == 'requested' %}
+                                <span class="bg-sky-500/15 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap" title="{{ 'AI chưa giữ phòng nào (chat online chưa xác minh, vượt giới hạn giữ phòng online). Gọi khách rồi Duyệt hoặc Từ chối.' if vi else 'The AI held no room (unverified online chat over the online hold limit). Call the guest, then approve or decline.' }}">{{ 'Yêu cầu — chưa giữ phòng' if vi else 'Request — no room held' }}</span>
                                 {% else %}
                                 <span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">{{ 'Chờ xác nhận' if vi else 'Pending' }}</span>
                                 {% endif %}
@@ -97,7 +99,13 @@
                                     {% if r.status == 'pending' %}
                                     <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus({{ r.id }}, 'confirmed', this)"><i class="fas fa-check"></i> {{ 'Duyệt' if vi else 'Approve' }}</button>
                                     <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ r.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> {{ 'Huỷ' if vi else 'Cancel' }}</button>
+                                    {% elif r.status == 'requested' %}
+                                    <button class="action-btn bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300" onclick="updateStatus({{ r.id }}, 'confirmed', this)" title="{{ 'Kiểm lại phòng trống rồi nhận yêu cầu — sau đó xếp phòng' if vi else 'Re-checks availability, then accepts the request — assign a room next' }}"><i class="fas fa-check"></i> {{ 'Duyệt' if vi else 'Approve' }}</button>
+                                    <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ r.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> {{ 'Từ chối' if vi else 'Decline' }}</button>
                                     {% elif r.status == 'confirmed' %}
+                                    {% if r.needs_review %}
+                                    <button class="action-btn bg-purple-500/20 hover:bg-purple-500/30 border-purple-400/40 text-purple-300" onclick="markReviewed({{ r.id }}, this)" title="{{ 'AI giữ phòng này từ chat online chưa xác minh — còn tính vào giới hạn giữ phòng online tới khi nhân viên xem. Bấm khi đã kiểm tra / gọi khách.' if vi else 'Held by the AI from an unverified online chat — it counts toward the online hold limit until staff review it. Click once you have checked it.' }}"><i class="fas fa-eye"></i> {{ 'Đã xem' if vi else 'Mark reviewed' }}</button>
+                                    {% endif %}
                                     <button class="action-btn bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/40 text-rose-300" onclick="updateStatus({{ r.id }}, 'cancelled', this)"><i class="fas fa-xmark"></i> {{ 'Huỷ' if vi else 'Cancel' }}</button>
                                     {% else %}
                                     <span class="text-gray-600 text-xs">—</span>
@@ -132,6 +140,7 @@
             confirmed: '<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold">' + (VI ? 'Đã xác nhận' : 'Confirmed') + '</span>',
             cancelled: '<span class="bg-rose-500/15 text-rose-400 border border-rose-500/30 px-3 py-1 rounded-full text-xs font-bold">' + (VI ? 'Đã huỷ' : 'Cancelled') + '</span>',
             pending: '<span class="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">' + (VI ? 'Chờ xác nhận' : 'Pending') + '</span>',
+            requested: '<span class="bg-sky-500/15 text-sky-300 border border-sky-500/30 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">' + (VI ? 'Yêu cầu — chưa giữ phòng' : 'Request — no room held') + '</span>',
         };
         const NEXT_ACTIONS = {
             pending: (id) => `
@@ -176,13 +185,34 @@
                 row.classList.toggle('is-pending', status === 'pending');
                 row.querySelector('[data-actions-cell]').innerHTML = `<div class="flex gap-2 flex-wrap">${NEXT_ACTIONS[status](id)}</div>`;
                 const sel = row.querySelector('[data-room-cell] select');
-                if (sel && status === 'cancelled') sel.disabled = true;
+                if (sel) sel.disabled = status === 'cancelled';   // yêu cầu vừa được Duyệt: giờ mới xếp phòng được
 
                 const labelMap = VI ? { confirmed: 'Đã duyệt yêu cầu đặt phòng', cancelled: 'Đã huỷ đặt phòng' } : { confirmed: 'Booking approved', cancelled: 'Booking cancelled' };
                 showToast(labelMap[status] || (VI ? 'Đã cập nhật' : 'Updated'));
             } catch (err) {
                 showToast((VI ? 'Lỗi: ' : 'Error: ') + err.message, true);
                 buttons.forEach(b => b.disabled = false);
+            }
+        }
+
+        // "Đã xem": nhân viên đã xem đặt phòng AI giữ từ chat online chưa xác minh (khách sạn bật tự xác nhận nên không có nút
+        // Duyệt) — lượt giữ thôi tính vào giới hạn giữ phòng online. Gửi kèm đúng những gì dòng đang hiện như các nút khác.
+        async function markReviewed(id, btn) {
+            const row = document.querySelector(`tr[data-res-id="${id}"]`);
+            btn.disabled = true;
+            try {
+                const res = await fetch(`/api/hotel_reservations/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reviewed: true, ...shownState(row) }),
+                });
+                const result = await res.json();
+                if (!result.success) throw new Error(result.message || (VI ? 'Lỗi không xác định' : 'Unknown error'));
+                btn.remove();
+                showToast(VI ? 'Đã ghi nhận: nhân viên đã xem' : 'Marked as reviewed');
+            } catch (err) {
+                showToast((VI ? 'Lỗi: ' : 'Error: ') + err.message, true);
+                btn.disabled = false;
             }
         }
 

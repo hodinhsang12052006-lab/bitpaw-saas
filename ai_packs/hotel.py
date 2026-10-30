@@ -321,6 +321,22 @@ def _tell_staff(c, staff_vi, staff_en, kind):
         print(f"[hotel pack] staff notice failed: {e}")
 
 
+def _flag_for_staff(c, reason):
+    """Như ask_team / request_booking (ai_function_tools): hội thoại có needs_human + handoff_reason -> huy hiệu và nổi lên đầu
+    hộp thư /ai_bot (không chỉ 1 dòng ghi chú + email chủ: email gộp theo giờ và bỏ qua nếu chủ chưa có email). Đang chờ người
+    vì việc khác (AI tạm dừng kèm lý do) thì giữ lý do cũ. AI không tạm dừng. Best-effort."""
+    if not c.customer_id:
+        return
+    try:
+        prev = db.bot_customers.find_one({'id': c.customer_id}, {'_id': 0, 'ai_paused': 1, 'handoff_reason': 1}) or {}
+        upd = {'needs_human': True, 'booking_request_at': datetime.now().isoformat()}
+        if not (prev.get('ai_paused') and prev.get('handoff_reason')):
+            upd['handoff_reason'] = str(reason or '')[:300]
+        db.bot_customers.update_one({'id': c.customer_id}, {'$set': upd})
+    except Exception as e:
+        print(f"[hotel pack] needs_human flag failed: {e}")
+
+
 def _status_say(status, c):
     if status == 'confirmed':
         return c.t("Booked and confirmed.", "Đã đặt và xác nhận.")
@@ -454,6 +470,12 @@ def _find_owned(c, booking_id):
         _refuse(c.t(f"I can't find booking #{booking_id} among the bookings that belong to this chat. Bookings made another "
                     f"way can be changed by the hotel. ", f"Em không thấy đặt phòng #{booking_id} trong các đặt phòng của khung chat "
                     f"này. Đặt phòng làm cách khác thì khách sạn hỗ trợ thay đổi. ") + _call_hotel(c))
+    if res.get('status') == rh.STAFF_REQUEST:
+        # Yêu cầu AI chuyển cho nhân viên mà KHÔNG giữ phòng (vượt trần chat web chưa xác minh): chưa phải đặt phòng.
+        _refuse(c.t(f"#{booking_id} is a request the hotel team is still handling — no room is held, so there is nothing to "
+                    "change or cancel in this chat yet. Pass the change to the team with ask_team.",
+                    f"#{booking_id} là yêu cầu nhân viên khách sạn đang xử lý — chưa giữ phòng nào, nên chưa có gì để đổi hay "
+                    "huỷ trong khung chat này. Chuyển thay đổi cho nhân viên bằng ask_team."))
     return res
 
 
@@ -640,7 +662,7 @@ def _create_booking(args, c):
                                  extra=extra, unverified=unverified)
     except rh.HotelRequestError as e:
         if e.code == 'web_hold_cap':
-            return _web_cap_request(c, types[key]['name'], ci, co, guests, name, phone, note_bits)
+            return _web_cap_request(c, types[key]['name'], ci, co, guests, name, phone, note_bits, extra)
         _hotel_error(c, e)
     if doc is None:
         t = next((x for x in av['types'] if x['key'] == key), None)
@@ -682,25 +704,43 @@ def _create_booking(args, c):
     return out
 
 
-def _web_cap_request(c, type_name, ci, co, guests, name, phone, note_bits):
-    """Loại phòng đã chạm trần giữ phòng của chat web chưa xác minh (reservations_hotel.web_holds_full): KHÔNG giữ phòng nào,
-    chuyển nguyên yêu cầu (tên, SĐT khách gõ, ngày, loại phòng, số khách, ghi chú) cho nhân viên — hộp thư AI + email chủ —
-    để gọi lại xác nhận. Không số đặt phòng, không nói đã đặt / đã xác nhận."""
+def _web_cap_request(c, type_name, ci, co, guests, name, phone, note_bits, extra=None):
+    """Đã chạm trần giữ phòng của chat web chưa xác minh (reservations_hotel.web_holds_full — theo loại phòng hoặc cả khách
+    sạn): KHÔNG giữ phòng nào. Yêu cầu (tên, SĐT khách gõ, ngày, loại phòng, số khách, ghi chú) không bị lạc:
+    - 1 dòng 'requested' (reservations_hotel.create_staff_request) hiện trên Khách sạn > Đặt phòng để nhân viên Duyệt (kiểm
+      lại phòng trống) / Từ chối — không chiếm phòng, không số đặt phòng cho khách;
+    - hội thoại được gắn needs_human + handoff_reason như ask_team / request_booking (huy hiệu, nổi lên đầu hộp thư /ai_bot);
+    - ghi chú hộp thư AI + email chủ chỉ nhân viên tới trang Đặt phòng của nhân viên (link đặt phòng công khai bị giới hạn
+      theo IP — quầy lễ tân nhập nhiều yêu cầu từ cùng mạng sẽ bị chặn).
+    Không nói đã đặt / đã xác nhận."""
     if not c.customer_id:   # không có hội thoại để ghi chú cho nhân viên -> không hứa "đã chuyển"
         _refuse(c.t("Online booking isn't available for these dates right now — nothing was booked. ",
                     "Hiện chưa đặt online được những ngày này — chưa đặt gì. ") + _call_hotel(c))
     nights = (co - ci).days
     bits = ('; ' + '; '.join(note_bits)) if note_bits else ''
-    _tell_staff(c, f"🛏️ Yêu cầu đặt phòng qua chat AI — CHƯA giữ phòng: {name}, SĐT khách gõ {phone} (chưa xác minh) — "
-                   f"{type_name}, {ci.isoformat()} → {co.isoformat()} ({nights} đêm), {guests} khách{bits}. Loại phòng này đã "
-                   "có nhiều phòng được giữ qua chat online chưa xác minh những đêm đó nên AI không giữ thêm: gọi khách xác "
-                   "nhận; nhận khách thì nhập đặt phòng qua link đặt phòng công khai (trang Đặt phòng trước) rồi xếp phòng.",
-                f"🛏️ Booking request from the AI chat — NO room held: {name}, phone typed {phone} (not verified) — "
-                f"{type_name}, {ci.isoformat()} to {co.isoformat()} ({nights} night(s)), {guests} guest(s){bits}. Many rooms "
-                "of this type are already held by unverified online chats for those nights, so the AI did not hold another: "
-                "call the guest to confirm; to take it, enter it through the public booking link on the Bookings page, then "
-                "assign a room.",
-                "hotel_webcap")
+    doc, created = rh.create_staff_request(c.business_id, checkin=ci, checkout=co, guests=guests, room_type=type_name,
+                                           guest_name=name, guest_phone=phone,
+                                           extra=dict(extra or {}, request_reason='web_hold_cap'))
+    staff_vi = _staff_note_language(_shop(c.business_id)) == 'vi'
+    if created:
+        _tell_staff(c, f"🛏️ Yêu cầu đặt phòng #{doc['id']} qua chat AI — CHƯA giữ phòng: {name}, SĐT khách gõ {phone} (chưa xác "
+                       f"minh) — {type_name}, {ci.isoformat()} → {co.isoformat()} ({nights} đêm), {guests} khách{bits}. Đã có "
+                       "nhiều phòng (của loại này hoặc của cả khách sạn) được giữ qua chat online chưa xác minh những đêm đó nên "
+                       "AI không giữ thêm: gọi khách xác nhận. Yêu cầu đã nằm ở Khách sạn > Đặt phòng (trạng thái 'Yêu cầu — "
+                       "chưa giữ phòng'): nhận khách thì bấm Duyệt ở đó (kiểm lại phòng trống) rồi xếp phòng, không thì Từ chối.",
+                    f"🛏️ Booking request #{doc['id']} from the AI chat — NO room held: {name}, phone typed {phone} (not verified) "
+                    f"— {type_name}, {ci.isoformat()} to {co.isoformat()} ({nights} night(s)), {guests} guest(s){bits}. Many "
+                    "rooms (of this type or across the hotel) are already held by unverified online chats for those nights, so "
+                    "the AI did not hold another: call the guest to confirm. The request is listed on Hotel > Reservations as "
+                    "'Request — no room held': to take it, click Approve there (availability is re-checked), then assign a "
+                    "room; otherwise Decline it.",
+                    "hotel_webcap")
+    _flag_for_staff(c, (f"Yêu cầu đặt phòng #{doc['id']} — CHƯA giữ phòng (chat chưa xác minh, vượt giới hạn giữ phòng online): "
+                        f"{type_name} {ci.isoformat()} → {co.isoformat()}, {guests} khách — {name}. Duyệt / từ chối ở Khách sạn "
+                        "> Đặt phòng.") if staff_vi else
+                    (f"Booking request #{doc['id']} — no room held (unverified chat over the online hold limit): {type_name} "
+                     f"{ci.isoformat()} to {co.isoformat()}, {guests} guest(s) — {name}. Approve or decline it on Hotel > "
+                     "Reservations."))
     return {"success": True, "request_sent_to_team": True, "room_held": False, "confirmed": False, "status": "pending",
             "say": _status_say('pending', c),
             "note": "No room was held online: the request went to the hotel team, who will call the guest to confirm. Give "
@@ -807,13 +847,16 @@ def _change_dates(args, c):
         _hotel_error(c, e)
     if not q['available']:
         return _change_unavailable(c, res, ci, nights, guests, q['key'], settings, cur, q['av'])
-    # Giữ nhiều đêm lẻ dưới trần rồi dời hết vào 1 đêm cũng không vượt được trần (ngày mới chưa ai ở khách sạn duyệt).
-    if rh.unverified_web_hold(dict(res, staff_confirmed_at=None)) and rh.web_holds_full(
+    # Giữ nhiều đêm lẻ dưới trần rồi dời hết vào 1 đêm cũng không vượt được trần (ngày mới chưa ai ở khách sạn duyệt / xem —
+    # change_dates xoá các dấu nhân viên đã duyệt / đã xem của ngày cũ).
+    unreviewed = dict(res, staff_confirmed_at=None, staff_reviewed_at=None, checked_in_at=None)
+    if rh.unverified_web_hold(unreviewed) and rh.web_holds_full(
             c.business_id, q['av']['_rooms'], q['av']['_types'], q['key'], ci, co, ignore_id=res['id']):
-        _refuse(c.t("Many rooms of this type are already held by unverified online chats for the new dates, so this change "
-                    "goes through the hotel team. Pass the request with ask_team — the booking is NOT changed.",
-                    "Loại phòng này đã có nhiều phòng được giữ qua chat online chưa xác minh vào ngày mới, nên thay đổi này "
-                    "do nhân viên khách sạn xử lý. Chuyển yêu cầu bằng ask_team — đặt phòng CHƯA được đổi."))
+        _refuse(c.t("Many rooms (of this type or across the hotel) are already held by unverified online chats for the new "
+                    "dates, so this change goes through the hotel team. Pass the request with ask_team — the booking is NOT "
+                    "changed.",
+                    "Đã có nhiều phòng (của loại này hoặc của cả khách sạn) được giữ qua chat online chưa xác minh vào ngày "
+                    "mới, nên thay đổi này do nhân viên khách sạn xử lý. Chuyển yêu cầu bằng ask_team — đặt phòng CHƯA được đổi."))
     keep_confirmed = settings['auto_confirm'] and res.get('status') == 'confirmed'
     new_total = _money(q['total'], cur) if q['total'] else None
     quoted = args.get('quoted_total')
