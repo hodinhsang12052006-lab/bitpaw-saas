@@ -115,6 +115,21 @@ def request_quote(args, ctx):
            'chat_token_hash': ctx.get('chat_token_hash') or None, 'channel': ctx.get('channel') or 'web',
            'created_at': datetime.now().isoformat(), 'created_at_local': now.strftime('%Y-%m-%dT%H:%M')}
     saved, created = _c.insert_once(db.quote_requests, bid, key, doc)
+    if not created and not _c.owns_request(saved, ctx, phone):
+        # cùng khoá nhưng chat chưa chứng minh là chủ (trình duyệt khác gõ cùng SĐT): không lộ mã yêu cầu đã có
+        old, asked = (saved or {}).get('id'), ' '.join(str(x) for x in (qty, unit, product) if x)
+        return _c.passed_to_team(
+            ctx, shop,
+            f"Chat AI xin BÁO GIÁ ({asked}) cho {name} {phone} — trùng yêu cầu báo giá #{old} đã có hôm nay "
+            "(cùng SĐT, cùng nội dung) nên AI KHÔNG tạo thêm (chat chưa xác minh là chủ yêu cầu đó). Xưởng liên hệ khách để "
+            "xác nhận.",
+            f"The AI chat asked for a QUOTE ({asked}) for {name} {phone} — it matches quote request #{old} "
+            "from today (same phone and details), so nothing new was created (the chat isn't verified as its owner). Please "
+            "confirm with the customer.",
+            'Em đã chuyển yêu cầu báo giá cho xưởng — bên em sẽ liên hệ số điện thoại của mình để gửi báo giá. Em không báo '
+            'giá được trong chat.',
+            "I've passed your quote request to the team — they'll contact you on your phone number with a quote. I can't "
+            "give prices in this chat.", status='new')
     if not created:
         return {'success': True, 'already_requested': True, 'quote_request_id': (saved or {}).get('id'), 'status': 'new',
                 'note': 'This exact quote request was already sent today — do not send it again.'}
