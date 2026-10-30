@@ -7,6 +7,7 @@ import { chromium } from 'playwright';
 import { execFileSync } from 'child_process';
 import http from 'http';
 import crypto from 'crypto';
+import { gotoRetry } from './lib/nail_nav.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:5003';
 const EMAIL = 'demo.nails.au.006758@bitpawdemo.com', PW = 'DemoNails2026!';
@@ -317,11 +318,14 @@ rec('Messenger ngoài khung 24 giờ — báo "Outside the 24-hour reply window"
 const anon = await fetch(BASE + '/api/inbox/channels', { redirect: 'manual' });
 rec('Chưa đăng nhập — không đọc được trạng thái kênh', anon.status !== 200 || !(await anon.text()).includes('webhook_url'), String(anon.status));
 
-// 15) Điện thoại
+// 15) Điện thoại — lỗi ở phần này (vd server dev kẹt truyền trang lớn) không được bỏ qua bước dọn dữ liệu bên dưới
+try {
 const m = await ctx.newPage(); m.on('pageerror', (e) => errs.push(e.message));
 await m.setViewportSize({ width: 390, height: 844 });
-await m.goto(BASE + '/ai_bot', { waitUntil: 'networkidle' });
-await m.waitForSelector('#channelChips .ch-chip');
+for (let i = 0; i < 3; i++) {
+  await gotoRetry(m, BASE + '/ai_bot', { waitUntil: 'networkidle' });
+  if (await m.waitForSelector('#channelChips .ch-chip', { timeout: 15000 }).then(() => true, () => false)) break;
+}
 const mOver = await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 await m.goto(BASE + '/inbox/channels', { waitUntil: 'networkidle' });
 const mOver2 = await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -338,6 +342,9 @@ if (process.env.SHOT_DIR) {
   const viErr = await p.textContent('#card_messenger .err').catch(() => '');
   rec('Giao diện tiếng Việt — lỗi kênh hiện tiếng Việt (dịch theo mã lỗi)', /quá 24 giờ/.test(viErr), viErr.trim().slice(0, 90));
   await p.evaluate(() => localStorage.removeItem('bitpaw_lang'));
+}
+} catch (e) {
+  rec('Điện thoại + ảnh chụp màn hình', false, String(e.message).split(/\r?\n/)[0]);
 }
 rec('Không lỗi JS', errs.length === 0, errs.slice(0, 2).join(' | '));
 
