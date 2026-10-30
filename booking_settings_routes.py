@@ -32,6 +32,15 @@ _FIELD_NAMES = {
     'max_hours': ('Số giờ tối đa', 'Maximum hours'),
     'in_use_buffer_hours': ('Khoảng chừa khi phòng đang có khách', 'Buffer while a room is in use'),
 }
+_GENERAL_FIELDS = {   # ô của "Luật chung" (booking_rules.save_rules báo lỗi '<khoá> không hợp lệ.' chỉ tiếng Việt)
+    'slot_minutes': ('Bước giờ', 'Start-time step'),
+    'min_lead_minutes': ('Đặt trước tối thiểu', 'Minimum notice'),
+    'max_advance_days': ('Đặt trước tối đa', 'Book up to (days ahead)'),
+    'default_duration': ('Thời lượng mặc định', 'Default duration'),
+    'capacity': ('Số khách cùng lúc', 'Clients at once'),
+}
+_DAY_NAMES = {'mon': ('Thứ 2', 'Monday'), 'tue': ('Thứ 3', 'Tuesday'), 'wed': ('Thứ 4', 'Wednesday'),
+              'thu': ('Thứ 5', 'Thursday'), 'fri': ('Thứ 6', 'Friday'), 'sat': ('Thứ 7', 'Saturday'), 'sun': ('Chủ nhật', 'Sunday')}
 
 
 def _bid():
@@ -47,6 +56,50 @@ def _lang():
 
 def _say(lang, vi, en):
     return vi if lang == 'vi' else en
+
+
+def _industry():
+    return (session.get('business_mode') or session.get('industry_code') or '').strip().lower()
+
+
+def _hours_error_text(e, lang):
+    """booking_rules.HoursError (khoá ngày + mã lỗi) -> câu VI / EN có tên ngày (trước: 'Giờ mở cửa ngày fri không hợp lệ.'
+    cho cả chủ dùng tiếng Anh)."""
+    vi_day, en_day = _DAY_NAMES.get(e.day, (e.day, e.day))
+    late = f"{booking_rules.OVERNIGHT_MAX_CLOSE // 60:02d}:{booking_rules.OVERNIGHT_MAX_CLOSE % 60:02d}"
+    if e.code == 'same':
+        return _say(lang, f'Giờ mở cửa {vi_day}: giờ mở và giờ đóng trùng nhau. Mở cả ngày: chọn mở 00:00, đóng 00:00.',
+                    f'{en_day} hours: the opening and closing times are the same. Open all day: set 00:00 to 00:00.')
+    if e.code == 'overnight_late':
+        return _say(lang, f'Giờ mở cửa {vi_day}: đóng sau nửa đêm thì giờ đóng muộn nhất là {late} sáng hôm sau.',
+                    f'{en_day} hours: when you close after midnight, the latest closing time is {late} the next morning.')
+    if e.code == 'order':
+        return _say(lang, f'Giờ mở cửa {vi_day}: giờ đóng phải sau giờ mở (00:00 = nửa đêm).',
+                    f'{en_day} hours: the closing time must be after the opening time (00:00 means midnight).')
+    return _say(lang, f'Giờ mở cửa {vi_day}: giờ phải có dạng HH:MM, từ 00:00 tới 24:00.',
+                f'{en_day} hours: times must be HH:MM, from 00:00 to 24:00.')
+
+
+def _general_error_text(e, lang):
+    m = re.match(r'^(\w+) không hợp lệ\.$', str(e))
+    if m and m.group(1) in _GENERAL_FIELDS:
+        vi, en = _GENERAL_FIELDS[m.group(1)]
+        return _say(lang, f'{vi}: phải là một con số.', f'{en}: must be a number.')
+    return _say(lang, str(e) or 'Dữ liệu không hợp lệ.', 'Some values are not valid.')
+
+
+def _general_view(bid, kind, rules):
+    """Mục "Luật chung" mà trang Cài đặt đặt chỗ hiện = đúng điều AI đặt chỗ đang dùng, không phải mặc định lịch hẹn Nails:
+    đặt trước tối thiểu / tối đa chưa lưu -> None (trang ghi "chưa đặt", AI: 0 phút / 366 ngày — reservations_core.load_rules);
+    công tắc chung = lựa chọn chủ đã lưu ở trang này (GENERAL_SAVED_MARK), chưa có -> False (chờ duyệt)."""
+    raw = db.booking_settings.find_one({'business_id': bid}, {'_id': 0}) or {}
+    out = dict(rules)
+    for k in ('min_lead_minutes', 'max_advance_days'):
+        if k not in raw:
+            out[k] = None
+    if kind != 'hotel':
+        out['auto_confirm'] = bool(raw.get('auto_confirm')) if raw.get(reservations_core.GENERAL_SAVED_MARK) else False
+    return out
 
 
 def _value_error_text(e, lang):
@@ -69,9 +122,11 @@ def _reservation_payload(bid, kind):
     own = sub.get('auto_confirm') if isinstance(sub, dict) else None
     settings = {k: rules[k] for k in reservations_core._LIMITS[kind]}
     settings['auto_confirm'] = 'always' if own is True else ('never' if own is False else 'follow')
+    chosen = 'auto_confirm' in raw and raw.get(reservations_core.GENERAL_SAVED_MARK)   # mặc định trang cũ không tính
     out = {'settings': settings, 'limits': {k: list(v) for k, v in reservations_core._LIMITS[kind].items()},
            'effective_auto_confirm': bool(rules['auto_confirm']), 'hours_published': bool(rules['hours']),
-           'general_auto_confirm': bool(raw['auto_confirm']) if 'auto_confirm' in raw else None}
+           'general_auto_confirm': bool(raw['auto_confirm']) if chosen else None,
+           'min_lead_minutes': rules['min_lead_minutes'], 'max_advance_days': rules['max_advance_days']}
     if kind == 'table':
         tables = reservations_core.tables_with_seats(bid)
         out['tables_with_seats'] = len(tables)
@@ -91,13 +146,26 @@ def booking_settings_page():
 @role_required('admin', 'super_admin')
 def booking_settings_api():
     bid = _bid()
+    lang = _lang()
+    kind = RESERVATION_KIND.get(_industry())   # None = lịch hẹn (Nails, Spa...): luật + hành vi cũ
     if request.method == 'POST':
+        data, extra = request.json or {}, None
+        if kind and isinstance(data, dict):
+            data = dict(data)
+            if kind == 'hotel':
+                data.pop('auto_confirm', None)     # công tắc chung ẩn ở trang khách sạn: không lưu mặc định của Nails
+            elif 'auto_confirm' in data:          # chủ quán lưu công tắc chung ở trang này -> "theo công tắc chung" mới tính
+                extra = {reservations_core.GENERAL_SAVED_MARK: datetime.now().isoformat()}
         try:
-            rules = booking_rules.save_rules(bid, request.json or {})
+            rules = booking_rules.save_rules(bid, data, allow_overnight=bool(kind), extra=extra)
+        except booking_rules.HoursError as e:
+            return jsonify({'success': False, 'message': _hours_error_text(e, lang)}), 400
         except ValueError as e:
-            return jsonify({'success': False, 'message': str(e)}), 400
+            return jsonify({'success': False, 'message': _general_error_text(e, lang)}), 400
     else:
         rules = booking_rules.get_rules(bid)
+    if kind:
+        rules = _general_view(bid, kind, rules)
     services = list(db.products.find({'business_id': bid, 'is_active': {'$in': [1, True]}, 'price': {'$gt': 0}},
                                      {'_id': 0, 'id': 1, 'name': 1, 'price': 1}).sort('name', 1).limit(200))
     for s in services:

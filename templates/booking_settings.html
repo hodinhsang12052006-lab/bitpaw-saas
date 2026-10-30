@@ -26,6 +26,7 @@
         .day { display: grid; grid-template-columns: 110px 70px 1fr 1fr; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid rgba(255,255,255,.05); }
         .day:first-of-type { border-top: 0; }
         .day b { font-size: 14px; } .day .closed { color: var(--muted); font-size: 13px; grid-column: 3 / 5; }
+        .day .nextday { grid-column: 1 / -1; justify-self: end; font-size: 12px; font-weight: 600; color: var(--warn); } .day .nextday:empty { display: none; }
         .sw { position: relative; width: 44px; height: 26px; }
         .sw input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
         .sw span { position: absolute; inset: 0; border-radius: 999px; background: rgba(255,255,255,.15); transition: background .2s ease; }
@@ -79,11 +80,11 @@
     <section class="box">
         <h2><i class="fas fa-clock" style="color: var(--accent)"></i> {{ ('Giờ mở cửa / lễ tân' if vi else 'Opening / front-desk hours') if rk == 'hotel' else ('Giờ mở cửa' if vi else 'Opening hours') }}</h2>
         {% if rk == 'table' %}
-        <p class="sub">{{ 'AI lễ tân chỉ nhận đặt bàn trong giờ này. Đóng cửa lúc nửa đêm: chọn giờ đóng 00:00. Mở qua nửa đêm (vd 18:00–02:00) hiện chưa nhập được.' if vi else 'The AI receptionist only takes table bookings within these hours. Closing at midnight: set the closing time to 00:00. Hours past midnight (e.g. 18:00–02:00) cannot be entered yet.' }}</p>
+        <p class="sub">{{ 'AI lễ tân chỉ nhận đặt bàn trong giờ này. Đóng cửa lúc nửa đêm: chọn giờ đóng 00:00. Mở qua nửa đêm: chọn giờ đóng nhỏ hơn giờ mở (vd 18:00 – 02:00 = tới 2 giờ sáng hôm sau; muộn nhất 08:00).' if vi else 'The AI receptionist only takes table bookings within these hours. Closing at midnight: set the closing time to 00:00. Open past midnight: set a closing time earlier than the opening time (e.g. 18:00 – 02:00 = until 2 am the next morning; 08:00 at the latest).' }}</p>
         {% elif rk == 'karaoke' %}
-        <p class="sub">{{ 'AI lễ tân chỉ nhận lượt đặt bắt đầu và kết thúc trong giờ này. Đóng cửa lúc nửa đêm: chọn giờ đóng 00:00. Mở qua nửa đêm (vd tới 02:00) hiện chưa nhập được — AI chưa nhận lượt hát kéo qua 24:00.' if vi else 'The AI receptionist only takes bookings that start and end within these hours. Closing at midnight: set the closing time to 00:00. Hours past midnight (e.g. until 02:00) cannot be entered yet, so the AI does not take sessions that run past 24:00.' }}</p>
+        <p class="sub">{{ 'AI lễ tân chỉ nhận lượt đặt bắt đầu và kết thúc trong giờ này. Đóng cửa lúc nửa đêm: chọn giờ đóng 00:00. Mở qua nửa đêm: chọn giờ đóng nhỏ hơn giờ mở (vd 18:00 – 02:00 = tới 2 giờ sáng hôm sau; muộn nhất 08:00) — lượt hát kéo qua 24:00 vẫn đặt được.' if vi else 'The AI receptionist only takes bookings that start and end within these hours. Closing at midnight: set the closing time to 00:00. Open past midnight: set a closing time earlier than the opening time (e.g. 18:00 – 02:00 = until 2 am the next morning; 08:00 at the latest), so sessions that run past 24:00 can be booked.' }}</p>
         {% elif rk == 'hotel' %}
-        <p class="sub">{{ 'Chỉ để AI trả lời khi khách hỏi giờ mở cửa / lễ tân (lễ tân 24/7: mở 00:00, đóng 00:00). Giờ nhận và trả phòng đặt ở mục Đặt chỗ bên dưới.' if vi else 'Only used when guests ask for your opening / front-desk hours (24/7 front desk: open 00:00, close 00:00). Check-in and check-out times are set under Reservations below.' }}</p>
+        <p class="sub">{{ 'Chỉ để AI trả lời khi khách hỏi giờ mở cửa / lễ tân (lễ tân 24/7: mở 00:00, đóng 00:00; đóng sau nửa đêm: chọn giờ đóng nhỏ hơn giờ mở, vd 06:00 – 02:00). Giờ nhận và trả phòng đặt ở mục Đặt chỗ bên dưới.' if vi else 'Only used when guests ask for your opening / front-desk hours (24/7 front desk: open 00:00, close 00:00; closing after midnight: set a closing time earlier than the opening time, e.g. 06:00 – 02:00). Check-in and check-out times are set under Reservations below.' }}</p>
         {% endif %}
         <div id="hours"></div>
     </section>
@@ -164,8 +165,8 @@
         <p class="sub" id="capHint"></p>
         <div class="grid3">
             <div {% if rk %}hidden{% endif %}><label class="f" for="slot">{{ 'Bước giờ (phút)' if vi else 'Start-time step (min)' }}</label><select class="in" id="slot"><option>10</option><option>15</option><option>20</option><option>30</option><option>60</option></select></div>
-            <div><label class="f" for="lead">{{ 'Đặt trước tối thiểu (phút)' if vi else 'Minimum notice (min)' }}</label><input class="in" id="lead" type="number" min="0" inputmode="numeric"></div>
-            <div><label class="f" for="adv">{{ 'Đặt trước tối đa (ngày)' if vi else 'Book up to (days ahead)' }}</label><input class="in" id="adv" type="number" min="1" inputmode="numeric"></div>
+            <div><label class="f" for="lead">{{ 'Đặt trước tối thiểu (phút)' if vi else 'Minimum notice (min)' }}</label><input class="in" id="lead" type="number" min="0" inputmode="numeric"{% if rk %} placeholder="{{ 'Chưa đặt' if vi else 'Not set' }}"{% endif %}></div>
+            <div><label class="f" for="adv">{{ 'Đặt trước tối đa (ngày)' if vi else 'Book up to (days ahead)' }}</label><input class="in" id="adv" type="number" min="1" inputmode="numeric"{% if rk %} placeholder="{{ 'Chưa đặt' if vi else 'Not set' }}"{% endif %}></div>
             <div {% if rk %}hidden{% endif %}><label class="f" for="dur">{{ 'Thời lượng mặc định (phút)' if vi else 'Default duration (min)' }}</label><input class="in" id="dur" type="number" min="5" inputmode="numeric"></div>
             <div {% if rk %}hidden{% endif %}><label class="f" for="cap">{{ 'Số khách cùng lúc (0 = theo số thợ có ca)' if vi else 'Clients at once (0 = technicians on shift)' }}</label><input class="in" id="cap" type="number" min="0" inputmode="numeric"></div>
             {% if rk %}
@@ -224,23 +225,44 @@
         if (!r.ok || j.success === false) throw new Error(j.message || ('HTTP ' + r.status));
         return j;
     }
+    function renderHours() {
+        const h = state.rules.hours;
+        $('hours').innerHTML = Object.keys(DAYS).map((d) => {
+            const v = h[d];
+            return `<div class="day" data-d="${d}"><b>${DAYS[d]}</b><label class="sw" aria-label="${DAYS[d]}"><input type="checkbox" ${v ? 'checked' : ''}><span></span></label>
+                ${v ? `<input class="in" type="time" value="${v[0]}" aria-label="open"><input class="in" type="time" value="${v[1] === '24:00' ? '00:00' : v[1]}" aria-label="close">${RK ? '<small class="nextday"></small>' : ''}` : `<span class="closed">${VI ? 'Nghỉ' : 'Closed'}</span>`}</div>`;
+        }).join('');
+        $('hours').querySelectorAll('.day input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
+            // Chỉ vẽ lại Giờ mở cửa, giữ giờ đang sửa của các ngày khác. Trước đây vẽ lại CẢ trang từ dữ liệu đã tải: mất ô vừa
+            // sửa, và công tắc chung quay về "tự xác nhận" mặc định của Nails -> bấm Lưu là AI tự xác nhận đặt chỗ.
+            const d = cb.closest('.day').dataset.d;
+            state.rules.hours = readHours();
+            state.rules.hours[d] = cb.checked ? ['09:00', '18:00'] : null;
+            renderHours();
+        }));
+        $('hours').querySelectorAll('.day').forEach((row) => {
+            row.querySelectorAll('input[type=time]').forEach((t) => ['input', 'change'].forEach((ev) => t.addEventListener(ev, () => nextDay(row))));
+            nextDay(row);
+        });
+    }
+    function nextDay(row) {
+        // Ngành đặt chỗ: giờ đóng trước giờ mở = đóng sáng hôm sau (00:00 = nửa đêm) — nói rõ để thấy ngay nếu gõ nhầm sáng/chiều
+        const tag = row.querySelector('.nextday'), t = row.querySelectorAll('input[type=time]');
+        if (!tag || t.length < 2) return;
+        const o = t[0].value, c = t[1].value;
+        tag.textContent = o && c && c !== '00:00' && c < o ? (VI ? `Đóng ${c} sáng hôm sau (qua nửa đêm)` : `Closes ${c} the next morning (after midnight)`) : '';
+    }
     function render() {
         const r = state.rules;
         $('defaultWarn').hidden = !!r.configured;
-        $('hours').innerHTML = Object.keys(DAYS).map((d) => {
-            const v = r.hours[d];
-            return `<div class="day" data-d="${d}"><b>${DAYS[d]}</b><label class="sw" aria-label="${DAYS[d]}"><input type="checkbox" ${v ? 'checked' : ''}><span></span></label>
-                ${v ? `<input class="in" type="time" value="${v[0]}" aria-label="open"><input class="in" type="time" value="${v[1] === '24:00' ? '00:00' : v[1]}" aria-label="close">` : `<span class="closed">${VI ? 'Nghỉ' : 'Closed'}</span>`}</div>`;
-        }).join('');
-        $('hours').querySelectorAll('.day input[type=checkbox]').forEach((cb) => cb.addEventListener('change', () => {
-            const d = cb.closest('.day').dataset.d;
-            state.rules.hours[d] = cb.checked ? ['09:00', '18:00'] : null;
-            render();
-        }));
-        $('slot').value = r.slot_minutes; $('lead').value = r.min_lead_minutes; $('adv').value = r.max_advance_days;
+        renderHours();
+        // Ngành đặt chỗ: máy chủ trả đúng điều AI dùng — đặt trước chưa lưu = null (ô trống "Chưa đặt"), công tắc chung chưa
+        // từng lưu ở trang này = false (chờ duyệt), không phải mặc định lịch hẹn Nails (60 phút / 60 ngày / tự xác nhận).
+        $('slot').value = r.slot_minutes; $('lead').value = r.min_lead_minutes == null ? '' : r.min_lead_minutes; $('adv').value = r.max_advance_days == null ? '' : r.max_advance_days;
         $('dur').value = r.default_duration; $('cap').value = r.capacity; $('autoc').value = r.auto_confirm === false ? '0' : '1';
-        $('capHint').textContent = RK ? (VI ? 'Đặt trước tối thiểu / tối đa áp dụng cho mọi đặt chỗ qua AI. "Công tắc chung" là lựa chọn "theo công tắc chung" ở mục Đặt chỗ phía trên.'
-                                            : 'Minimum notice and how far ahead apply to every booking taken by the AI. The general switch is what "follow the general switch" in Reservations above uses.')
+        followLabel();
+        $('capHint').textContent = RK ? (VI ? 'Đặt trước tối thiểu / tối đa áp dụng cho mọi đặt chỗ qua AI — để trống = chưa đặt (không cần đặt trước, tới 366 ngày). "Công tắc chung" là lựa chọn "theo công tắc chung" ở mục Đặt chỗ phía trên.'
+                                            : 'Minimum notice and how far ahead apply to every booking taken by the AI — empty = not set (no minimum notice, up to 366 days ahead). The general switch is what "follow the general switch" in Reservations above uses.')
             : VI ? `Hiện có ${state.staff_count} nhân viên. Nếu tuần đó đã có Lịch ca công bố, số khách cùng lúc = số thợ có ca giờ đó.`
                  : `You have ${state.staff_count} team members. When the week has a published roster, clients at once = technicians on shift at that time.`;
         $('svcs').innerHTML = state.services.map((s) => `<div class="svc" data-id="${s.id}"><b>${esc(s.name)}</b><span>${s.price}</span>
@@ -252,18 +274,30 @@
         $('gapsBox').hidden = !gaps.length;
         $('gaps').innerHTML = gaps.map((g) => `<li>${esc(g.question)} <span style="color:var(--muted);font-size:11px">${esc(g.at)}</span></li>`).join('');
     }
-    function collect() {
+    function readHours() {
         const hours = {};
         document.querySelectorAll('#hours .day').forEach((row) => {
             const t = row.querySelectorAll('input[type=time]');
             hours[row.dataset.d] = row.querySelector('input[type=checkbox]').checked && t.length ? [t[0].value, t[1].value === '00:00' ? '24:00' : t[1].value] : null;
         });
+        return hours;
+    }
+    function collect() {
+        const hours = readHours();
         const durations = {};
         document.querySelectorAll('#svcs .svc').forEach((row) => { durations[row.dataset.id] = +row.querySelector('input').value; });
         const info = {};
         Object.keys(INFO).forEach((k) => { info[k] = $('i_' + k).value; });
-        return { hours, durations, info, slot_minutes: +$('slot').value, min_lead_minutes: +$('lead').value, max_advance_days: +$('adv').value,
-                 default_duration: +$('dur').value, capacity: +$('cap').value, auto_confirm: $('autoc').value === '1' };
+        const out = { hours, durations, info, slot_minutes: +$('slot').value, min_lead_minutes: +$('lead').value, max_advance_days: +$('adv').value,
+                      default_duration: +$('dur').value, capacity: +$('cap').value, auto_confirm: $('autoc').value === '1' };
+        // Ngành đặt chỗ: ô để trống = chưa đặt — không gửi, để bấm Lưu không âm thầm ghi 0 / số mặc định thay cho "chưa đặt"
+        if (RK && $('lead').value === '') delete out.min_lead_minutes;
+        if (RK && $('adv').value === '') delete out.max_advance_days;
+        return out;
+    }
+    function windowText(lead, adv) {
+        return VI ? `Khung nhận đặt: ${lead ? `đặt trước ít nhất ${lead} phút` : 'không cần đặt trước'}, tối đa ${adv} ngày tới.`
+                  : `Booking window: ${lead ? `at least ${lead} min ahead` : 'no minimum notice'}, up to ${adv} days ahead.`;
     }
     function followLabel() {
         const o = document.querySelector('#rv_auto_confirm option[value="follow"]');
@@ -286,9 +320,8 @@
     function renderRv() {
         if (!RK || !rv) return;
         const s = rv.settings, lim = rv.limits || {};
-        // Chưa lưu công tắc chung lần nào: AI đang coi là "chờ duyệt" (mặc định "tự xác nhận" của lịch hẹn Nails/Spa
-        // không áp dụng) -> hiện đúng như vậy, để bấm Lưu không âm thầm bật tự xác nhận.
-        if (rv.general_auto_confirm === null) $('autoc').value = '0';
+        // Công tắc chung (#autoc) chỉ lấy từ /api/booking/settings (render) — máy chủ trả đúng giá trị AI dùng; không sửa nó ở đây
+        // (lượt tải này về muộn / lỗi từng làm công tắc lệch với chữ "theo công tắc chung").
         document.querySelectorAll('[data-rv]').forEach((el) => {
             const k = el.dataset.rv;
             if (lim[k]) { el.min = lim[k][0]; el.max = lim[k][1]; }
@@ -299,7 +332,7 @@
         const seats = $('rvSeats');
         if (seats) seats.textContent = rv.tables_with_seats ? (VI ? `Có ${rv.tables_with_seats} bàn đã nhập số ghế — AI vẫn kiểm chỗ theo số ghế.` : `${rv.tables_with_seats} of your tables have seat counts — the AI still checks seats.`) : '';
         const now = rvNow();
-        $('rvNow').textContent = now[0];
+        $('rvNow').textContent = now[0] + (RK !== 'hotel' && rv.max_advance_days != null ? ' ' + windowText(rv.min_lead_minutes, rv.max_advance_days) : '');
         $('rvNow').className = 'rvnow' + (now[1] ? '' : ' pend');
     }
     function collectRv() {
@@ -347,11 +380,13 @@
         } catch (e) { $('note').className = 'note err'; $('note').textContent = e.message; }
         b.disabled = false;
     });
+    $('saveBtn').disabled = true;   // chưa tải xong: bấm Lưu lúc này sẽ gửi giá trị mặc định chưa phải của tiệm
     api('/api/booking/settings').then((r) => {
         state = r; render();
         const d = new Date(); d.setDate(d.getDate() + 1); $('pvDate').value = d.toLocaleDateString('en-CA'); preview();
         return RK ? api(RV_URL).then((x) => { rv = x; renderRv(); }) : null;
-    }).catch((e) => { $('note').className = 'note err'; $('note').textContent = e.message; });
+    }).catch((e) => { $('note').className = 'note err'; $('note').textContent = e.message; })
+      .finally(() => { $('saveBtn').disabled = !state; });
 })();
 </script>
 </body>

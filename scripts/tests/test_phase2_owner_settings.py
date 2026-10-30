@@ -346,7 +346,8 @@ class TableSettingsApi(Base):
         self.assertEqual((j['capacity_model'], j['hours_published'], j['effective_auto_confirm']), ('covers', True, False))
 
     def test_auto_confirm_tri_state(self):
-        DB.booking_settings.insert_one({'business_id': BID, 'hours': HOURS, 'auto_confirm': True})
+        DB.booking_settings.insert_one({'business_id': BID, 'hours': HOURS, 'auto_confirm': True,
+                                        rc.GENERAL_SAVED_MARK: '2026-10-20T09:00:00'})   # công tắc chung chủ đã lưu ở trang mới
         for mode, stored, effective in (('always', True, True), ('never', False, False), ('follow', None, True)):
             code, j = self.post('table', {'auto_confirm': mode})
             self.assertEqual(code, 200)

@@ -245,6 +245,11 @@ def _num(v, default=0, cast=int):
         return default
 
 
+# Đặt bởi booking_settings_routes khi chủ quán F&B / karaoke lưu "công tắc chung" ở trang Cài đặt đặt chỗ (Phase 2). Trang Cài
+# đặt đặt lịch CŨ luôn gửi auto_confirm=True (mặc định lịch hẹn Nails) cho MỌI ngành — giá trị đó không phải lựa chọn của quán.
+GENERAL_SAVED_MARK = 'reservations_general_saved_at'
+
+
 def load_rules(business_id, kind):
     """Luật đặt chỗ hiện hành của quán cho 1 loại chỗ ('table' | 'karaoke'): khối riêng + giờ mở cửa / đặt trước tối thiểu,
     tối đa / thông tin quán của Cài đặt đặt lịch. Giờ mở cửa CHỈ khi chủ đã lưu (mặc định 9-19 của Nails không phải giờ thật
@@ -263,7 +268,7 @@ def load_rules(business_id, kind):
         rules['max_hours'] = rules['min_hours']
     if isinstance(sub.get('auto_confirm'), bool):
         rules['auto_confirm'] = sub['auto_confirm']
-    elif 'auto_confirm' in raw:
+    elif 'auto_confirm' in raw and raw.get(GENERAL_SAVED_MARK):
         rules['auto_confirm'] = bool(raw['auto_confirm'])
     else:
         rules['auto_confirm'] = False
@@ -301,27 +306,80 @@ UNKNOWN = 'unknown'
 
 
 def hours_on(rules, day):
-    """(mở, đóng) tính bằng phút trong ngày; None = nghỉ; UNKNOWN = quán chưa công bố giờ mở cửa."""
+    """(mở, đóng) tính bằng phút từ 00:00 của `day`; None = nghỉ; UNKNOWN = quán chưa công bố giờ mở cửa.
+    Giờ đóng <= giờ mở = quán mở QUA nửa đêm, đóng sáng hôm sau (booking_rules.save_rules lưu đúng như chủ nhập):
+    ['18:00', '02:00'] -> (1080, 1560). Phần sau nửa đêm thuộc NGÀY LỊCH hôm sau — check_window / *_candidate_* xét cả ca
+    đêm của hôm trước (overnight_tail)."""
     if not rules.get('hours'):
         return UNKNOWN
     v = rules['hours'].get(DAY_KEYS[day.weekday()])
     if not v:
         return None
     try:
-        return _hm_to_min(v[0]), _hm_to_min(v[1])
+        o, c = _hm_to_min(v[0]), _hm_to_min(v[1])
     except (ValueError, IndexError, TypeError):
         return None
+    return (o, c + 24 * 60) if c <= o else (o, c)
+
+
+def overnight_tail(rules, day):
+    """Ca đêm của HÔM TRƯỚC còn mở tới phút nào của `day` (mở 18:00-02:00 thứ Sáu -> thứ Bảy 120); 0 = không có."""
+    prev = hours_on(rules, day - timedelta(days=1))
+    return prev[1] - 24 * 60 if isinstance(prev, tuple) and prev[1] > 24 * 60 else 0
+
+
+def _ampm(m):
+    h, mi = divmod(int(m) % (24 * 60), 60)
+    return f"{h % 12 or 12}:{mi:02d} {'am' if h < 12 else 'pm'}"
+
+
+def close_label(m):
+    """Giờ ĐÓNG cho AI nói đúng: '22:00', '24:00 (midnight)', '02:00 (2:00 am the next day)'."""
+    if m > 24 * 60:
+        return f"{fmt_min(m)} ({_ampm(m)} the next day)"
+    return '24:00 (midnight)' if m == 24 * 60 else fmt_min(m)
+
+
+def day_hours_text(rules, day):
+    """Giờ mở cửa của 1 NGÀY LỊCH: '18:00-02:00 (2:00 am the next day)', kèm phần sau nửa đêm của ca hôm trước
+    ('00:00-02:00 (still open from Friday night) and ...'); 'closed'; None = chưa công bố."""
+    hrs = hours_on(rules, day)
+    if hrs == UNKNOWN:
+        return None
+    parts = []
+    tail = overnight_tail(rules, day)
+    if tail:
+        parts.append(f"00:00-{fmt_min(tail)} (still open from {day - timedelta(days=1):%A} night)")
+    if hrs:
+        parts.append(f"{fmt_min(hrs[0])}-{close_label(hrs[1])}")
+    return ' and '.join(parts) or 'closed'
 
 
 def hours_text(rules):
-    """'Mon 11:00-22:00, Tue closed, ...' hoặc None khi chưa công bố."""
+    """'Mon 11:00-22:00, Tue closed, Fri 18:00-02:00 (closes at 2:00 am Sat, after midnight), ...' hoặc None khi chưa
+    công bố. Có ngày mở qua nửa đêm thì nói rõ giờ sau nửa đêm thuộc NGÀY hôm sau (AI truyền đúng ngày cho công cụ)."""
     if not rules.get('hours'):
         return None
-    out = []
-    for d in DAY_KEYS:
+    out, late = [], False
+    for i, d in enumerate(DAY_KEYS):
         v = rules['hours'].get(d)
-        out.append(f"{DAY_NAMES[d]} {v[0]}-{v[1]}" if v else f"{DAY_NAMES[d]} closed")
-    return ', '.join(out)
+        if not v:
+            out.append(f"{DAY_NAMES[d]} closed")
+            continue
+        line = f"{DAY_NAMES[d]} {v[0]}-{v[1]}"
+        try:
+            o, c = _hm_to_min(v[0]), _hm_to_min(v[1])
+        except (ValueError, IndexError, TypeError):
+            o = c = None
+        if c is not None and 0 < c < o:
+            line += f" (closes at {_ampm(c)} {DAY_NAMES[DAY_KEYS[(i + 1) % 7]]}, after midnight)"
+            late = True
+        out.append(line)
+    text = ', '.join(out)
+    if late:
+        text += ("; a time after midnight is on the NEXT date (Friday night 01:00 = Saturday 01:00) — pass that date to the "
+                 "tools")
+    return text
 
 
 def _hm_to_min(s):
@@ -330,7 +388,12 @@ def _hm_to_min(s):
 
 
 def fmt_min(m):
-    m = int(m) % (24 * 60)
+    """Phút -> 'HH:MM'. Đúng 24:00 (giờ ĐÓNG lúc nửa đêm) giữ '24:00' — '00:00' dễ bị hiểu là 0 giờ sáng cùng ngày; giờ sau
+    nửa đêm (đóng 02:00 hôm sau = 1560) -> '02:00'. Giờ BẮT ĐẦU luôn < 24:00 (parse_hm, *_candidate_*)."""
+    m = int(m)
+    if m == 24 * 60:
+        return '24:00'
+    m %= 24 * 60
     return f"{m // 60:02d}:{m % 60:02d}"
 
 
@@ -347,14 +410,25 @@ def check_window(rules, when, now, minutes_after_start=0):
     hrs = hours_on(rules, when.date())
     if hrs == UNKNOWN:
         return
+    start = when.hour * 60 + when.minute
+    tail = overnight_tail(rules, when.date())
+    if start < tail and not (hrs and hrs[0] <= start < hrs[1]):
+        # 00:30 thứ Bảy của quán mở 18:00-02:00 thứ Sáu: vẫn là ca đêm thứ Sáu (đã qua nửa đêm -> giờ đóng nói thẳng '02:00')
+        prev = hours_on(rules, when.date() - timedelta(days=1))
+        if start + 24 * 60 + minutes_after_start > prev[1]:
+            latest = max(prev[0], prev[1] - minutes_after_start)
+            raise ReservationError('too_close_to_closing', {
+                'closes_at': fmt_min(prev[1]),
+                'latest_start': fmt_min(latest % (24 * 60)) if latest >= 24 * 60 else f"{fmt_min(latest)} the evening before"})
+        return
     if hrs is None:
         raise ReservationError('closed_that_day')
-    start = when.hour * 60 + when.minute
     if start < hrs[0] or start >= hrs[1]:
-        raise ReservationError('outside_opening_hours', {'opening_hours': f"{fmt_min(hrs[0])}-{fmt_min(hrs[1])}"})
+        raise ReservationError('outside_opening_hours', {'opening_hours': day_hours_text(rules, when.date())})
     if start + minutes_after_start > hrs[1]:
-        raise ReservationError('too_close_to_closing', {'closes_at': fmt_min(hrs[1]),
-                                                         'latest_start': fmt_min(max(hrs[0], hrs[1] - minutes_after_start))})
+        latest = max(hrs[0], hrs[1] - minutes_after_start)
+        raise ReservationError('too_close_to_closing', {'closes_at': close_label(hrs[1]),
+                                                         'latest_start': fmt_min(latest % (24 * 60))})
 
 
 # ---------------------------------------------------------------- tiện ích chung (đọc tham số, giờ, khách)
@@ -710,17 +784,21 @@ def table_fit(rules, tables, rows, when, party):
 
 
 def table_candidate_times(rules, day, around=None):
-    """Giờ bắt đầu có thể nhận đặt trong ngày (phút), theo bước khung giờ; quán chưa công bố giờ -> quanh giờ khách hỏi."""
+    """Giờ bắt đầu có thể nhận đặt trong NGÀY LỊCH `day` (phút < 24:00), theo bước khung giờ — gồm cả phần sau nửa đêm của ca
+    đêm hôm trước (mở 17:00-01:00 thứ Sáu -> thứ Bảy có 00:00, 00:30); quán chưa công bố giờ -> quanh giờ khách hỏi."""
     step = rules['slot_minutes']
     hrs = hours_on(rules, day)
     if hrs == UNKNOWN:
         if around is None:
             return []
         return [m for m in range(around - 180, around + 181, step) if 0 <= m < 24 * 60]
-    if hrs is None:
-        return []
-    first = -(-hrs[0] // step) * step
-    return list(range(first, hrs[1] - rules['last_booking_before_close'] + 1, step))
+    last = rules['last_booking_before_close']
+    tail = overnight_tail(rules, day)
+    out = list(range(0, tail - last + 1, step)) if tail else []
+    if hrs is not None:
+        first = -(-hrs[0] // step) * step
+        out += range(first, min(hrs[1] - last, 24 * 60 - 1) + 1, step)
+    return sorted(set(out))
 
 
 def table_free_times(business_id, rules, tables, day, party, now, exclude_id=None, around=None, rows=None):
@@ -858,16 +936,20 @@ def karaoke_free(rules, rooms, rows, start, hours, now, group=None, kind=None, r
 
 
 def karaoke_candidate_starts(rules, day, hours, around=None):
+    """Giờ bắt đầu trong NGÀY LỊCH `day` (phút < 24:00) mà lượt `hours` giờ kết thúc trước giờ đóng — cả phần sau nửa đêm của
+    ca đêm hôm trước (mở 18:00-02:00 thứ Sáu -> thứ Bảy 00:00 hát 2 giờ)."""
     step = rules['slot_minutes']
     hrs = hours_on(rules, day)
     if hrs == UNKNOWN:
         if around is None:
             return []
         return [m for m in range(around - 180, around + 181, step) if 0 <= m < 24 * 60]
-    if hrs is None:
-        return []
-    first = -(-hrs[0] // step) * step
-    return list(range(first, int(hrs[1] - hours * 60) + 1, step))
+    tail = overnight_tail(rules, day)
+    out = list(range(0, int(tail - hours * 60) + 1, step)) if tail else []
+    if hrs is not None:
+        first = -(-hrs[0] // step) * step
+        out += range(first, min(int(hrs[1] - hours * 60), 24 * 60 - 1) + 1, step)
+    return sorted(set(out))
 
 
 def karaoke_status_for(rules):
