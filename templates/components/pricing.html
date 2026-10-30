@@ -1,7 +1,8 @@
 {# Bảng giá THEO NGÀNH — 3 gói × 9 ngành, USD / AUD, trả tháng / trả năm (tặng 2 tháng). Nguồn: plans.py (saas_pricing,
    context processor inject_saas_plans) — cùng nguồn với /checkout, trang /plan và bot bán hàng.
    Trang chủ: có thẻ chọn ngành. Trang ngành: `{% set pricing_industry = 'nail' %}` trước khi include -> chỉ hiện ngành đó.
-   Khách ở Úc (múi giờ Australia/* hoặc en-AU) tự thấy AUD. Song ngữ bằng bf-vi / bf-en (components/landing_polish.html). #}
+   Khách ở Úc (múi giờ Australia/* hoặc en-AU) tự thấy AUD. Song ngữ bằng bf-vi / bf-en (components/landing_polish.html).
+   App mobile (store_app): KHÔNG render bảng giá / nút mua (chính sách thanh toán CH Play / App Store). #}{% if not store_app %}
 {% set _pi = pricing_industry if (pricing_industry is defined and pricing_industry in saas_pricing) else '' %}
 {% set _start = _pi or 'nail' %}
 <section id="bang-gia" class="bppr" aria-labelledby="bppr-title" data-industry="{{ _start }}">
@@ -135,4 +136,4 @@
     window.bpPricingSetIndustry = function (code) { if (PRICING[code]) { state.ind = code; render(); } };
   })();
   </script>
-</section>
+</section>{% endif %}

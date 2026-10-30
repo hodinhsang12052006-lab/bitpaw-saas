@@ -1195,6 +1195,8 @@ def inject_industry_config():
         industry_pos_url=industry_access.pos_for(business_mode),
         industry_home_url=industry_access.home_for(business_mode),
         industry_chamcong_url=industry_access.chamcong_url(business_mode),
+        # App mobile (CH Play / App Store): template ẩn giá / nút mua / nâng cấp gói BitPaw — xem is_store_app()
+        store_app=is_store_app(request),
         asset_version=_ASSET_VERSION
     )
 
@@ -2805,27 +2807,52 @@ def favicon():
 # App mobile (mobile_app/, Flutter WebView) gửi User-Agent "BitPawMobileApp/<ver> (iOS|Android; ...)".
 # Chính sách 2 store áp riêng cho bản app (bản web giữ nguyên):
 #  - App Store 3.1.1 / Google Play Payments: KHÔNG được bán gói phần mềm (digital subscription)
-#    trong app ngoài In-App Purchase -> trong app chặn /checkout + /api/checkout/*, và KHÔNG chỉ
-#    đường ra kênh thanh toán bên ngoài (anti-steering) — chỉ báo "không khả dụng trong ứng dụng".
+#    trong app ngoài In-App Purchase -> trong app chặn /checkout, /pricing, /api/checkout/*, /api/plan/*
+#    và bot bán gói BitPaw; KHÔNG hiện giá / nút nâng cấp (trang /plan, plan_lock, _plan_gate, mọi
+#    template đọc biến store_app), và KHÔNG chỉ đường ra kênh thanh toán bên ngoài (anti-steering) —
+#    chỉ báo "không khả dụng trong ứng dụng" / "không có trong gói hiện tại". Trình duyệt: không đổi gì.
 #  - Trang marketing/bảng giá (landing, /solutions/*) chứa nút mua gói -> trong app đưa về đăng nhập.
-_MOBILE_APP_UA_RE = re.compile(r'BitPawMobileApp/[\d.]+ \((iOS|Android)', re.IGNORECASE)
-_MOBILE_APP_MARKETING_PATHS = {'/', '/index', '/index.html', '/landing', '/landing_nail'}
+_MOBILE_APP_MARKETING_PATHS = {'/', '/index', '/index.html', '/landing', '/landingpage', '/landing_nail'}
+_STORE_APP_BLOCKED_PAGES = ('/checkout', '/pricing')
+_STORE_APP_BLOCKED_API_PREFIXES = ('/api/checkout/', '/api/plan/')
 
 
-def _mobile_app_platform():
-    m = _MOBILE_APP_UA_RE.search(request.headers.get('User-Agent', ''))
-    return m.group(1).lower() if m else None
+def is_store_app(req=None):
+    """True nếu request đến từ app mobile BitPaw (User-Agent chứa "BitPawMobileApp/", Android lẫn iOS) — NGUỒN DUY NHẤT
+    của chế độ store; template đọc qua biến store_app (inject_industry_config). Ngoài request context -> False."""
+    try:
+        return 'BitPawMobileApp/' in ((req if req is not None else request).headers.get('User-Agent') or '')
+    except Exception:
+        return False
+
+
+def _store_app_plan_page():
+    """Trang trung tính thay trang mua / đổi gói trong app: tên gói hiện tại (nếu đã đăng nhập) + "không đổi gói trong
+    ứng dụng". Cố ý KHÔNG giá, KHÔNG nút, KHÔNG link / URL, KHÔNG lời mời "vào website" (anti-steering)."""
+    plan_name = None
+    if 'user_id' in session:
+        try:
+            plan_name = plans.PLAN_NAMES.get(plans.business_plan(db, _session_business_id()))
+        except Exception:
+            plan_name = None
+    return render_template('app_feature_unavailable.html', store_plan_name=plan_name)
 
 
 @app.before_request
 def _mobile_app_store_policy():
-    if not _mobile_app_platform():
+    if not is_store_app(request):
         return None
     path = request.path
-    if path == '/checkout' or path.startswith('/api/checkout/'):
+    if path in _STORE_APP_BLOCKED_PAGES or path.startswith(_STORE_APP_BLOCKED_API_PREFIXES):
         if path.startswith('/api/'):
-            return jsonify({'success': False, 'message': 'Not available in the mobile app.'}), 403
-        return render_template('app_feature_unavailable.html'), 200
+            return jsonify({'success': False, 'message': _vi_en('Không khả dụng trong ứng dụng.', 'Not available in the mobile app.')}), 403
+        return _store_app_plan_page(), 200
+    # Bot BÁN gói BitPaw (widget chat cskh_widget.js, tự ẩn trong app) báo giá + chỉ tới trang mua -> không chạy trong app;
+    # chat đặt lịch của tiệm (context customer_booking) vẫn chạy bình thường.
+    if path == '/api/ai/studio/generate':
+        body = request.get_json(silent=True)
+        if not (isinstance(body, dict) and body.get('context') == 'customer_booking'):
+            return jsonify({'success': False, 'message': _vi_en('Không khả dụng trong ứng dụng.', 'Not available in the mobile app.')}), 403
     if path in _MOBILE_APP_MARKETING_PATHS or path.startswith('/solutions/'):
         if 'user_id' in session:
             # root()/home() tự điều hướng user đã đăng nhập về đúng trang làm việc của họ
@@ -3073,6 +3100,8 @@ def _plan_gate():
     label = plans.FEATURE_LABELS[feat][0 if vi else 1]
     msg = (f'{label} có trong gói {plans.PLAN_NAMES[need]} trở lên.' if vi
            else f'{label} is included in {plans.PLAN_NAMES[need]} and above.')
+    if is_store_app(request):   # app mobile: không chào gói cao hơn (không bán gói trong app) — trang /plan cũng trung tính
+        msg = f'{label} không có trong gói hiện tại của bạn.' if vi else f'{label} is not included in your current plan.'
     if _wants_json() or request.path.startswith('/api/'):
         return jsonify({'success': False, 'upgrade_required': True, 'plan': plan, 'required_plan': need,
                         'feature': feat, 'message': msg}), 403
@@ -3089,10 +3118,15 @@ def inject_current_plan():
     except Exception:
         superadmin = False
     plan = plans.business_plan(db, _session_business_id())
+    store_note = None
+    if is_store_app(request):   # app mobile: chỉ ổ khoá + "không có trong gói hiện tại", không nhắc gói cao hơn
+        store_note = 'Không có trong gói hiện tại của bạn' if resolve_lang(request) == 'vi' else 'Not included in your current plan'
 
     def plan_lock(feat):
         if superadmin or plans.allows(plan, feat):
             return ''
+        if store_note:
+            return Markup('<span class="plan-lock" title="%s" aria-label="%s"><i class="fas fa-lock"></i></span>' % (store_note, store_note))
         need = plans.FEATURE_MIN_PLAN.get(feat, 'pro')
         return Markup('<span class="plan-lock" title="%s"><i class="fas fa-lock"></i> %s</span>'
                       % (plans.PLAN_NAMES[need], 'Pro' if need == 'pro' else 'Empire'))

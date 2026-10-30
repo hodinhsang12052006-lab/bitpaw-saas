@@ -49,7 +49,17 @@
 {% set vi = default_lang == 'vi' %}
 {% set sym = 'A$' if currency == 'AUD' else '$' %}
 {% include 'components/app_sidebar.html' %}
-<main class="pl-main">
+{% if store_app %}<main class="pl-main">
+    {# App mobile (CH Play / App Store): chỉ gói hiện tại — không giá, không nút nâng cấp, không link / URL mua ngoài. #}
+    <h1><i class="fas fa-gem" style="color: var(--accent)"></i> {{ 'Gói của tiệm' if vi else 'Your plan' }}</h1>
+    {% if feature %}
+    <div class="need" role="status"><i class="fas fa-lock"></i><span>{{ ('“' ~ feature_label[0] ~ '” không có trong gói hiện tại của bạn.') if vi
+        else ('“' ~ feature_label[1] ~ '” is not included in your current plan.') }}</span></div>
+    {% endif %}
+    <div class="cur">{{ 'Gói hiện tại' if vi else 'Current plan' }} <b>{{ plan_names[plan] }}</b></div>
+    <p class="lead">{{ 'Đổi gói không khả dụng trong ứng dụng.' if vi else 'Plan changes are not available in the app.' }}</p>
+</main>
+{% else %}<main class="pl-main">
     <h1><i class="fas fa-gem" style="color: var(--accent)"></i> {{ 'Gói của tiệm' if vi else 'Your plan' }}</h1>
     <p class="lead">{{ ('Giá theo đúng ngành ' ~ industry_label[0] ~ '. Nâng cấp không mất dữ liệu; BitPaw gửi hoá đơn rồi mở tính năng trong 1 ngày làm việc.') if vi
         else ('Pricing for ' ~ industry_label[1] ~ '. Upgrading keeps all your data; we send an invoice and switch it on within 1 business day.') }}</p>
@@ -100,6 +110,6 @@
         });
     });
 })();
-</script>
+</script>{% endif %}
 </body>
 </html>

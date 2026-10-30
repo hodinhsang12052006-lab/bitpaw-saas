@@ -55,7 +55,7 @@
     </select>
     {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
     <button type="submit">{{ 'Tạo tài khoản' if vi else 'Create my account' }}</button>
-    <p class="help">{{ 'Chưa có mã? Chọn gói ở' if vi else "Don't have a code yet? Choose a plan at" }} <a href="/checkout">/checkout</a> — {{ 'BitPaw liên hệ và gửi mã trong 1 ngày làm việc.' if vi else 'BitPaw will contact you and send the code within 1 business day.' }}</p>
+{% if not store_app %}    <p class="help">{{ 'Chưa có mã? Chọn gói ở' if vi else "Don't have a code yet? Choose a plan at" }} <a href="/checkout">/checkout</a> — {{ 'BitPaw liên hệ và gửi mã trong 1 ngày làm việc.' if vi else 'BitPaw will contact you and send the code within 1 business day.' }}</p>{% endif %}
 </form>
 </body>
 </html>
