@@ -2,7 +2,8 @@
 phòng, bảng giá dịch vụ kỹ thuật, sản phẩm xưởng, dịch vụ văn phòng, chính sách, vài câu hỏi đáp cho trang Kiến thức AI.
 
 Chỉ điền chỗ CÒN TRỐNG (không ghi đè thứ chủ demo đã nhập), chỉ đụng đúng các tiệm demo mà scripts/ai_demo_readiness.py dùng.
-Mặc định chạy thử (in ra sẽ làm gì). --apply mới ghi, và lưu bản sao để hoàn tác:
+Mặc định chạy thử (in ra sẽ làm gì). --apply mới ghi, và lưu bản sao để hoàn tác (ghi ra đĩa ngay sau TỪNG lượt ghi — lỗi giữa
+chừng vẫn hoàn tác được; hoàn tác chỉ gỡ đúng các ô seed đã điền, ô chủ demo sửa sau đó được giữ):
     python scripts/seed_ai_demo_data.py                 # xem trước
     python scripts/seed_ai_demo_data.py --apply         # ghi + audit-results/ai_sim/demo_seed_backup_<giờ>.json
     python scripts/seed_ai_demo_data.py --revert <file> # trả lại đúng như trước khi ghi
@@ -125,8 +126,11 @@ def plan(db, ind, b):
         todo.append(('info', miss))
     if ind == 'fnb':
         cur = bs.get('table_reservations') if isinstance(bs.get('table_reservations'), dict) else {}
-        if not cur.get('max_covers_per_slot'):
-            todo.append(('table_rules', FNB_TABLE_RULES))
+        # chỉ khoá CÒN TRỐNG: "tự xác nhận" chủ demo đã chọn (kể cả "không bao giờ" / "theo công tắc chung") và giờ giữ bàn đã
+        # nhập không bị ghi đè chỉ vì sức chứa còn 0
+        miss = {k: v for k, v in FNB_TABLE_RULES.items() if (k not in cur if k == 'auto_confirm' else not cur.get(k))}
+        if miss:
+            todo.append(('table_rules', miss))
     if ind == 'karaoke':
         cur = bs.get('karaoke_reservations') if isinstance(bs.get('karaoke_reservations'), dict) else {}
         if not cur.get('hold_minutes'):
@@ -148,61 +152,135 @@ def plan(db, ind, b):
     return bs, todo
 
 
-def apply(db, ind, b, bs, todo, backup):
+def _path(doc, path):
+    """(có không, giá trị) của ô 'a.b' trong tài liệu."""
+    cur = doc
+    for p in path.split('.'):
+        if not isinstance(cur, dict) or p not in cur:
+            return False, None
+        cur = cur[p]
+    return True, cur
+
+
+def apply(db, ind, b, bs, todo, backup, save=None):
+    """Ghi các việc của 1 tiệm. Bản sao hoàn tác (backup[bid]) cập nhật NGAY quanh từng lượt ghi và save() ghi ra đĩa, nên lỗi
+    giữa chừng (Atlas timeout...) vẫn hoàn tác được phần đã ghi. booking_settings: chỉ ghi lại đúng các ô seed điền (giá trị
+    trước + giá trị seed) — hoàn tác chỉ gỡ các ô đó."""
     import ai_knowledge
     import reservations_core
     import reservations_hotel
     from mongo_client import next_mongo_id
     bid = b['id']
-    rec = backup.setdefault(bid, {'industry': ind, 'booking_settings_before': bs or None, 'inserted': {}, 'karaoke_sizes': []})
+    rec = backup.setdefault(bid, {'industry': ind, 'booking_settings_existed': bool(bs), 'fields': {}, 'created': [],
+                                  'inserted': {}, 'karaoke_sizes': []})
+    save = save or (lambda: None)
     now = datetime.now().isoformat()
+
+    def will_set(values):      # {ô: giá trị sẽ ghi} — ghi lại TRƯỚC khi ghi DB
+        for p, v in values.items():
+            had, old = _path(bs, p)
+            rec['fields'][p] = {'existed': had, 'before': old, 'seeded': v}
+            top = p.split('.')[0]
+            if top not in bs and top not in rec['created']:
+                rec['created'].append(top)
+        save()
+
+    def did_set(paths):        # giá trị THẬT đã lưu (module có thể chuẩn hoá: kẹp giới hạn, '2:00' -> '02:00')
+        doc = db.booking_settings.find_one({'business_id': bid}, {'_id': 0}) or {}
+        for p in paths:
+            rec['fields'][p]['seeded'] = _path(doc, p)[1]
+        save()
+
     for kind, val in todo:
         if kind == 'hours':
+            will_set({'hours': val})
             db.booking_settings.update_one({'business_id': bid}, {'$set': {'hours': val, 'updated_at': now}}, upsert=True)
+            did_set(['hours'])
         elif kind == 'info':
+            will_set({f'info.{k}': v for k, v in val.items()})
             db.booking_settings.update_one({'business_id': bid}, {'$set': {**{f'info.{k}': v for k, v in val.items()},
                                                                          'updated_at': now}}, upsert=True)
-        elif kind == 'table_rules':
-            reservations_core.save_reservation_settings(bid, 'table', val)
-        elif kind == 'karaoke_rules':
-            reservations_core.save_reservation_settings(bid, 'karaoke', val)
+            did_set([f'info.{k}' for k in val])
+        elif kind in ('table_rules', 'karaoke_rules'):
+            rk = 'table' if kind == 'table_rules' else 'karaoke'
+            will_set({f'{reservations_core.SETTINGS_KEY[rk]}.{k}': v for k, v in val.items()})
+            reservations_core.save_reservation_settings(bid, rk, val)
+            did_set([f'{reservations_core.SETTINGS_KEY[rk]}.{k}' for k in val])
         elif kind == 'karaoke_sizes':
             for rid, _name, size in val:
-                db.karaoke_rooms.update_one({'id': rid, 'business_id': bid}, {'$set': {'max_guests': size}})
                 rec['karaoke_sizes'].append(rid)
+                save()
+                db.karaoke_rooms.update_one({'id': rid, 'business_id': bid}, {'$set': {'max_guests': size}})
         elif kind == 'hotel_settings':
+            will_set({'hotel': val})
             reservations_hotel.save_hotel_settings(bid, val)
+            did_set(['hotel'])
         elif kind == 'tech_services':
-            ids = []
+            ids = rec['inserted'].setdefault('dichvu', [])
             for name, price in val:
                 sid = next_mongo_id('dichvu')
+                ids.append(sid)                # ghi lại TRƯỚC khi chèn: xoá 1 id chưa kịp chèn khi hoàn tác cũng vô hại
+                save()
                 db.dichvu.insert_one({'id': sid, 'business_id': bid, 'ten_dich_vu': name, 'gia_dich_vu': price, 'tien_tua': 0})
-                ids.append(sid)
-            rec['inserted']['dichvu'] = ids
         elif kind == 'products':
-            ids = []
+            ids = rec['inserted'].setdefault('products', [])
             for name, cat, price in val:
                 pid = next_mongo_id('products')
+                ids.append(pid)
+                save()
                 db.products.insert_one({'id': pid, 'name': name, 'category': cat, 'channel_type': 'retail', 'stock': 0,
                                         'price': float(price), 'image': None, 'barcode': None, 'is_active': 1, 'business_id': bid})
-                ids.append(pid)
-            rec['inserted']['products'] = ids
         elif kind == 'knowledge':
-            ids = []
+            ids = rec['inserted'].setdefault('ai_knowledge', [])
             for k, topic, q, a in val:
                 ids.append(ai_knowledge.create(bid, {'kind': k, 'topic': topic, 'question': q, 'answer': a},
                                                user='seed_ai_demo_data')['id'])
-            rec['inserted']['ai_knowledge'] = ids
+                save()
+
+
+def _revert_booking_settings(db, bid, rec):
+    """Gỡ đúng các ô seed đã điền (trả giá trị trước, hoặc xoá ô). Ô chủ demo đã sửa sau khi seed được giữ -> trả danh sách."""
+    doc = db.booking_settings.find_one({'business_id': bid}, {'_id': 0})
+    if doc is None:
+        return []
+    sets, unsets, kept = {}, [], []
+    for p, f in (rec.get('fields') or {}).items():
+        if _path(doc, p)[1] != f.get('seeded'):
+            kept.append(p)
+        elif f.get('existed'):
+            sets[p] = f.get('before')
+        else:
+            unsets.append(p)
+    upd = {}
+    if sets:
+        upd['$set'] = sets
+    if unsets:
+        upd['$unset'] = {p: '' for p in unsets}
+    if upd:
+        db.booking_settings.update_one({'business_id': bid}, upd)
+    after = db.booking_settings.find_one({'business_id': bid}, {'_id': 0}) or {}
+    empty = [k for k in rec.get('created') or [] if after.get(k) == {}]       # khối seed tạo ra, nay rỗng (info, table_...)
+    if empty:
+        db.booking_settings.update_one({'business_id': bid}, {'$unset': {k: '' for k in empty}})
+        after = {k: v for k, v in after.items() if k not in empty}
+    if not rec.get('booking_settings_existed') and not set(after) - {'business_id', 'updated_at'}:
+        db.booking_settings.delete_one({'business_id': bid})                  # tài liệu do seed tạo, không còn gì của chủ demo
+    return kept
 
 
 def revert(db, path):
-    data = json.load(open(path, encoding='utf-8'))
+    with open(path, encoding='utf-8') as fh:
+        data = json.load(fh)
     for bid, rec in data.items():
-        before = rec.get('booking_settings_before')
-        if before:
-            db.booking_settings.replace_one({'business_id': bid}, before, upsert=True)
-        else:
-            db.booking_settings.delete_one({'business_id': bid})
+        if 'fields' in rec:
+            for p in _revert_booking_settings(db, bid, rec):
+                print(f'   giữ {p} (chủ demo đã sửa sau khi seed)')
+        else:   # bản sao kiểu cũ (trước khi ghi theo từng ô): trả nguyên tài liệu như trước khi seed
+            before = rec.get('booking_settings_before')
+            if before:
+                db.booking_settings.replace_one({'business_id': bid}, before, upsert=True)
+            else:
+                db.booking_settings.delete_one({'business_id': bid})
         for rid in rec.get('karaoke_sizes') or []:
             db.karaoke_rooms.update_one({'id': rid, 'business_id': bid}, {'$unset': {'max_guests': ''}})
         ins = rec.get('inserted') or {}
@@ -227,23 +305,30 @@ def main():
         return
     only = {x.strip() for x in a.industry.split(',') if x.strip()}
     backup = {}
-    for ind, b in demo_businesses(db).items():
-        if only and ind not in only:
-            continue
-        bs, todo = plan(db, ind, b)
-        print(f"== {ind:<10} {b['name']}  ({b['id']})")
-        for kind, val in todo:
-            n = len(val) if isinstance(val, (list, dict)) else 1
-            print(f'   {"GHI" if a.apply else "sẽ ghi"} {kind} ({n})')
-        if not todo:
-            print('   đủ rồi — không đụng')
-        if a.apply and todo:
-            apply(db, ind, b, bs, todo, backup)
-    if a.apply and backup:
-        out = os.path.join(ROOT, 'audit-results', 'ai_sim', f"demo_seed_backup_{datetime.now():%Y%m%d_%H%M%S}.json")
+    out = os.path.join(ROOT, 'audit-results', 'ai_sim', f"demo_seed_backup_{datetime.now():%Y%m%d_%H%M%S}.json")
+
+    def save():   # ghi bản sao ra đĩa sau từng lượt ghi (DB dùng chung với production: lỗi giữa chừng vẫn phải hoàn tác được)
         os.makedirs(os.path.dirname(out), exist_ok=True)
-        json.dump(backup, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1, default=str)
-        print('bản sao để hoàn tác:', out)
+        with open(out, 'w', encoding='utf-8') as fh:
+            json.dump(backup, fh, ensure_ascii=False, indent=1, default=str)
+
+    try:
+        for ind, b in demo_businesses(db).items():
+            if only and ind not in only:
+                continue
+            bs, todo = plan(db, ind, b)
+            print(f"== {ind:<10} {b['name']}  ({b['id']})")
+            for kind, val in todo:
+                n = len(val) if isinstance(val, (list, dict)) else 1
+                print(f'   {"GHI" if a.apply else "sẽ ghi"} {kind} ({n})')
+            if not todo:
+                print('   đủ rồi — không đụng')
+            if a.apply and todo:
+                apply(db, ind, b, bs, todo, backup, save)
+    finally:
+        if a.apply and backup:
+            save()
+            print('bản sao để hoàn tác:', out)
 
 
 if __name__ == '__main__':

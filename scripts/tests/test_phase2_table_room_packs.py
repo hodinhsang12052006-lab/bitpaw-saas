@@ -260,8 +260,9 @@ def settings(hours=None, auto_confirm=None, table=None, karaoke_rules=None, **ex
     doc = {'business_id': BID}
     if hours is not None:
         doc['hours'] = hours
-    if auto_confirm is not None:
+    if auto_confirm is not None:                      # công tắc chung chủ đã lưu ở trang Cài đặt đặt chỗ (không phải mặc định cũ)
         doc['auto_confirm'] = auto_confirm
+        doc[rc.GENERAL_SAVED_MARK] = '2026-10-20T09:00:00'
     if table is not None:
         doc['table_reservations'] = table
     if karaoke_rules is not None:

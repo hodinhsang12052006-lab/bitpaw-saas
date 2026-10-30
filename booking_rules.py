@@ -16,6 +16,11 @@ from mongo_client import db
 DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 DEFAULT_HOURS = {'mon': ['09:00', '19:00'], 'tue': ['09:00', '19:00'], 'wed': ['09:00', '19:00'], 'thu': ['09:00', '20:00'],
                  'fri': ['09:00', '20:00'], 'sat': ['09:00', '18:00'], 'sun': ['10:00', '17:00']}
+# Giờ mở cửa lưu ['HH:MM', 'HH:MM'] theo thứ; đóng lúc nửa đêm = '24:00'. Ngành ĐẶT CHỖ (F&B, karaoke, khách sạn —
+# save_rules(allow_overnight=True)) được mở QUA nửa đêm: lưu đúng như chủ nhập, giờ đóng NHỎ HƠN giờ mở = đóng sáng hôm sau
+# (['18:00', '02:00'] = 18:00 tới 2 giờ sáng hôm sau -> hours_on = (1080, 1560)); muộn nhất OVERNIGHT_MAX_CLOSE — chặn gõ nhầm
+# sáng/chiều kiểu 09:00-07:00 thành "mở 22 tiếng". Nails/Spa (lịch hẹn) giữ nguyên luật cũ: mở < đóng <= 24:00.
+OVERNIGHT_MAX_CLOSE = 8 * 60
 DEFAULTS = {
     'hours': DEFAULT_HOURS,          # None cho ngày nghỉ
     'slot_minutes': 15,
@@ -50,6 +55,16 @@ class SlotUnavailable(Exception):
         super().__init__(reason)
         self.reason = reason
         self.alternatives = alternatives or []
+
+
+class HoursError(ValueError):
+    """Giờ mở cửa 1 ngày không lưu được. `day` = khoá ngày ('mon'...), `code` = 'format' (không đọc được / ngoài 00:00-24:00),
+    'same' (mở = đóng), 'order' (đóng trước giờ mở — lịch hẹn), 'overnight_late' (đóng sau nửa đêm muộn hơn OVERNIGHT_MAX_CLOSE).
+    str() giữ đúng câu cũ; trang cài đặt dịch theo day + code sang VI / EN (booking_settings_routes)."""
+
+    def __init__(self, day, code):
+        super().__init__(f'Giờ mở cửa ngày {day} không hợp lệ.')
+        self.day, self.code = day, code
 
 
 COUNTRY_TZ = {'AU': 'Australia/Sydney', 'US': 'America/New_York', 'VN': 'Asia/Ho_Chi_Minh', 'CA': 'America/Toronto',
@@ -104,7 +119,9 @@ def get_rules(business_id):
     return rules
 
 
-def save_rules(business_id, data):
+def save_rules(business_id, data, allow_overnight=False, extra=None):
+    """Lưu luật đặt lịch. allow_overnight: ngành đặt chỗ được lưu giờ đóng sau nửa đêm (xem OVERNIGHT_MAX_CLOSE); mặc định
+    (Nails/Spa) đúng luật cũ. extra: khoá $set thêm trong CÙNG lượt ghi (trang Cài đặt đặt chỗ đánh dấu công tắc chung)."""
     clean = {}
     hours = data.get('hours')
     if isinstance(hours, dict):
@@ -116,10 +133,19 @@ def save_rules(business_id, data):
                 continue
             try:
                 o, c = str(v[0]), str(v[1])
-                if not (0 <= _hm(o) < _hm(c) <= 24 * 60):
-                    raise ValueError
+                om, cm = _hm(o), _hm(c)
             except (ValueError, IndexError, TypeError):
-                raise ValueError(f'Giờ mở cửa ngày {d} không hợp lệ.')
+                raise HoursError(d, 'format')
+            if allow_overnight and cm == 0 and 0 <= om < 24 * 60:
+                c, cm = '24:00', 24 * 60          # đóng 00:00 = nửa đêm (00:00-00:00 = cả ngày), không phải "qua đêm"
+            if not (0 <= om < 24 * 60 and 0 <= cm <= 24 * 60):
+                raise HoursError(d, 'format')
+            if om == cm:
+                raise HoursError(d, 'same')
+            if cm < om and not allow_overnight:
+                raise HoursError(d, 'order')
+            if cm < om and cm > OVERNIGHT_MAX_CLOSE:
+                raise HoursError(d, 'overnight_late')
             h[d] = [o[:5], c[:5]]
         clean['hours'] = h
     for k, lo, hi in (('slot_minutes', 5, 120), ('min_lead_minutes', 0, 7 * 24 * 60), ('max_advance_days', 1, 365),
@@ -143,6 +169,8 @@ def save_rules(business_id, data):
         clean['auto_confirm'] = bool(data['auto_confirm'])
     if isinstance(data.get('info'), dict):
         clean['info'] = {k: str(data['info'].get(k) or '').strip()[:600] for k in DEFAULTS['info']}
+    if extra:
+        clean.update(extra)
     clean['updated_at'] = datetime.now().isoformat()
     db.booking_settings.update_one({'business_id': business_id}, {'$set': clean}, upsert=True)
     _CACHE.pop(('rules', business_id), None)
@@ -154,8 +182,13 @@ def duration_of(rules, service_id):
 
 
 def hours_on(rules, day):
+    """(mở, đóng) phút tính từ 00:00 của `day`; None = nghỉ. Đóng <= mở = đóng sáng hôm sau (chỉ ngành đặt chỗ lưu được):
+    ['18:00', '02:00'] -> (1080, 1560). Nails/Spa luôn đóng sau giờ mở nên không đổi."""
     v = (rules.get('hours') or {}).get(DAY_KEYS[day.weekday()])
-    return (_hm(v[0]), _hm(v[1])) if v else None
+    if not v:
+        return None
+    o, c = _hm(v[0]), _hm(v[1])
+    return (o, c + 24 * 60) if c <= o else (o, c)
 
 
 def _parse(book_time):
@@ -309,7 +342,14 @@ def open_status(business_id, rules=None, now=None):
     m = now.hour * 60 + now.minute
     hrs = hours_on(rules, now.date())
     if hrs and hrs[0] <= m < hrs[1]:
+        if hrs[1] > 24 * 60:   # mở qua nửa đêm: '02:00 (after midnight)', không phải '26:00'
+            e = hrs[1] - 24 * 60
+            return {'open_now': True, 'closes_at': f"{e // 60:02d}:{e % 60:02d} (after midnight)", 'next_open': None}
         return {'open_now': True, 'closes_at': f"{hrs[1] // 60:02d}:{hrs[1] % 60:02d}", 'next_open': None}
+    prev = hours_on(rules, now.date() - timedelta(days=1))
+    if prev and prev[1] > 24 * 60 and m + 24 * 60 < prev[1]:   # 01:00 thứ Bảy vẫn là ca đêm thứ Sáu (18:00-02:00)
+        e = prev[1] - 24 * 60
+        return {'open_now': True, 'closes_at': f"{e // 60:02d}:{e % 60:02d}", 'next_open': None}
     for i in range(0, 8):
         d = now.date() + timedelta(days=i)
         h = hours_on(rules, d)
