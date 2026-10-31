@@ -367,6 +367,12 @@ def _load_session_from_jwt(token):
         return False
     if not payload.get('user_id'):
         return False
+    # h1a-auth: JWT KHÔNG BAO GIỜ mang quyền Super Admin — quyền đó chỉ sinh ra từ đăng nhập God Mode trên web
+    # (_superadmin_emergency_login, sau khi so hash). Token mang uid/role/email Super Admin (vd cấp trước bản vá cho 1
+    # tài khoản tự đăng ký bằng email Super Admin) -> coi như token hỏng.
+    if payload['user_id'] == 'superadmin-fallback' or payload.get('role') == 'super_admin' \
+            or _is_authorized_superadmin_email(payload.get('user_email')):
+        return False
     session['user_id'] = payload['user_id']
     session['sv'] = payload.get('sv', 0)
     session['business_id'] = payload.get('business_id') or payload['user_id']
@@ -431,9 +437,11 @@ def _user_session_state(user_id):
         return hit[0]
     state = None
     try:
-        u = db.users.find_one({'id': user_id}, {'_id': 0, 'session_ver': 1, 'role': 1, 'is_active': 1})
+        u = db.users.find_one({'id': user_id}, {'_id': 0, 'session_ver': 1, 'role': 1, 'is_active': 1, 'is_deleted': 1})
         if u is not None:
-            state = {'sv': int(u.get('session_ver') or 0), 'role': u.get('role') or 'admin', 'active': u.get('is_active', True) is not False}
+            # h1a-auth: tài khoản đã xoá cũng là hết phiên (kể cả tài khoản xoá trước bản vá, khi session_ver chưa được tăng)
+            state = {'sv': int(u.get('session_ver') or 0), 'role': u.get('role') or 'admin',
+                     'active': u.get('is_active', True) is not False and not u.get('is_deleted')}
         else:
             state = {'missing': True}
     except Exception as e:
@@ -445,6 +453,10 @@ def _user_session_state(user_id):
 
 def bump_session_version(user_id):
     """Đăng xuất user này ở MỌI thiết bị (web, app di động, app Windows)."""
+    if user_id == 'superadmin-fallback':  # h1a-auth: phiên God Mode không có bản ghi users -> số phiên bản riêng
+        db.system_settings.update_one({'key': 'superadmin_session_ver'}, {'$inc': {'value': 1}}, upsert=True)
+        _SUPERADMIN_VER_CACHE.clear()
+        return
     db.users.update_one({'id': user_id}, {'$inc': {'session_ver': 1}})
     _SESSION_STATE_CACHE.pop(user_id, None)
 
@@ -452,12 +464,20 @@ def bump_session_version(user_id):
 @app.before_request
 def _session_guard():
     uid = session.get('user_id')
-    if not uid or uid == 'superadmin-fallback' or db is None or request.path.startswith('/static/'):
+    if not uid or request.path.startswith('/static/'):
         return None
-    st = _user_session_state(uid)
-    if st is None:
-        return None  # DB lỗi tạm thời: không đá người dùng ra
-    revoked = st.get('missing') or not st.get('active', True) or int(session.get('sv') or 0) != st.get('sv', 0)
+    if uid == 'superadmin-fallback':
+        # h1a-auth: trước đây phiên God Mode được bỏ qua hoàn toàn -> cookie bị lấy cắp sống ~31 ngày, đổi hash hay
+        # "đăng xuất mọi nơi" đều không cắt được. Nay: hết hạn sau SUPERADMIN_SESSION_MAX_SECONDS, gắn với hash hiện hành,
+        # theo số phiên bản riêng (không cần DB để kiểm 2 điều đầu -> vẫn chạy khi MongoDB sập).
+        st, revoked = {}, not _superadmin_session_ok()
+    else:
+        if db is None:
+            return None
+        st = _user_session_state(uid)
+        if st is None:
+            return None  # DB lỗi tạm thời: không đá người dùng ra
+        revoked = st.get('missing') or not st.get('active', True) or int(session.get('sv') or 0) != st.get('sv', 0)
     if revoked:
         security_shield.log_event('session_revoked', _get_real_client_ip(), 'old session after password change / account change',
                                   request.path, request.headers.get('User-Agent', ''), session.get('user_email'))
@@ -1546,11 +1566,50 @@ def _login_attempts_blocked(email):
         if db.login_failures.count_documents({'ip': _get_real_client_ip(), 'at': {'$gte': since}}, limit=_LOGIN_FAIL_MAX_PER_IP) >= _LOGIN_FAIL_MAX_PER_IP:
             return True
         email = (email or '').strip().lower()
-        if email and db.login_failures.count_documents({'email': email, 'at': {'$gte': since}}, limit=_LOGIN_FAIL_MAX_PER_EMAIL) >= _LOGIN_FAIL_MAX_PER_EMAIL:
-            return True
+        if email:
+            # h1a-auth: trước đây 10 lần sai/email từ BẤT KỲ đâu là khoá luôn chủ tiệm (kể cả đúng mật khẩu) — người lạ biết
+            # email (trang đặt lịch, email gửi khách) gửi 10 lần sai mỗi 15 phút là khoá được mãi. Máy đã từng đăng nhập đúng
+            # email này (cookie ký HMAC, _remember_login_device) chỉ bị tính lần sai từ CHÍNH IP của nó; máy lạ giữ nguyên
+            # ngưỡng chung 10 lần/email (trả cùng 1 thông báo trước khi xét mật khẩu -> không lộ mật khẩu đúng/sai).
+            q = {'email': email, 'at': {'$gte': since}}
+            if _is_known_login_device(email):
+                q['ip'] = _get_real_client_ip()
+            if db.login_failures.count_documents(q, limit=_LOGIN_FAIL_MAX_PER_EMAIL) >= _LOGIN_FAIL_MAX_PER_EMAIL:
+                return True
     except Exception as e:
         print(f"[login guard] check failed (bỏ qua, không chặn đăng nhập): {e}")
     return False
+
+
+_KNOWN_DEVICE_COOKIE = 'bp_kd'
+_KNOWN_DEVICE_MAX_AGE = 180 * 24 * 3600
+
+
+def _known_device_token(email):
+    """Thẻ "máy này từng đăng nhập ĐÚNG email này" (HMAC theo secret của app, không chứa email thô). Chỉ dùng để không bị
+    khoá theo email khi người lạ dò sai — vẫn phải đúng mật khẩu như thường, vẫn chịu giới hạn theo IP."""
+    email = (email or '').strip().lower()
+    return hmac.new(str(app.secret_key).encode(), b'bp-known-device:' + email.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def _is_known_login_device(email):
+    try:
+        return bool(email) and _known_device_token(email) in (request.cookies.get(_KNOWN_DEVICE_COOKIE) or '').split('.')
+    except Exception:
+        return False
+
+
+def _remember_login_device(email):
+    """Gọi ngay sau khi xác thực mật khẩu ĐÚNG: ghi thẻ vào cookie HttpOnly (tối đa 5 email/máy — máy POS dùng chung)."""
+    from flask import after_this_request
+    tok = _known_device_token(email)
+    tokens = [t for t in (request.cookies.get(_KNOWN_DEVICE_COOKIE) or '').split('.') if t and t != tok][-4:] + [tok]
+
+    @after_this_request
+    def _set_known_device_cookie(resp):
+        resp.set_cookie(_KNOWN_DEVICE_COOKIE, '.'.join(tokens), max_age=_KNOWN_DEVICE_MAX_AGE, secure=True,
+                        httponly=True, samesite='Lax')
+        return resp
 
 
 def _record_login_failure(email):
@@ -1629,8 +1688,9 @@ def register():
             if license_nganh and license_nganh.lower() != 'all':
                 business_type = license_nganh.lower()
 
-            # Kiểm tra email đã tồn tại chưa (MongoDB không tự chặn như Supabase Auth)
-            if db.users.find_one(_email_query(email)):
+            # Kiểm tra email đã tồn tại chưa (MongoDB không tự chặn như Supabase Auth). h1a-auth: email Super Admin
+            # (root/SUPERADMIN_EMAILS) không bao giờ được tự đăng ký — trả đúng thông báo "đã tồn tại" như mọi email khác.
+            if _is_authorized_superadmin_email(email) or db.users.find_one(_email_query(email)):
                 flash('This email is already registered — please log in instead.', 'danger')
                 return render_template('index.html', active_tab='register')
 
@@ -1753,6 +1813,48 @@ def _is_authorized_superadmin_email(email):
     return normalized in allowed
 
 
+SUPERADMIN_SESSION_MAX_SECONDS = 12 * 3600   # h1a-auth: phiên God Mode tự hết hạn sau 12 giờ kể từ lúc đăng nhập
+_SUPERADMIN_VER_CACHE = {}
+
+
+def _superadmin_fallback_hash():
+    """Hash God Mode đang cấu hình — cùng thứ tự đọc như login(): SUPERADMIN_FALLBACK_HASH_B64 rồi SUPERADMIN_FALLBACK_HASH."""
+    decoded = ''
+    b64 = os.environ.get('SUPERADMIN_FALLBACK_HASH_B64', '')
+    if b64:
+        try:
+            decoded = base64.b64decode(b64).decode('utf-8').strip()
+        except Exception:
+            decoded = ''
+    return decoded or os.environ.get('SUPERADMIN_FALLBACK_HASH', '').strip()
+
+
+def _superadmin_key_fingerprint():
+    """h1a-auth: dấu HMAC của hash God Mode hiện hành, lưu trong phiên lúc đăng nhập — đổi hash = mọi phiên cũ hết ngay."""
+    h = _superadmin_fallback_hash()
+    if not h:
+        return ''
+    return hmac.new(str(app.secret_key).encode(), b'bp-superadmin-key:' + h.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def _superadmin_session_ver(fresh=False):
+    """h1a-auth: số phiên bản phiên God Mode (system_settings 'superadmin_session_ver', tăng bằng
+    bump_session_version('superadmin-fallback')). Đệm 30 giây/instance; DB lỗi -> None (chỉ còn kiểm tuổi + dấu hash)."""
+    now = time.time()
+    hit = _SUPERADMIN_VER_CACHE.get('v')
+    if hit and not fresh and now - hit[1] < _SESSION_STATE_TTL:
+        return hit[0]
+    ver = None
+    if db is not None:
+        try:
+            doc = db.system_settings.find_one({'key': 'superadmin_session_ver'}, {'_id': 0, 'value': 1}) or {}
+            ver = int(doc.get('value') or 0)
+        except Exception as e:
+            print(f"[superadmin session] {e}")
+    _SUPERADMIN_VER_CACHE['v'] = (ver, now)
+    return ver
+
+
 def _superadmin_emergency_login(email):
     """Lối vào khẩn cấp CHO ĐÚNG 1 tài khoản trùm hardcode, CHỈ kích hoạt khi MongoDB không kết
     nối được hoặc bản ghi user thật không còn tồn tại (vd: DB bị xoá/khôi phục từ backup cũ) —
@@ -1770,6 +1872,11 @@ def _superadmin_emergency_login(email):
     session['user_email'] = email.strip().lower()
     session['role'] = 'super_admin'
     session['business_mode'] = 'none'
+    # h1a-auth: dấu chỉ server đặt (cookie đã ký) — _is_superadmin() đòi dấu này, không tin riêng email trong phiên
+    session['sa_iat'] = int(time.time())
+    session['sa_key'] = _superadmin_key_fingerprint()
+    session['sv'] = _superadmin_session_ver(fresh=True) or 0
+    _remember_login_device(email)
     flash('Login successful (Superadmin emergency fallback)', 'success')
     return redirect('/super_admin')
 
@@ -1857,10 +1964,11 @@ def login():
                 raise Exception("MongoDB chưa kết nối.")
 
             user = db.users.find_one(_email_query(email))
-            if not user:
+            if not user or user.get('is_deleted') or user.get('is_active') is False:  # h1a-auth: đã xoá / bị khoá
                 raise Exception("Sai email hoặc mật khẩu")
             if not check_password_hash(user['password_hash'], password):
                 raise Exception("Sai email hoặc mật khẩu")
+            _remember_login_device(email)  # h1a-auth: máy quen không bị khoá theo email khi người lạ dò sai
 
             user_id = user['id']
             # Pha 28: phiên mới hoàn toàn (không giữ gì của phiên trước) + số phiên bản để thu hồi được
@@ -1965,11 +2073,19 @@ def api_auth_token():
         return jsonify({"success": False, "message": "Thiếu email hoặc password."}), 400
     if db is None:
         return jsonify({"success": False, "message": "Server chưa kết nối Database."}), 503
+    # h1a-auth: không bao giờ cấp JWT mang email/vai trò Super Admin (kể cả khi DB lỡ có 1 bản ghi trùng email đó)
+    if _is_authorized_superadmin_email(email):
+        return jsonify({"success": False, "message": "Sai email hoặc mật khẩu."}), 401
 
     user = db.users.find_one(_email_query(email))
-    if not user or not check_password_hash(user.get('password_hash', ''), password):
+    if user and (user.get('role') == 'super_admin' or user.get('id') == 'superadmin-fallback'
+                 or _is_authorized_superadmin_email(user.get('email'))):
+        user = None
+    if not user or user.get('is_deleted') or user.get('is_active') is False \
+            or not check_password_hash(user.get('password_hash') or '', password):
         _record_login_failure(email)
         return jsonify({"success": False, "message": "Sai email hoặc mật khẩu."}), 401
+    _remember_login_device(email)  # h1a-auth
 
     user_id = user['id']
     business_id = user.get('business_id') or user_id
@@ -2040,7 +2156,10 @@ def api_delete_account():
         return jsonify({"success": False, "message": "Vui lòng nhập mật khẩu để xác nhận xoá tài khoản."}), 400
 
     user = db.users.find_one({'id': user_id})
-    if not user or not check_password_hash(user.get('password_hash', ''), password):
+    if user and not user.get('password_hash'):  # h1a-auth: tài khoản chỉ Google/Facebook từng làm check_password_hash nổ 500
+        return jsonify({"success": False, "message": "Tài khoản này chưa có mật khẩu — hãy đặt mật khẩu bằng \"Quên mật khẩu\" rồi xác nhận xoá. / "
+                                                     "This account has no password yet — set one with \"Forgot password\", then confirm deletion."}), 400
+    if not user or not check_password_hash(user['password_hash'], password):
         return jsonify({"success": False, "message": "Mật khẩu xác nhận không đúng."}), 401
 
     now_iso = datetime.now().isoformat()
@@ -2058,12 +2177,22 @@ def api_delete_account():
                 # Giải phóng email gốc để user khác có thể đăng ký lại đúng email này sau này —
                 # không đổi 'id' (business_id vẫn giữ nguyên để dữ liệu lịch sử tra cứu được).
                 'email': f"deleted_{user_id}_{user.get('email', '')}",
-            }}
+                # h1a-auth: trước đây chỉ phiên của trình duyệt đang bấm bị xoá — cookie/JWT 30 ngày ở máy khác (kể cả của
+                # kẻ đã lấy được) vẫn dùng tiếp, và Google/Facebook đã liên kết vẫn đăng nhập lại được tài khoản "đã xoá".
+                'is_active': False,
+            }, '$inc': {'session_ver': 1}, '$unset': {'oauth': '', 'oauth_linked_at': ''}}
         )
-        db.businesses.update_one(
-            {'id': business_id},
-            {'$set': {'is_deleted': True, 'deleted_at': now_iso}}
-        )
+        revoked_ids = [user_id]
+        if business_id == user_id:  # chỉ CHỦ tiệm xoá mới đóng cả tiệm; nhân viên tự xoá chỉ khoá đúng tài khoản của mình
+            db.businesses.update_one(
+                {'id': business_id},
+                {'$set': {'is_deleted': True, 'deleted_at': now_iso}}
+            )
+            staff_q = {'business_id': business_id, 'id': {'$ne': user_id}}
+            revoked_ids += [u.get('id') for u in db.users.find(staff_q, {'_id': 0, 'id': 1})]
+            db.users.update_many(staff_q, {'$set': {'is_active': False}, '$inc': {'session_ver': 1}})
+        for uid in revoked_ids:
+            _SESSION_STATE_CACHE.pop(uid, None)
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -11686,7 +11815,26 @@ def _is_superadmin():
     """Gate truy cập trang/API superadmin cho session ĐANG đăng nhập — dùng chung đúng 1 nguồn
     chân lý _is_authorized_superadmin_email() với login() (xem comment ở đó), tránh lệch logic
     giữa "ai được phép đăng nhập fallback" và "ai được phép vào trang sau khi đã đăng nhập"."""
-    return _is_authorized_superadmin_email(session.get('user_email'))
+    return _superadmin_session_ok()
+
+
+def _superadmin_session_ok():
+    """h1a-auth: quyền Super Admin CHỈ đến từ quyết định phía server lúc đăng nhập God Mode đã so hash
+    (_superadmin_emergency_login đặt uid 'superadmin-fallback' + role + sa_iat trong cookie đã ký), KHÔNG từ chuỗi email
+    người dùng tự đăng ký được (trước đây 1 chủ tiệm đăng ký email root rồi lấy JWT qua /api/auth/token là thành Super
+    Admin). Email vẫn phải còn trong danh sách cho phép (gỡ khỏi SUPERADMIN_EMAILS = mất quyền ngay). Phiên còn phải chưa
+    quá SUPERADMIN_SESSION_MAX_SECONDS, cùng hash God Mode hiện hành và cùng số phiên bản ("đăng xuất mọi nơi")."""
+    if not (session.get('user_id') == 'superadmin-fallback' and session.get('role') == 'super_admin'
+            and _is_authorized_superadmin_email(session.get('user_email'))):
+        return False
+    iat = session.get('sa_iat')
+    if not isinstance(iat, int) or time.time() - iat > SUPERADMIN_SESSION_MAX_SECONDS or iat - time.time() > 300:
+        return False
+    fp = _superadmin_key_fingerprint()
+    if not fp or not hmac.compare_digest(str(session.get('sa_key') or ''), fp):
+        return False
+    ver = _superadmin_session_ver()
+    return ver is None or int(session.get('sv') or 0) == ver
 
 
 @app.route('/super_admin')
