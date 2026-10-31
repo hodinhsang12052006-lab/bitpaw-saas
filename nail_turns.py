@@ -31,6 +31,7 @@ from functools import wraps
 from flask import Blueprint, jsonify, redirect, render_template, request, session
 
 from app import login_required
+from currency_utils import shop_currency as _shop_currency
 from mongo_client import db, next_mongo_id
 
 nail_turns_bp = Blueprint('nail_turns', __name__)
@@ -42,7 +43,6 @@ APPT_RULES = ('amount', 'full', 'half', 'none')
 KINDS = ('walk_in', 'appointment', 'request')
 ACTIONS = ('join', 'skip', 'break', 'back', 'leave')
 DEFAULT_FULL_TURN_MIN = {'USD': 30.0, 'AUD': 45.0, 'CAD': 35.0, 'NZD': 45.0, 'GBP': 25.0, 'VND': 150000.0}
-COUNTRY_CURRENCY = {'US': 'USD', 'AU': 'AUD', 'VN': 'VND', 'CA': 'CAD', 'NZ': 'NZD', 'GB': 'GBP'}
 POS_CHANNELS = ['nail_pos', 'nail_pos_square']
 POS_PAID = ['completed', 'PAID', 'paid', 'partially_refunded']
 HHMM = re.compile(r'^\s*([01]?\d|2[0-3]):([0-5]\d)')
@@ -117,11 +117,17 @@ def _biz(bid):
 
 
 def shop_currency(bid):
+    """Tiền của tiệm = currency_utils.shop_currency(tiền đã lưu, ai_packs.shop_country): tiền đã lưu, else tiền của nước tiệm
+    (hồ sơ -> múi giờ trang Nhắn tin -> tiền), else USD — tiệm Việt Nam vẫn VND, không bao giờ mặc định VND (cùng quy tắc
+    TenantEngine / ai_copilot_tools.business_currency)."""
     biz = _biz(bid)
-    cur = str(biz.get('currency') or '').strip().upper()
-    if re.fullmatch(r'[A-Z]{3}', cur):
-        return cur
-    return COUNTRY_CURRENCY.get(str(biz.get('country') or '').strip().upper(), 'USD')
+    try:
+        import ai_packs
+        country = ai_packs.shop_country(dict(biz, id=bid))
+    except Exception as e:
+        print(f"[nail_turns] shop_country: {e}")
+        country = biz.get('country')
+    return _shop_currency(biz.get('currency'), country)
 
 
 def _local_now(bid):

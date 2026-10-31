@@ -6,13 +6,15 @@
  * được trả lời — app.py::_web_reply_stamp).
  *   - Nhãn ngắn "Thiết bị A / B" theo thứ tự trình duyệt nhắn lần đầu — cùng luật với app.py::_web_device_labels. KHÔNG BAO GIỜ
  *     hiện mã băm.
- *   - Đích trả lời (reply_to = created_at của tin khách): mặc định tin khách MỚI NHẤT đang hiện trên màn hình lúc bấm Gửi. Từ 2
- *     thiết bị trở lên (nhắn từ sau trả lời gần nhất của nhân viên, hay trong cả hội thoại) -> khung soạn tin hiện rõ thiết bị
- *     nhận trả lời và cho chọn thiết bị khác.
- *   - Từ 2 thiết bị trở lên nhắn TỪ SAU trả lời gần nhất của nhân viên (plan().mustPick): KHÔNG có mặc định — người gõ SĐT của
- *     người khác nhắn liên tục để tin của mình luôn mới nhất thì trả lời không âm thầm tới trình duyệt đó. Gửi bị chặn
- *     (needsPick) tới khi nhân viên tự chọn thiết bị; server cũng từ chối trả lời không có reply_to trên hội thoại như vậy
- *     (409, code 'reply_target_required' — app.py::_web_reply_stamp), trang báo rõ + tải lại hội thoại để hiện thanh chọn.
+ *   - Đích trả lời (reply_to = created_at của tin khách): hội thoại chỉ có 1 thiết bị -> tin khách MỚI NHẤT đang hiện trên màn
+ *     hình lúc bấm Gửi.
+ *   - Từ 2 thiết bị trở lên ở BẤT KỲ đâu trong hội thoại (plan().mustPick — không chỉ nhắn từ sau trả lời gần nhất của nhân
+ *     viên): KHÔNG có mặc định, phải chọn thiết bị trước MỖI lần gửi (trang xoá lựa chọn sau mỗi lần gửi). Người gõ SĐT của
+ *     người khác có tin mới nhất, hay nhắn 1 tin ngay sau mỗi trả lời của nhân viên (trang tải lại im lặng qua SSE), thì trả
+ *     lời tiếp theo vẫn không âm thầm tới trình duyệt đó. Ô chọn liệt kê MỌI thiết bị của hội thoại (tin mới nhất của từng
+ *     thiết bị). Gửi bị chặn (needsPick) tới khi nhân viên tự chọn; server cũng từ chối trả lời không có reply_to trên hội
+ *     thoại như vậy (409, code 'reply_target_required' — app.py::_web_reply_stamp), trang báo rõ + tải lại hội thoại để hiện
+ *     thanh chọn.
  *   - Tin khách không có mã trình duyệt (cửa sổ chat cũ): trả lời cho tin đó không hiện được trên trang chat -> nói rõ cho nhân
  *     viên (gọi / nhắn SMS cho khách) thay vì im lặng như đã gửi.
  */
@@ -92,14 +94,16 @@
         var order = Array.from(out.map.values()).concat([""]);
         var pick = function (src) { return order.filter(function (d) { return src.has(d); }).map(function (d) { return src.get(d); }); };
         out.sinceCount = since.size;
-        out.choices = since.size >= 2 ? pick(since) : (all.size >= 2 ? pick(all) : []);
+        // MỌI thiết bị của hội thoại (tin mới nhất của từng thiết bị): 2 trình duyệt nhắn ngay sau trả lời gần nhất không đẩy được
+        // thiết bị đã nhắn trước đó ra khỏi ô chọn
+        out.choices = all.size >= 2 ? pick(all) : [];
         out.choose = out.choices.length >= 2;
-        out.mustPick = since.size >= 2;   // >= 2 thiết bị TỪ SAU trả lời gần nhất: không mặc định, phải chọn (cùng luật server)
+        out.mustPick = all.size >= 2;   // >= 2 thiết bị trong CẢ hội thoại: không mặc định, chọn trước mỗi lần gửi (cùng luật server)
         return out;
     }
 
     // Đích khi bấm Gửi: thiết bị nhân viên đã chọn (nếu vẫn còn trong danh sách) hoặc tin khách mới nhất đang hiện — trừ khi
-    // mustPick (>= 2 thiết bị từ sau trả lời gần nhất): chưa chọn = null, không bao giờ âm thầm lấy tin mới nhất.
+    // mustPick (>= 2 thiết bị ở bất kỳ đâu trong hội thoại): chưa chọn = null, không bao giờ âm thầm lấy tin mới nhất.
     function target(p, picked) {
         if (!p || !p.web || !p.latest) return null;
         if (p.choose && typeof picked === "string") {
@@ -146,7 +150,9 @@
         var doc = bar.ownerDocument || document;
         var label = doc.createElement("span");
         if (p.choose) {
-            label.textContent = tr(lang, p.sinceCount >= 2 ? "pickSince" : "pickAll").replace("{n}", String(p.choices.length));
+            var fromSince = p.sinceCount >= 2;   // "... kể từ lần trả lời trước" đếm đúng số thiết bị đã nhắn từ lúc đó
+            label.textContent = tr(lang, fromSince ? "pickSince" : "pickAll")
+                .replace("{n}", String(fromSince ? p.sinceCount : p.choices.length));
             bar.appendChild(label);
             var sel = doc.createElement("select");
             sel.setAttribute("aria-label", tr(lang, "pickAria"));

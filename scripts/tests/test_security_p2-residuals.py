@@ -158,13 +158,15 @@ if GROUP == 'core':
             self.assertIn('Hi Jane, your 3pm gel is moved to 4pm', self.contents(TOKEN_B))
             self.assertNotIn('Hi Jane, your 3pm gel is moved to 4pm', self.contents(TOKEN_A))
 
-        def test_single_device_since_the_last_reply_keeps_the_newest_default(self):
+        def test_single_device_since_the_last_reply_still_needs_a_pick_on_a_two_device_thread(self):
             self.seed_thread(ATTACK)
             self.assertEqual(self.staff_reply('Hello Jane', reply_to=B_MSG_AT).status_code, 200)
-            # từ sau trả lời đó chỉ 1 thiết bị nhắn -> không cần chọn (luồng thường không bị chặn)
+            # từ sau trả lời đó chỉ 1 thiết bị nhắn, nhưng hội thoại có 2 thiết bị -> vẫn phải chọn (fix7: kẻ gian nhắn 1 tin
+            # ngay sau mỗi trả lời không còn nhận trả lời tiếp theo)
             DB.bot_messages.insert_one({'customer_id': WEB_CID, 'sender_type': 'customer', 'content': 'B: thanks!',
                                         'business_id': NAIL, 'created_at': '2099-01-01T00:00:00', 'chat_token_hash': HB})
-            j = self.staff_reply('You are welcome').get_json()
+            self.assertEqual(self.staff_reply('You are welcome').status_code, 409)
+            j = self.staff_reply('You are welcome', reply_to='2099-01-01T00:00:00').get_json()
             self.assertEqual((j['success'], j['device'], j['reply_to']), (True, 'B', '2099-01-01T00:00:00'))
             # thiết bị thứ 2 nhắn tiếp từ sau trả lời gần nhất -> lại phải chọn
             DB.bot_messages.insert_one({'customer_id': WEB_CID, 'sender_type': 'customer', 'content': 'B: one more thing',
@@ -214,8 +216,8 @@ if GROUP == 'core':
             ''', threads={k: v[0] for k, v in got.items()})
             for name, (_rows, refused) in got.items():
                 self.assertEqual(out['extra']['r'][name], [refused] * 3, name)
-            self.assertEqual({k: v[1] for k, v in got.items()},
-                             {'attack': True, 'one': False, 'legacy': True, 'after_reply': False})
+            self.assertEqual({k: v[1] for k, v in got.items()},   # after_reply: 2 thiết bị trong hội thoại -> phải chọn (fix7)
+                             {'attack': True, 'one': False, 'legacy': True, 'after_reply': True})
 
     class ReplyTargetLibTests(id4._Base):
         def test_plan_needs_an_explicit_pick_and_the_prompt_is_not_a_device(self):
@@ -303,7 +305,8 @@ if GROUP == 'core':
               await handleUserSubmit(null);
               extra.input = userInput.value;
             ''', [{'status': 200, 'body': only_victim}, {'status': 200, 'body': with_attacker}])
-            self.assertTrue(out['extra']['first']['hidden'] or out['extra']['first']['selected'] != PICK)
+            # fix7: hội thoại đã có 2 thiết bị -> phải chọn ngay từ lần tải đầu (không chỉ khi cả 2 nhắn từ sau trả lời gần nhất)
+            self.assertEqual((out['extra']['first']['hidden'], out['extra']['first']['selected']), (False, PICK))
             self.assertEqual(_posts(out), [])
             self.assertEqual(out['extra']['input'], 'Moved to 4pm, Jane')
 

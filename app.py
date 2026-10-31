@@ -105,7 +105,8 @@ from ai_deepseek_client import deepseek_chat_completion
 try:
     from tenant_engine import TenantEngine
 except Exception as _import_err:
-    print(f"[!] Critical: could not import tenant_engine ({_import_err}). Falling back to VN/VND default for all tenants.")
+    print(f"[!] Critical: could not import tenant_engine ({_import_err}). Region falls back to the shop's own country "
+          "(ai_packs.shop_country) and currency (currency_utils.shop_currency), else USD.")
     class TenantEngine:
         @staticmethod
         def resolve_tenant(user_id):
@@ -113,20 +114,46 @@ except Exception as _import_err:
 
         @staticmethod
         def get_region_config(business_id):
-            return {"country": "VN", "currency": "VND"}
+            # Cùng quy tắc tenant_engine.TenantEngine.get_region_config: nước = ai_packs.shop_country, tiền =
+            # currency_utils.shop_currency (đã lưu -> theo nước -> USD). Không bao giờ VN/VND cho MỌI tiệm (trước: tiệm Mỹ / Úc
+            # thấy 'đ' khi tenant_engine không nạp được).
+            country, stored = '', None
+            try:
+                row = db.businesses.find_one({'id': business_id}, {'_id': 0, 'country': 1, 'currency': 1}) if business_id else None
+                if row:
+                    stored = row.get('currency')
+                    import ai_packs
+                    country = ai_packs.shop_country(dict(row, id=business_id)) or ''
+            except Exception as e:
+                print(f"[!] get_region_config fallback failed for business_id={business_id}: {e}")
+            try:
+                from currency_utils import shop_currency
+                return {"country": country, "currency": shop_currency(stored, country)}
+            except Exception:
+                cur = str(stored or '').strip().upper()
+                return {"country": country, "currency": cur if re.fullmatch(r'[A-Z]{3}', cur) else 'USD'}
 
 try:
     from currency_utils import format_money
 except Exception as _import_err:
-    print(f"[!] Critical: could not import currency_utils ({_import_err}). Falling back to plain VND formatting.")
-    def format_money(amount, currency='VND'):
+    print(f"[!] Critical: could not import currency_utils ({_import_err}). Falling back to plain formatting (USD unless VND).")
+    def format_money(amount, currency=None):
+        # Cùng quy ước currency_utils.format_money: 'đ' CHỈ cho VND; không có / không đọc được tiền -> USD (trước: mặc định
+        # VND, mọi tiền khác USD — AUD, CAD... — in kiểu '45đ').
         try:
             value = float(amount or 0)
         except (TypeError, ValueError):
             value = 0.0
-        if (currency or 'VND').upper() == 'USD':
-            return f"${value:,.2f}"
-        return f"{int(round(value)):,}".replace(',', '.') + 'đ'
+        if not math.isfinite(value):
+            value = 0.0
+        cur = str(currency or '').strip().upper()
+        if cur == 'VND':
+            return f"{int(round(value)):,}".replace(',', '.') + 'đ'
+        prefix = {'USD': '$', 'AUD': '$', 'CAD': 'CA$', 'NZD': 'NZ$', 'GBP': '£'}
+        if cur not in prefix and re.fullmatch(r'[A-Z]{3}', cur):
+            return f"{value:,.2f} {cur}"
+        sign = '-' if value < 0 and round(abs(value), 2) > 0 else ''
+        return f"{sign}{prefix.get(cur, '$')}{abs(value):,.2f}"
 
 try:
     import payment_us_engine
@@ -1163,12 +1190,12 @@ def inject_industry_config():
     else:
         active_cfg = INDUSTRY_CONFIG[business_mode]
 
-    # Multi-region (US market pivot): mỗi tenant tự có country/currency riêng (mặc định
-    # VN/VND, không đổi hành vi cho tenant hiện tại nào).
+    # Multi-region (US market pivot): mỗi tenant tự có country/currency riêng (TenantEngine.get_region_config: nước của
+    # tiệm, tiền đã lưu -> theo nước -> USD; không rõ -> USD, không bao giờ mặc định VN/VND).
     if hasattr(TenantEngine, 'get_region_config'):
         region = TenantEngine.get_region_config(session.get('business_id'))
     else:
-        region = {"country": "VN", "currency": "VND"}
+        region = {"country": "", "currency": "USD"}
     tenant_country = region['country']
     tenant_currency = region['currency']
     g.bp_currency = tenant_currency  # _inject_pwa_head: tiệm USD/AUD -> nạp bp-currency.js sửa nhãn "(VND)" còn sót
@@ -9751,7 +9778,7 @@ def api_us_payment_start():
         if hasattr(TenantEngine, 'get_region_config'):
             region = TenantEngine.get_region_config(business_id)
         else:
-            region = {"country": "VN", "currency": "VND"}
+            region = {"country": "", "currency": "USD"}
         if region['country'] != 'US' or region['currency'] != 'USD':
             return jsonify({'success': False, 'message': 'This tenant is not in the US market (Square is only available for country=US).'}), 403
 
@@ -11756,7 +11783,7 @@ def table_order():
     if hasattr(TenantEngine, 'get_region_config'):
         region = TenantEngine.get_region_config(table_data.get('business_id'))
     else:
-        region = {"country": "VN", "currency": "VND"}
+        region = {"country": "", "currency": "USD"}
 
     return render_template(
         'table_order.html', table=table_data, shop_name=_shop_display_name(table_data.get('business_id')),
@@ -12740,8 +12767,9 @@ def _web_reply_stamp(customer_id, reply_to):
     """Đích của 1 trả lời nhân viên trên hội thoại web (chủ tiệm /api/bot/messages, super admin /api/superadmin/chat/messages):
     ({'chat_token_hash', 'device', 'reply_to'}, None), hoặc (None, (mã HTTP, câu VI, câu EN, code)) khi không ghi được.
     reply_to = created_at của tin khách đang được trả lời — hộp thư luôn gửi (tin khách mới nhất đang hiện trên màn hình lúc bấm
-    Gửi, hoặc thiết bị nhân viên chọn khi >= 2 thiết bị cùng nhắn); không gửi = tin khách mới nhất, TRỪ KHI >= 2 trình duyệt đã
-    nhắn từ sau trả lời gần nhất của nhân viên -> 409 'reply_target_required' (phải chọn thiết bị). Trả lời mang mã băm của tin
+    Gửi khi hội thoại chỉ có 1 thiết bị, hoặc thiết bị nhân viên chọn khi >= 2 thiết bị); không gửi = tin khách mới nhất, TRỪ KHI
+    >= 2 trình duyệt đã nhắn ở BẤT KỲ đâu trong hội thoại (không chỉ từ sau trả lời gần nhất của nhân viên) -> 409
+    'reply_target_required' (phải chọn thiết bị). Trả lời mang mã băm của tin
     đó -> chỉ ĐÚNG trình duyệt đó đọc được qua trang công khai (/api/portal/*, /api/cskh/chat/*). device: nhãn thiết bị nhận
     ('A', 'B'...), None khi tin đó không có mã trình duyệt (widget cũ) -> mã '' = không trình duyệt nào đọc được trả lời này,
     hộp thư báo rõ cho nhân viên thay vì im lặng như đã gửi tới khách."""
@@ -12751,18 +12779,29 @@ def _web_reply_stamp(customer_id, reply_to):
             return None, (400, "Tin nhắn được trả lời (reply_to) không hợp lệ.", "Invalid reply_to message.", 'bad_reply_to')
         q['created_at'] = reply_to
     else:
-        # >= 2 trình duyệt (mã băm; '' = cửa sổ chat cũ không mã) đã nhắn từ sau trả lời gần nhất của nhân viên — cùng luật
-        # plan().mustPick của static/js/bp_reply_target.js: KHÔNG tự trả lời tin mới nhất (người gõ SĐT của người khác trên
-        # widget nhắn liên tục để tin của mình luôn mới nhất -> trả lời của nhân viên tới trình duyệt đó). Phải chọn thiết bị.
+        # >= 2 trình duyệt (mã băm; '' = cửa sổ chat cũ không mã) ở BẤT KỲ đâu trong hội thoại — cùng luật plan().mustPick của
+        # static/js/bp_reply_target.js: KHÔNG tự trả lời tin mới nhất. Chỉ đếm từ sau trả lời gần nhất là chưa đủ: người gõ SĐT
+        # của người khác trên widget có tin mới nhất (hay nhắn 1 tin ngay sau mỗi trả lời của nhân viên) thì mọi trả lời tiếp
+        # theo không reply_to vẫn tới trình duyệt đó. Phải chọn thiết bị. Đếm MỌI tin khách (như _web_device_labels, không giới
+        # hạn số tin): 1 trình duyệt nhắn dồn không đẩy được trình duyệt kia ra khỏi phép đếm.
         last = db.bot_messages.find_one({'customer_id': customer_id, 'sender_type': 'staff'}, {'_id': 0, 'created_at': 1},
                                         sort=[('created_at', -1)])
-        since = dict(q, created_at={'$gt': (last or {}).get('created_at') or ''})
-        devices = {m.get('chat_token_hash') if isinstance(m.get('chat_token_hash'), str) else ''
-                   for m in db.bot_messages.find(since, {'_id': 0, 'chat_token_hash': 1}).limit(5000)}
-        if len(devices) >= 2:
-            return None, (409, f"{len(devices)} thiết bị khác nhau đã nhắn bằng số này từ sau trả lời gần nhất — hãy chọn "
+        last_at = str((last or {}).get('created_at') or '')
+        devices, since = set(), set()
+        for m in db.bot_messages.find(q, {'_id': 0, 'chat_token_hash': 1, 'created_at': 1}):
+            h = m.get('chat_token_hash') if isinstance(m.get('chat_token_hash'), str) else ''
+            devices.add(h)
+            if str(m.get('created_at') or '') > last_at:
+                since.add(h)
+        if len(since) >= 2:
+            return None, (409, f"{len(since)} thiết bị khác nhau đã nhắn bằng số này từ sau trả lời gần nhất — hãy chọn "
                                "thiết bị nhận trả lời rồi gửi lại. Trả lời CHƯA được gửi.",
-                          f"{len(devices)} different devices have messaged from this number since the last reply — choose "
+                          f"{len(since)} different devices have messaged from this number since the last reply — choose "
+                          "which device gets your reply, then send again. Nothing was sent.", 'reply_target_required')
+        if len(devices) >= 2:
+            return None, (409, f"{len(devices)} thiết bị khác nhau đã nhắn bằng số này trong hội thoại — hãy chọn thiết bị nhận "
+                               "trả lời rồi gửi lại. Trả lời CHƯA được gửi.",
+                          f"{len(devices)} different devices have messaged from this number in this conversation — choose "
                           "which device gets your reply, then send again. Nothing was sent.", 'reply_target_required')
     answered = db.bot_messages.find_one(q, {'_id': 0, 'chat_token_hash': 1, 'created_at': 1}, sort=[('created_at', -1)])
     if reply_to is not None and not answered:
@@ -12781,7 +12820,7 @@ def api_bot_messages_create():
     KHÁC với sender_type='ai'/'customer' do _persist_chat_turn() ghi tự động từ widget
     landing page. Dùng chung 1 collection, chỉ khác nhãn người gửi.
     reply_to (hội thoại web): created_at của tin khách mà nhân viên đang trả lời — hộp thư (ai_bot.html, crm_automation.html)
-    luôn gửi; không gửi = tin khách mới nhất, trừ khi >= 2 thiết bị đã nhắn từ sau trả lời gần nhất -> 409 code
+    luôn gửi; không gửi = tin khách mới nhất, trừ khi >= 2 thiết bị đã nhắn ở bất kỳ đâu trong hội thoại -> 409 code
     'reply_target_required' (_web_reply_stamp). Phản hồi kèm device = thiết bị nhận trả lời ('A', 'B'...;
     None = trả lời KHÔNG hiện trên trang chat của khách) + reply_to = tin khách đã được trả lời."""
     business_id = session.get('business_id') or session['user_id']
@@ -12809,7 +12848,8 @@ def api_bot_messages_create():
             if channel == 'web':
                 # Hội thoại web khoá theo SĐT TỰ GÕ: 2 trình duyệt gõ cùng 1 số dùng chung 1 hội thoại. Trả lời chỉ tới ĐÚNG trình
                 # duyệt nó trả lời (/api/portal/* lọc theo mã băm): mã băm của tin khách được trả lời (reply_to — hộp thư gửi tin
-                # đang hiện / thiết bị nhân viên chọn), mặc định tin khách MỚI NHẤT. Tin đó không có mã (widget cũ) -> '' = không
+                # đang hiện / thiết bị nhân viên chọn); không reply_to = tin khách MỚI NHẤT chỉ khi hội thoại có 1 thiết bị (>= 2
+                # thiết bị -> 409 reply_target_required, phải chọn). Tin đó không có mã (widget cũ) -> '' = không
                 # trình duyệt nào đọc được qua trang công khai, và phản hồi báo device=None để hộp thư nói rõ cho nhân viên.
                 stamp, err = _web_reply_stamp(customer_id, data.get('reply_to'))
                 if err:
@@ -14049,7 +14089,7 @@ def superadmin_chat_send_message(customer_id):
     -> MỌI trình duyệt đã gõ SĐT đó (kể cả người gõ SĐT của người khác) đọc được trả lời của super admin. Giờ hội thoại web (của
     tiệm hay lead landing) theo ĐÚNG luật của /api/bot/messages (_web_reply_stamp): reply_to = tin khách đang được trả lời (trang
     super_admin.html luôn gửi), trả lời mang mã băm của tin đó; phản hồi báo device = thiết bị nhận (None = không hiện trên trang
-    chat của khách)."""
+    chat của khách). Không reply_to trên hội thoại có >= 2 thiết bị (ở bất kỳ đâu trong hội thoại) -> 409 reply_target_required."""
     if not _is_superadmin():
         return jsonify({"success": False, "message": "Access denied: Superadmin privileges required."}), 403
     data = request.json or {}

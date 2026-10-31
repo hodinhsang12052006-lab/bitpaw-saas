@@ -603,8 +603,8 @@
         let conversationHistory = [];
         let lastLoadedMessages = []; // hội thoại thật đang mở (để Copilot biết tin cuối có phải của khách)
         // Hội thoại web: thiết bị nào gửi tin nào + trả lời tới đâu (static/js/bp_reply_target.js). replyPick = thiết bị nhân viên
-        // tự chọn ở thanh phía trên ô soạn tin (null = mặc định tin khách mới nhất đang hiện; >= 2 thiết bị nhắn từ sau trả lời
-        // gần nhất -> KHÔNG mặc định, Gửi bị chặn tới khi chọn — BPReplyTarget.needsPick).
+        // tự chọn ở thanh phía trên ô soạn tin (null = tin khách mới nhất đang hiện khi hội thoại chỉ có 1 thiết bị; >= 2 thiết bị
+        // ở bất kỳ đâu trong hội thoại -> KHÔNG mặc định, Gửi bị chặn tới khi chọn, chọn lại trước MỖI lần gửi — BPReplyTarget.needsPick).
         let replyPlan = null, replyPick = null;
         let allCustomers = [];
         let isMockMode = false;
@@ -1439,11 +1439,11 @@
             if (!text) return;
             if (!currentCustomerId) { showToast(cpt('pickFirst'), 'error'); return; }
 
-            // Hội thoại web: trả lời tin khách đang hiện trên màn hình lúc bấm Gửi (mặc định tin mới nhất, hoặc thiết bị đã chọn) —
+            // Hội thoại web: trả lời tin khách đang hiện trên màn hình lúc bấm Gửi (1 thiết bị: tin mới nhất; >= 2: thiết bị đã chọn) —
             // server ghi trả lời kèm mã trình duyệt của ĐÚNG tin đó nên chỉ thiết bị đó thấy trên trang chat.
             const plan = replyPlan;
             if (window.BPReplyTarget && BPReplyTarget.needsPick(plan, replyPick)) {
-                // >= 2 thiết bị đã nhắn từ sau trả lời gần nhất: không tự gửi cho tin mới nhất — giữ chữ, chờ nhân viên chọn
+                // >= 2 thiết bị trong hội thoại, chưa chọn: không tự gửi cho tin mới nhất — giữ chữ, chờ nhân viên chọn
                 renderReplyBar();
                 showToast(escapeHtml(BPReplyTarget.text(cpLang(), 'mustPick')), 'error');
                 return;
@@ -1464,7 +1464,8 @@
                 if (res && res.delivery && res.delivery.status === 'failed') showToast(cpt('failedSend') + errText(res.delivery), 'error');
                 const note = window.BPReplyTarget ? BPReplyTarget.sentNote(res, plan, cpLang()) : null;
                 if (note) showToast(escapeHtml(note.text), note.ok ? 'success' : 'error');
-                replyPick = null;
+                replyPick = null;     // >= 2 thiết bị: lần gửi sau phải chọn lại (thiết bị vừa chọn không thành mặc định)
+                renderReplyBar();
                 if (res && (res.delivery || plan)) loadMessages(currentCustomerId, { silent: true });
                 // Nhân viên đã nhận chat -> server tắt AI cho khách này (tránh khách nhận 2 câu trả lời chồng nhau)
                 renderAiMode(false);
@@ -1473,7 +1474,7 @@
             } catch (ex) {
                 console.error("Failed to send message:", ex);
                 if (ex && ex.code === 'reply_target_required') {
-                    // server (409): >= 2 thiết bị đã nhắn từ sau trả lời gần nhất, chưa chọn thiết bị -> chưa gửi gì. Giữ chữ,
+                    // server (409): >= 2 thiết bị trong hội thoại, chưa chọn thiết bị -> chưa gửi gì. Giữ chữ,
                     // tải lại hội thoại để hiện thanh chọn thiết bị.
                     showToast(escapeHtml(ex.message), 'error');
                     if (!userInput.value) userInput.value = text;

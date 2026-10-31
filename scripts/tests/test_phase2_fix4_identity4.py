@@ -287,8 +287,10 @@ class StaffReplyDeviceTests(_Base):
             self.assertNotIn(h, r.get_data(as_text=True))           # không bao giờ trả mã băm
         self.assertIn('Hi Jane, your 3pm gel is moved to 4pm', self.contents(TOKEN_B))
         self.assertNotIn('Hi Jane, your 3pm gel is moved to 4pm', self.contents(TOKEN_A))
-        # không gửi reply_to = tin khách mới nhất (của A) -> phản hồi nói rõ là thiết bị A
-        j = self.staff_reply('Which booking do you mean?').get_json()
+        # không gửi reply_to: 2 thiết bị trong hội thoại -> 409 (fix7: không mặc định tin mới nhất của A sau trả lời cho B);
+        # chọn tin của A -> phản hồi nói rõ là thiết bị A
+        self.assertEqual(self.staff_reply('Which booking do you mean?').get_json()['code'], 'reply_target_required')
+        j = self.staff_reply('Which booking do you mean?', reply_to='2026-10-01T08:20:00').get_json()
         self.assertEqual((j.get('device'), j.get('reply_to')), ('A', '2026-10-01T08:20:00'))
         self.assertIn('Which booking do you mean?', self.contents(TOKEN_A))
         self.assertNotIn('Which booking do you mean?', self.contents(TOKEN_B))
@@ -484,8 +486,9 @@ class SuperAdminReplyTests(_Base):
         # A đã vào hội thoại TRƯỚC trả lời này (luật cũ "trả lời không mã băm ghi sau lúc vào" từng đưa cho A) -> giờ không thấy
         self.assertNotIn('BitPaw support: your booking is safe', self.contents(TOKEN_A))
         self.assertIn('BitPaw support: your booking is safe', self.contents(TOKEN_B))
-        # không gửi reply_to -> tin khách mới nhất (A); B không thấy
-        self.assertEqual(self.sa_post(WEB_CID, content='Which booking?').get_json()['device'], 'A')
+        # không gửi reply_to: 2 thiết bị trong hội thoại -> 409 (fix7); chọn tin của A -> A; B không thấy
+        self.assertEqual(self.sa_post(WEB_CID, content='Which booking?').get_json()['code'], 'reply_target_required')
+        self.assertEqual(self.sa_post(WEB_CID, content='Which booking?', reply_to='2026-10-01T08:20:00').get_json()['device'], 'A')
         self.assertNotIn('Which booking?', self.contents(TOKEN_B))
 
     def test_superadmin_reply_errors_and_access(self):
