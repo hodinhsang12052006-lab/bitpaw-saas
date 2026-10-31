@@ -2700,8 +2700,10 @@ def _sse_tenant_match(*collection_names):
 def stream_hr_employees():
     """Thay kênh Supabase Realtime `hr_realtime` (nhanvien.html) — bảng employees. Kèm vị trí/trạng thái của đúng người
     vừa đổi (chỉ các trường an toàn) để bản đồ dời đúng 1 chấm thay vì tải lại cả danh sách cho mỗi lần GPS nhích."""
-    return _sse_change_signal(db.employees, _sse_tenant_match(), payload_colls={
-        'employees': ['ma_nv', 'ho_ten', 'toa_do_lat', 'toa_do_lng', 'trang_thai_gps', 'nhiem_vu_hien_tai', 'gps_at', 'avatar_url', 'diem_kudo']})
+    fields = ['ma_nv', 'ho_ten', 'toa_do_lat', 'toa_do_lng', 'trang_thai_gps', 'nhiem_vu_hien_tai', 'gps_at', 'avatar_url', 'diem_kudo']
+    if session.get('role', 'staff') not in ('admin', 'super_admin'):
+        fields = ['ma_nv', 'ho_ten', 'avatar_url', 'diem_kudo']  # vị trí GPS trực tiếp chỉ chủ tiệm/quản trị (bản đồ admin-only)
+    return _sse_change_signal(db.employees, _sse_tenant_match(), payload_colls={'employees': fields})
 
 
 @app.route('/api/stream/payroll')
@@ -8072,8 +8074,45 @@ def _safe_image_content_type(filename):
     return _SAFE_IMAGE_CONTENT_TYPES.get(ext, 'application/octet-stream')
 
 
+def _sniff_image_type(data):
+    """Bảo mật (h3): loại ảnh THẬT theo magic bytes — đuôi file chỉ là tên client đặt ("x.png" chứa zip/HTML vẫn qua
+    _allowed_media_file). Chỉ PNG/JPEG/GIF/WebP, còn lại None."""
+    head = bytes(data[:12]) if data else b''
+    if head[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'image/png'
+    if head[:3] == b'\xff\xd8\xff':
+        return 'image/jpeg'
+    if head[:6] in (b'GIF87a', b'GIF89a'):
+        return 'image/gif'
+    if head[:4] == b'RIFF' and head[8:12] == b'WEBP':
+        return 'image/webp'
+    return None
+
+
+# Kind mà giao diện của /api/storage/upload thật sự gửi (app_nhanvien, diemdanh, chamcong_spa, chamcong_kythuat, chat,
+# app_chat). Kind khác do client tự khai -> 'misc' (riêng tư): ảnh công khai (brand_*/product_image/portal_chat) và media
+# AI Studio/Đăng bài (media_store.KINDS) có route riêng với kiểm tra riêng, không được tự gắn nhãn qua route này.
+_STORAGE_UPLOAD_KINDS = {'misc', 'avatar', 'checkin', 'evidence', 'signature', 'chat', 'job_photo', 'job_signature'}
+_STORAGE_UPLOAD_MAX_BYTES = 8 * 1024 * 1024      # ảnh điện thoại thật 2-8 MB (Vercel còn cắt body ở ~4,5 MB)
+_PORTAL_UPLOAD_MAX_BYTES = 5 * 1024 * 1024       # ảnh khách ẩn danh gửi trong chat CSKH
+_PORTAL_UPLOADS_PER_CONVERSATION_DAY = 20
+_PORTAL_UPLOADS_PER_SHOP_DAY = 300
+# Trần dung lượng GridFS 'media' mỗi tiệm cho ảnh của các route cũ (media AI Studio có trần riêng media_store.SHOP_CAP_BYTES)
+_LEGACY_MEDIA_SHOP_CAP_BYTES = int(os.environ.get('STORAGE_SHOP_CAP_BYTES') or 2_000_000_000)
+
+
+def _legacy_media_usage_bytes(business_id):
+    from media_store import KINDS as _media_store_kinds
+    rows = list(db['media.files'].aggregate([
+        {'$match': {'business_id': business_id, 'kind': {'$nin': sorted(_media_store_kinds)}}},
+        {'$group': {'_id': None, 'n': {'$sum': '$length'}}},
+    ]))
+    return int(rows[0]['n']) if rows else 0
+
+
 @app.route('/api/storage/upload', methods=['POST'])
 @login_required
+@limiter.limit("600 per hour")
 def api_storage_upload():
     """Upload ảnh (avatar, ảnh check-in, ảnh trước/sau dịch vụ VIP...) vào GridFS. Trả về
     `url` là link nội bộ (/api/storage/file/<id>) để nhúng thẳng vào <img src>, tương đương
@@ -8087,14 +8126,24 @@ def api_storage_upload():
         return jsonify({'success': False, 'error': 'Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp).'}), 400
     business_id = session.get('business_id') or session['user_id']
     kind = request.form.get('kind', 'misc')
+    if kind not in _STORAGE_UPLOAD_KINDS:
+        kind = 'misc'  # không tin kind client gửi (xem _STORAGE_UPLOAD_KINDS)
     filename = secure_filename(file.filename)
+    data = file.stream.read(_STORAGE_UPLOAD_MAX_BYTES + 1)
+    if len(data) > _STORAGE_UPLOAD_MAX_BYTES:
+        return jsonify({'success': False, 'error': 'Ảnh quá lớn (tối đa 8 MB).'}), 413
+    content_type = _sniff_image_type(data)
+    if not content_type:
+        return jsonify({'success': False, 'error': 'Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp).'}), 400
     try:
+        if _legacy_media_usage_bytes(business_id) + len(data) > _LEGACY_MEDIA_SHOP_CAP_BYTES:
+            return jsonify({'success': False, 'error': 'Dung lượng lưu ảnh của tiệm đã đầy.'}), 413
         file_id = media_fs.put(
-            file.stream.read(),
+            data,
             filename=filename,
             business_id=business_id,
             kind=kind,
-            content_type=_safe_image_content_type(filename)
+            content_type=content_type
         )
         return jsonify({'success': True, 'file_id': str(file_id), 'url': url_for('api_storage_file', file_id=str(file_id))})
     except Exception as e:
@@ -8142,6 +8191,29 @@ def api_storage_file(file_id):
 # /api/storage/file/<id> (private).
 _PUBLIC_MEDIA_KINDS = {'brand_logo', 'brand_cover', 'portal_chat', 'product_image'}
 
+# Bảo mật (h3): ảnh chat CSKH (portal_chat) là ảnh riêng khách gửi cho tiệm -> chỉ mở bằng link CÓ CHỮ KÝ HMAC (?sig=, do
+# api_portal_upload trả về); ObjectId đoán/dò được (giây + bộ đếm của process) nên biết id trần là chưa đủ. Link cũ chưa ký
+# (file trước bản vá, không có cờ link_signed) còn mở tới ngày PORTAL_CHAT_LEGACY_LINKS_UNTIL để hội thoại cũ không vỡ ảnh
+# ngay; sau ngày đó link cũ cần ký lại (thêm ?sig=_portal_chat_sig(id)) mới hiện.
+_PORTAL_CHAT_LEGACY_UNTIL = os.environ.get('PORTAL_CHAT_LEGACY_LINKS_UNTIL') or '2026-12-01'
+
+
+def _portal_chat_sig(file_id):
+    key = app.secret_key.encode() if isinstance(app.secret_key, str) else app.secret_key
+    return hmac.new(key, f'portal_chat|{file_id}'.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def _portal_chat_link_ok(grid_file, file_id, sig):
+    if isinstance(sig, str) and sig and hmac.compare_digest(sig.encode('utf-8'), _portal_chat_sig(file_id).encode()):
+        return True
+    if getattr(grid_file, 'link_signed', False):
+        return False
+    try:
+        until = datetime.strptime(_PORTAL_CHAT_LEGACY_UNTIL, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return False
+    return datetime.now(timezone.utc) < until
+
 
 @app.route('/api/public/storage/file/<file_id>', methods=['GET'])
 def api_public_storage_file(file_id):
@@ -8157,8 +8229,11 @@ def api_public_storage_file(file_id):
         return jsonify({'success': False, 'error': 'Không tìm thấy file.'}), 404
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-    if getattr(grid_file, 'kind', None) not in _PUBLIC_MEDIA_KINDS:
-        return jsonify({'success': False, 'error': 'File này không công khai.'}), 403
+    kind = getattr(grid_file, 'kind', None)
+    # 404 y hệt "không có file" (trước đây 403 "không công khai" cho biết file riêng tư nào tồn tại)
+    if kind not in _PUBLIC_MEDIA_KINDS or (
+            kind == 'portal_chat' and not _portal_chat_link_ok(grid_file, str(object_id), request.args.get('sig'))):
+        return jsonify({'success': False, 'error': 'Không tìm thấy file.'}), 404
     return Response(
         grid_file.read(),
         mimetype=grid_file.content_type or 'application/octet-stream',
@@ -11630,15 +11705,36 @@ def api_portal_upload():
     if not _allowed_media_file(file.filename):
         return jsonify({'success': False, 'error': 'Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp).'}), 400
     filename = secure_filename(file.filename)
+    business_id = customer['business_id']
+    # Bảo mật (h3): khách ẩn danh -> kiểm tra bytes là ảnh thật, trần cỡ file, trần số ảnh/ngày theo hội thoại và theo tiệm,
+    # trần dung lượng tiệm; link trả về có chữ ký (xem _portal_chat_sig).
+    data = file.stream.read(_PORTAL_UPLOAD_MAX_BYTES + 1)
+    if len(data) > _PORTAL_UPLOAD_MAX_BYTES:
+        return jsonify({'success': False, 'error': 'Ảnh quá lớn (tối đa 5 MB).'}), 413
+    content_type = _sniff_image_type(data)
+    if not content_type:
+        return jsonify({'success': False, 'error': 'Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp).'}), 400
     try:
-        file_id = media_fs.put(
-            file.stream.read(),
+        now = datetime.now(timezone.utc)
+        since = now - timedelta(days=1)
+        files = db['media.files']
+        if files.count_documents({'kind': 'portal_chat', 'customer_id': customer_id, 'uploaded_at': {'$gte': since}}) >= _PORTAL_UPLOADS_PER_CONVERSATION_DAY \
+                or files.count_documents({'kind': 'portal_chat', 'business_id': business_id, 'uploaded_at': {'$gte': since}}) >= _PORTAL_UPLOADS_PER_SHOP_DAY:
+            return jsonify({'success': False, 'error': 'Đã gửi quá nhiều ảnh hôm nay, vui lòng thử lại sau.'}), 429
+        if _legacy_media_usage_bytes(business_id) + len(data) > _LEGACY_MEDIA_SHOP_CAP_BYTES:
+            return jsonify({'success': False, 'error': 'Tiệm tạm thời không nhận thêm ảnh.'}), 413
+        file_id = str(media_fs.put(
+            data,
             filename=filename,
-            business_id=customer['business_id'],
+            business_id=business_id,
             kind='portal_chat',
-            content_type=_safe_image_content_type(filename)
-        )
-        return jsonify({'success': True, 'file_id': str(file_id), 'url': url_for('api_public_storage_file', file_id=str(file_id))})
+            content_type=content_type,
+            customer_id=customer_id,
+            uploaded_at=now,
+            link_signed=True,
+        ))
+        return jsonify({'success': True, 'file_id': file_id,
+                        'url': url_for('api_public_storage_file', file_id=file_id, sig=_portal_chat_sig(file_id))})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -12196,7 +12292,11 @@ def api_bot_customers_list():
 
 
 def _assert_owns_bot_customer(customer_id, business_id):
-    doc = db.bot_customers.find_one({'id': customer_id}, {'business_id': 1, '_id': 0})
+    # Bảo mật (h3): customer_id PHẢI là chuỗi — body JSON gửi {"$in": [hội thoại của mình, của tiệm khác]} từng là toán tử
+    # Mongo, khớp tài liệu đầu tiên (của mình) nên lọt kiểm tra; lọc luôn theo business_id thay vì chỉ so sau khi đọc.
+    if not isinstance(customer_id, str) or not customer_id:
+        return False
+    doc = db.bot_customers.find_one({'id': customer_id, 'business_id': business_id}, {'business_id': 1, '_id': 0})
     return bool(doc) and doc.get('business_id') == business_id
 
 
@@ -12223,14 +12323,15 @@ def api_bot_messages_create():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     customer_id = data.get('customer_id', '')
-    content = (data.get('content') or '').strip()
+    content = data.get('content')
+    content = content.strip() if isinstance(content, str) else ''
     if not content:
         return jsonify({"success": False, "message": "Tin nhắn trống."}), 400
-    if not _assert_owns_bot_customer(customer_id, business_id):
+    if not isinstance(customer_id, str) or not _assert_owns_bot_customer(customer_id, business_id):
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
     try:
         now_iso = datetime.now().isoformat()
-        bc = db.bot_customers.find_one({'id': customer_id}, {'_id': 0, 'channel': 1, 'ext_user_id': 1}) or {}
+        bc = db.bot_customers.find_one({'id': customer_id, 'business_id': business_id}, {'_id': 0, 'channel': 1, 'ext_user_id': 1}) or {}
         channel = bc.get('channel') or 'web'
         delivery = None
         if channel != 'web' and bc.get('ext_user_id'):
@@ -12267,6 +12368,24 @@ def api_bot_ai_mode():
     paused = not bool(data.get('enabled'))
     db.bot_customers.update_one({'id': customer_id, 'business_id': business_id}, {'$set': {'ai_paused': paused, 'handoff_by_ai': False}})
     return jsonify({"success": True, "ai_paused": paused})
+
+
+@app.route('/api/bot/customer_link', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_bot_customer_link():
+    """Chủ tiệm duyệt liên kết chờ duyệt: khách nhắn SĐT trong Messenger/Zalo -> gắn id kênh vào hồ sơ khách có SĐT đó
+    (inbox_channels.link_customer không tự gắn nữa vì SĐT gõ tay chưa xác minh). Hội thoại cần duyệt mang trường
+    pending_customer_link (GET /api/bot/customers). Body: {customer_id: <id hội thoại>, confirm: true|false}."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.get_json(silent=True)
+    data = data if isinstance(data, dict) else {}
+    customer_id = data.get('customer_id')
+    if not isinstance(customer_id, str) or not _assert_owns_bot_customer(customer_id, business_id):
+        return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
+    if not inbox_channels.confirm_customer_link(business_id, customer_id, accept=data.get('confirm') is True):
+        return jsonify({"success": False, "message": "Hội thoại này không có liên kết chờ duyệt."}), 404
+    return jsonify({"success": True})
 
 
 # ========== HỘP THƯ CHUNG (Unified Inbox): Messenger · Instagram · WhatsApp · Zalo · Viber · SMS · website ==========
@@ -12400,8 +12519,8 @@ def _inbox_handle_event(doc, ev):
     inbox_channels.record(business_id, channel, ev['user_id'], ev['text'], 'customer', name=ev['name'], phone=ev['phone'],
                           ext_msg_id=ev['ext_msg_id'], default_name=_inbox_walkin(business_id))
     phone = inbox_channels.capture_phone(cid, ev['text']) or ev['phone']
-    if phone:
-        inbox_channels.link_customer(business_id, channel, ev['user_id'], phone)
+    if phone:  # SĐT gõ tay chưa xác minh -> liên kết chờ chủ tiệm duyệt, không tự gắn vào hồ sơ có sẵn
+        inbox_channels.link_customer(business_id, channel, ev['user_id'], phone, conversation=cid)
     db.inbox_channels.update_one({'business_id': business_id, 'channel': channel},
                                  {'$set': {'last_inbound_at': datetime.now().isoformat()}})
     # Mặc định theo ngành (Nails/Spa bật; ngành khác tắt trừ khi chủ tiệm tự bật — inbox_channels.ai_auto_reply_on)
@@ -12822,8 +12941,18 @@ def api_ai_usage():
     return jsonify({"success": True, **summary})
 
 
+def _anon_sales_chat_request():
+    """Lượt chat của bot BÁN PHẦN MỀM BitPaw từ khách ẩn danh (không session, không phải chat đặt lịch của tiệm) — chi phí
+    DeepSeek do BitPaw trả, nên có thêm giới hạn theo IP mỗi ngày (decorator dưới) và trần chung mỗi ngày (trong hàm)."""
+    if 'user_id' in session:
+        return False
+    body = request.get_json(silent=True)
+    return not (isinstance(body, dict) and body.get('context') == 'customer_booking')
+
+
 @app.route('/api/ai/studio/generate', methods=['POST'])
 @limiter.limit("20 per minute")
+@limiter.limit("300 per day", exempt_when=lambda: not _anon_sales_chat_request())
 def secure_ai_generate():
     data = request.get_json() or {}
 
@@ -12886,6 +13015,30 @@ def secure_ai_generate():
         max_tokens = max(1, min(2000, int(data.get('max_tokens', 1500))))
     except (TypeError, ValueError):
         max_tokens = 1500
+    # Bảo mật (h3): bot bán phần mềm cho khách ẩn danh — DeepSeek do BitPaw trả, giới hạn theo IP đổi IP là né được. Cắt độ
+    # dài + TRẦN CHUNG mỗi ngày cho mọi IP cộng lại (SALES_BOT_DAILY_CAP lượt/ngày theo giờ UTC, mặc định 2000); quá trần thì
+    # trả câu "để lại SĐT/email" mà KHÔNG gọi DeepSeek (kể cả bộ phân loại phản đối bên dưới).
+    if not public_customer_chat and not is_authenticated:
+        user_prompt = user_prompt[:2000]
+        max_tokens = min(max_tokens, 600)
+        day_key = 'sales_bot:' + time.strftime('%Y-%m-%d', time.gmtime())
+        try:
+            db.ai_budget.update_one({'_id': day_key}, {'$inc': {'n': 1}}, upsert=True)
+            used = int((db.ai_budget.find_one({'_id': day_key}, {'n': 1}) or {}).get('n') or 0)
+        except Exception as e:
+            print(f"[sales_bot budget] {e}")
+            used = 0
+        try:
+            cap = int(os.environ.get('SALES_BOT_DAILY_CAP') or 2000)
+        except ValueError:
+            cap = 2000
+        if used > cap:
+            _vi_cap = bool(re.search(r'[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]', user_prompt, re.I))
+            return jsonify({"choices": [{"message": {"content": (
+                "Dạ hệ thống đang hơi chậm một chút. Anh/chị để lại số điện thoại hoặc email, đội BitPaw sẽ liên hệ trong 1 ngày làm việc nhé!"
+                if _vi_cap else
+                "Sorry, I'm running a little slow right now. Leave your phone or email and the BitPaw team will get back to you within 1 business day.")}}],
+                "fallback": True, "error": "daily_budget"})
     customer_phone = data.get('customer_phone')  # tuỳ chọn: để AI cá nhân hoá theo hạng/lịch sử chi tiêu
     if customer_phone is not None and not isinstance(customer_phone, str):
         customer_phone = None
@@ -15008,6 +15161,19 @@ _EMPLOYEE_PATCHABLE_FIELDS = (
     'nhiem_vu_hien_tai',
 )
 
+# Bảo mật (h3): tài khoản KHÔNG phải chủ tiệm/quản trị (app thợ, chat nội bộ, danh sách chọn đồng nghiệp) chỉ thấy DANH BẠ —
+# không lương (luong_cb/luong_gio/phu_cap), không vị trí GPS trực tiếp (toa_do_*, trang_thai_gps, nhiem_vu_hien_tai, gps_at).
+# Bảng lương (/bangluong) và bản đồ (/map_dashboard) vốn đã chỉ admin; trước đây GET /api/hr/employees trả hết cho mọi người.
+_EMPLOYEE_DIRECTORY_FIELDS = ('id', 'ma_nv', 'ho_ten', 'chuc_vu', 'linh_vuc', 'avatar_url', 'diem_kudo', 'thu_tu_tua')
+
+
+def _employee_projection():
+    if session.get('role', 'staff') in ('admin', 'super_admin'):
+        return {'_id': 0, 'face_template': 0}  # mẫu khuôn mặt không bao giờ rời máy chủ
+    proj = {f: 1 for f in _EMPLOYEE_DIRECTORY_FIELDS}
+    proj['_id'] = 0
+    return proj
+
 
 @app.route('/api/hr/employees', methods=['GET'])
 @login_required
@@ -15015,7 +15181,7 @@ def api_hr_employees_list():
     business_id = session.get('business_id') or session['user_id']
     sort = _EMPLOYEE_SORT_FIELDS.get(request.args.get('sort'), [('id', 1)])
     try:
-        employees = list(db.employees.find({'business_id': business_id}, {'_id': 0, 'face_template': 0}).sort(sort))  # mẫu khuôn mặt không bao giờ rời máy chủ
+        employees = list(db.employees.find({'business_id': business_id}, _employee_projection()).sort(sort))  # mẫu khuôn mặt không bao giờ rời máy chủ
         return jsonify({"success": True, "data": employees})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -15029,7 +15195,7 @@ def api_hr_employees_get(ma_nv):
     trùng giữa 2 doanh nghiệp khác nhau)."""
     business_id = session.get('business_id') or session['user_id']
     try:
-        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, {'_id': 0, 'face_template': 0})
+        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, _employee_projection())
         if not emp:
             return jsonify({"success": False, "error": "Employee not found."}), 404
         return jsonify({"success": True, "data": emp})
@@ -15038,18 +15204,21 @@ def api_hr_employees_get(ma_nv):
 
 
 @app.route('/api/public/hr/employees/lookup', methods=['GET'])
+@limiter.limit("300 per hour")
 def api_public_employee_lookup():
-    """PUBLIC (không @login_required) — dùng bởi màn "Fast Check-in" ở index.html, nơi nhân
-    viên gõ mã NV để đi thẳng vào camera chấm công (diemdanh.html) TRƯỚC KHI đăng nhập, nên
-    chưa có session/business_id để lọc tenant. Chỉ trả về ho_ten/ma_nv (không lương, không
-    business_id, không thông tin nhạy cảm khác) — cùng mức lộ dữ liệu như lookup không đăng
-    nhập cũ, nếu 2 doanh nghiệp trùng ma_nv thì có thể lộ tên nhân viên của nhau, đây là giới
-    hạn kế thừa từ luồng kiosk chưa đăng nhập, không phải lỗi mới phát sinh."""
-    ma_nv = (request.args.get('ma_nv') or '').strip()
+    """Màn "Fast Check-in" ở index.html: nhân viên gõ mã NV để vào camera chấm công (diemdanh.html).
+    Bảo mật (h3): trước đây tra mã NV KHÔNG lọc tiệm và không cần đăng nhập — mã NV0001, NV0002... tiệm nào cũng có,
+    nên ai cũng dò được họ tên nhân viên của mọi tiệm. Nút mở Fast Check-in chỉ hiện khi máy ĐÃ đăng nhập tài khoản
+    tiệm (khối {% if session.get('user_id') %} của index.html) và /diemdanh cũng @login_required, nên chỉ tra trong
+    ĐÚNG tiệm của phiên đăng nhập; không có phiên -> 401. Chỉ trả ho_ten/ma_nv."""
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "Please sign in to continue."}), 401
+    business_id = session.get('business_id') or session['user_id']
+    ma_nv = (request.args.get('ma_nv') or '').strip()[:64]
     if not ma_nv:
         return jsonify({"success": False, "message": "Missing employee ID."}), 400
     try:
-        emp = db.employees.find_one({'ma_nv': ma_nv}, {'ho_ten': 1, 'ma_nv': 1, '_id': 0})
+        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, {'ho_ten': 1, 'ma_nv': 1, '_id': 0})
         if not emp:
             return jsonify({"success": False, "message": "Employee not found."}), 404
         return jsonify({"success": True, "data": emp})

@@ -532,31 +532,57 @@ _PHONE_RE = re.compile(r'(?<![\w+])(\+?\d[\d\s.\-()]{7,17}\d)(?!\w)')
 
 
 def capture_phone(customer_id, text):
-    """Khách nhắn SĐT trong Messenger/Zalo/Viber -> lưu vào hội thoại để AI đặt lịch được (lịch hẹn cần SĐT)."""
+    """Khách nhắn SĐT trong Messenger/Zalo/Viber -> lưu vào hội thoại để AI đặt lịch được (lịch hẹn cần SĐT).
+    Trả SĐT CHỈ khi lần này thật sự lưu được (hội thoại chưa có SĐT): trước đây mỗi tin 1 số khác lại kích hoạt
+    link_customer cho 1 hồ sơ khách khác."""
     for mt in _PHONE_RE.finditer(text or ''):
         raw = mt.group(1)
         digits = re.sub(r'\D', '', raw)
         if 9 <= len(digits) <= 15:
             phone = ('+' + digits) if raw.strip().startswith('+') else digits
             # {'$in': [None, '']} cũng khớp khi chưa có field phone (Mongo coi thiếu field = null); không ghi đè SĐT đã có
-            db.bot_customers.update_one({'id': customer_id, 'phone': {'$in': [None, '']}}, {'$set': {'phone': phone}})
-            return phone
+            res = db.bot_customers.update_one({'id': customer_id, 'phone': {'$in': [None, '']}}, {'$set': {'phone': phone}})
+            return phone if res.modified_count else None
     return None
 
 
-def link_customer(business_id, channel, user_id, phone):
+def link_customer(business_id, channel, user_id, phone, conversation=None):
     """Khách đã nhắn qua Zalo/Messenger và có SĐT -> gắn id nền tảng vào hồ sơ khách (db.customers), để chiến dịch chăm
-    sóc gửi được qua đúng kênh đó (message_delivery_worker cần zalo_user_id / fb_psid)."""
+    sóc gửi được qua đúng kênh đó (message_delivery_worker cần zalo_user_id / fb_psid).
+
+    Bảo mật (h3): SĐT gõ trong tin nhắn KHÔNG được xác minh (ai cũng gõ được SĐT của người khác). Trước đây id Messenger/
+    Zalo của người gõ được gắn thẳng vào hồ sơ có SĐT đó (ghi đè cả id cũ) -> nhắc lịch, ngày sinh, điểm thưởng của khách
+    thật đi sang người lạ. Giờ chỉ ghi 1 LIÊN KẾT CHỜ DUYỆT lên hội thoại (bot_customers.pending_customer_link); chủ tiệm
+    xác nhận ở hộp thư (confirm_customer_link, POST /api/bot/customer_link). True chỉ khi hồ sơ đã gắn đúng id này."""
     field = {'zalo': 'zalo_user_id', 'messenger': 'fb_psid'}.get(channel)
     want = re.sub(r'\D', '', phone or '')[-9:]
     if not field or len(want) < 8:
         return False
     tail = r'\D*'.join(want[-4:]) + r'\D*$'  # SĐT lưu kiểu "0412 345 678" vẫn khớp
-    for c in db.customers.find({'business_id': business_id, 'phone': {'$regex': tail}}, {'_id': 0, 'id': 1, 'phone': 1}).limit(50):
+    for c in db.customers.find({'business_id': business_id, 'phone': {'$regex': tail}}, {'_id': 0, 'id': 1, 'phone': 1, field: 1}).limit(50):
         if re.sub(r'\D', '', str(c.get('phone') or ''))[-9:] == want:
-            db.customers.update_one({'id': c['id'], 'business_id': business_id}, {'$set': {field: str(user_id)}})
-            return True
+            if str(c.get(field) or '') == str(user_id):
+                return True
+            if conversation:
+                db.bot_customers.update_one({'id': conversation, 'business_id': business_id}, {'$set': {'pending_customer_link': {
+                    'customer_id': c['id'], 'field': field, 'channel': channel, 'user_id': str(user_id), 'phone': phone,
+                    'replaces': bool(c.get(field)), 'at': datetime.now().isoformat()}}})
+            return False
     return False
+
+
+def confirm_customer_link(business_id, conversation, accept=True):
+    """Chủ tiệm duyệt liên kết chờ duyệt của 1 hội thoại (xem link_customer): accept -> gắn id kênh vào hồ sơ khách,
+    không -> bỏ. False nếu hội thoại (của đúng tiệm này) không có liên kết chờ duyệt."""
+    conv = db.bot_customers.find_one({'id': conversation, 'business_id': business_id}, {'_id': 0, 'pending_customer_link': 1})
+    link = (conv or {}).get('pending_customer_link')
+    if not isinstance(link, dict) or link.get('field') not in ('zalo_user_id', 'fb_psid'):
+        return False
+    if accept:
+        db.customers.update_one({'id': link.get('customer_id'), 'business_id': business_id},
+                                {'$set': {link['field']: str(link.get('user_id') or '')}})
+    db.bot_customers.update_one({'id': conversation, 'business_id': business_id}, {'$unset': {'pending_customer_link': ''}})
+    return True
 
 
 def plain_text(s):
