@@ -323,7 +323,8 @@ TWO_BROWSERS = (('customer', 'A: hi, any slots Friday?', HA, '2026-10-01T08:00:0
 class StaffReplyAddressingTests(_Base):
     def test_reply_reaches_only_the_browser_it_answers(self):
         self.seed_thread(TWO_BROWSERS)
-        r = self.staff_reply('Hi Jane, your 3pm gel is moved to 4pm')
+        # 2 thiết bị chưa có trả lời nào: không còn mặc định tin mới nhất (p2-residuals) -> trang gửi reply_to thiết bị đã chọn
+        r = self.staff_reply('Hi Jane, your 3pm gel is moved to 4pm', reply_to='2026-10-01T08:10:00')
         self.assertEqual(r.status_code, 200, r.get_data(as_text=True)[:200])
         staff = [m for m in DB.bot_messages.find({'customer_id': WEB_CID, 'sender_type': 'staff'})]
         self.assertEqual([(m['content'], m.get('chat_token_hash')) for m in staff], [('Hi Jane, your 3pm gel is moved to 4pm', HB)])
@@ -364,7 +365,7 @@ class StaffReplyAddressingTests(_Base):
 
     def test_reply_to_a_message_without_a_browser_token_is_not_published(self):
         self.seed_thread(TWO_BROWSERS + (('customer', 'legacy widget: hello?', None, '2026-10-01T08:20:00'),))
-        self.assertEqual(self.staff_reply('Reply to the legacy widget').status_code, 200)
+        self.assertEqual(self.staff_reply('Reply to the legacy widget', reply_to='2026-10-01T08:20:00').status_code, 200)
         doc = DB.bot_messages.find({'customer_id': WEB_CID, 'sender_type': 'staff'})[-1]
         self.assertEqual(doc.get('chat_token_hash'), '')        # có chủ đích: không trình duyệt nào trên trang công khai
         for tok in (TOKEN_A, TOKEN_B):
@@ -385,7 +386,9 @@ class StaffReplyAddressingTests(_Base):
         self.chat(TOKEN_A, msg='Can I book Friday?')
         time.sleep(0.03)                                         # created_at khác nhau (đồng hồ Windows ~15 ms)
         self.chat(TOKEN_B, msg='Please move my booking')
-        self.assertEqual(self.staff_reply('Moved to 4pm, see you!').status_code, 200)
+        b_at = [m for m in DB.bot_messages.find({'customer_id': WEB_CID, 'sender_type': 'customer'})
+                if m.get('chat_token_hash') == HB][-1]['created_at']   # 2 thiết bị: nhân viên chọn thiết bị của B (p2-residuals)
+        self.assertEqual(self.staff_reply('Moved to 4pm, see you!', reply_to=b_at).status_code, 200)
         self.assertIn('Moved to 4pm, see you!', self.contents(TOKEN_B))
         self.assertNotIn('Moved to 4pm, see you!', self.contents(TOKEN_A))
 

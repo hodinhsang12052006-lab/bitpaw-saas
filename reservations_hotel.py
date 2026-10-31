@@ -590,7 +590,7 @@ def _party(value):
 
 
 def create_staff_request(business_id, *, checkin, checkout, guests, room_type, guest_name, guest_phone, extra=None,
-                         another_room=False):
+                         another_room=False, match_only=False):
     """Yêu cầu đặt phòng mà AI KHÔNG giữ phòng (chat web chưa xác minh vượt trần — web_holds_full): ghi 1 dòng
     db.hotel_reservations trạng thái STAFF_REQUEST, chưa xếp phòng, để nhân viên thấy trên /hotel/reservations (Duyệt = kiểm
     lại phòng trống rồi thành đặt phòng thật; Từ chối = huỷ) — không chỉ là 1 dòng trong hộp thư AI + email chủ (email gộp theo
@@ -602,6 +602,9 @@ def create_staff_request(business_id, *, checkin, checkout, guests, room_type, g
       ghi (cùng mã trình duyệt chat_token_hash — hội thoại web '<khách sạn>:<SĐT tự gõ>' trùng nhau khi 2 trình duyệt gõ cùng
       SĐT: trình duyệt khác không sửa được yêu cầu của người khác, mà ghi yêu cầu mới);
     - another_room=True (khách xin THÊM 1 phòng — như _create_booking giữ thêm phòng thật) -> luôn ghi dòng mới.
+    match_only=True: chỉ dò, KHÔNG ghi gì — (dòng, 'duplicate' | 'updated') nếu lời này đi vào 1 trong 2 đường trên, else
+    (None, None). ai_packs.hotel._create_booking dò TRƯỚC giới hạn số phòng mỗi chat (_caps): sửa số khách / nói lại y hệt
+    yêu cầu đang chờ không phải xin thêm phòng (không bị từ chối 'đặt đoàn', không giữ thêm 1 phòng thật bên cạnh yêu cầu).
     Trả (doc, 'created' | 'updated' | 'duplicate')."""
     _require_db()
     ci, co = parse_day(checkin), parse_day(checkout)
@@ -621,11 +624,15 @@ def create_staff_request(business_id, *, checkin, checkout, guests, room_type, g
         for r in sorted(same, key=lambda x: str(x.get('created_at') or ''), reverse=True):
             if (r.get('chat_token_hash') or None) != token:
                 continue
+            if match_only:
+                return r, 'updated'
             upd = {'party_size': party, 'party_size_was': _party(r.get('party_size')),
                    'updated_at': datetime.now().isoformat()}
             if db.hotel_reservations.update_one({'id': r['id'], 'business_id': business_id, 'status': STAFF_REQUEST},
                                                 {'$set': upd}).matched_count:
                 return {**r, **upd}, 'updated'
+    if match_only:
+        return None, None
     doc = {'id': next_mongo_id('hotel_reservations'), 'business_id': business_id, 'guest_name': guest_name,
            'guest_phone': guest_phone, 'party_size': party, 'checkin_date': ci.isoformat(),
            'checkout_date': co.isoformat(), 'room_type': room_type, 'nights': (co - ci).days,

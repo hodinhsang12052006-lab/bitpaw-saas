@@ -302,12 +302,12 @@ class StaffReplyDeviceTests(_Base):
         DB.bot_messages.insert_one({'customer_id': WEB_CID, 'sender_type': 'customer', 'content': 'legacy', 'business_id': NAIL,
                                     'created_at': '2026-10-01T09:01:00'})
         self.assertEqual(NS['_web_device_labels'](WEB_CID), {HA: 'A', HB: 'B', hc: 'C'})   # nhãn cũ không đổi
-        self.assertEqual(self.staff_reply('hi C').get_json()['device'], None)               # tin mới nhất không có mã
+        self.assertEqual(self.staff_reply('hi C', reply_to='2026-10-01T09:01:00').get_json()['device'], None)   # tin không có mã
         self.assertEqual(self.staff_reply('hi C', reply_to='2026-10-01T09:00:00').get_json()['device'], 'C')
 
     def test_reply_that_reaches_no_browser_is_reported(self):
         self.seed_thread(TWO_BROWSERS + (('customer', 'legacy widget: hello?', None, '2026-10-01T08:20:00'),))
-        r = self.staff_reply('Reply to the legacy widget')
+        r = self.staff_reply('Reply to the legacy widget', reply_to='2026-10-01T08:20:00')
         self.assertEqual(r.status_code, 200)
         j = r.get_json()
         self.assertIn('device', j)
@@ -343,10 +343,10 @@ class OwnerConsoleTests(_Base):
                                                  {'status': 200, 'body': thread}])
         bar = out['extra']['bar']
         self.assertFalse(bar['hidden'], bar)
-        self.assertEqual([v for v, _t in bar['options']], ['A', 'B'])
-        self.assertEqual(bar['selected'], 'A')                    # mặc định: tin khách mới nhất đang hiện (của A) — hiện rõ
+        self.assertEqual([v for v, _t in bar['options']], ['__pick__', 'A', 'B'])
+        self.assertEqual(bar['selected'], '__pick__')             # p2-residuals: không mặc định thiết bị mới nhất — phải chọn
         self.assertIn('2 different devices', bar['text'][0])
-        self.assertTrue(bar['options'][1][1].startswith('Device B — “B: I am Jane'), bar['options'])
+        self.assertTrue(bar['options'][2][1].startswith('Device B — “B: I am Jane'), bar['options'])
         self.assertEqual(out['extra']['barPicked']['selected'], 'B')
         box = out['html']['chatBox']
         self.assertEqual(box.count('>Device A<'), 2)
@@ -368,6 +368,7 @@ class OwnerConsoleTests(_Base):
         thread = self.owner_get()
         scenario = '''
           await loadMessages(D.cid);
+          pick('replyTargetBar', 'A');
           userInput.value = 'Any time after 10 works';
           await handleUserSubmit(null);
         '''
@@ -408,6 +409,7 @@ class OwnerConsoleTests(_Base):
         for lang, words in (('en', ('will NOT appear', 'call or text')), ('vi', ('KHÔNG hiện', 'gọi hoặc nhắn SMS'))):
             out = self._console('''
               await loadMessages(D.cid);
+              pick('replyTargetBar', '');
               extra.bar = barState('replyTargetBar');
               userInput.value = 'Hello!';
               await handleUserSubmit(null);
@@ -456,8 +458,8 @@ class CrmInboxTests(_Base):
         ''', pre=CRM_PRE, cid=WEB_CID, lang='en', customers=[{'id': WEB_CID, 'channel': 'web'}],
             responses=[{'status': 200, 'body': thread}, {'status': 200, 'body': {'success': True, 'device': 'B'}},
                        {'status': 200, 'body': thread}])
-        self.assertEqual(out['extra']['bar']['options'][0][0], 'A')
-        self.assertEqual(out['extra']['bar']['selected'], 'A')
+        self.assertEqual(out['extra']['bar']['options'][1][0], 'A')
+        self.assertEqual(out['extra']['bar']['selected'], '__pick__')   # p2-residuals: phải chọn thiết bị
         box = out['html']['liveChatBox']
         self.assertIn('>Device A<', box)
         self.assertIn('>Device B<', box)
@@ -512,7 +514,7 @@ class SuperAdminReplyTests(_Base):
         ''', pre=SA_PRE, cid=WEB_CID, lang='vi',
             responses=[{'status': 200, 'body': get}, {'status': 200, 'body': {'success': True, 'device': 'B'}},
                        {'status': 200, 'body': get}])
-        self.assertEqual([v for v, _t in out['extra']['bar']['options']], ['A', 'B'])
+        self.assertEqual([v for v, _t in out['extra']['bar']['options']], ['__pick__', 'A', 'B'])
         self.assertIn('Thiết bị A', out['html']['chatMessagesBox'])
         for h in (HA, HB):
             self.assertNotIn(h, json.dumps(out))

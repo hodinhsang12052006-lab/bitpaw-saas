@@ -590,7 +590,10 @@
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body.success === false) {
-                throw new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
+                const err = new Error(body.message || body.error || `Lỗi máy chủ (${res.status})`);
+                err.status = res.status;
+                err.code = body.code || null;   // vd 'reply_target_required' (409): phải chọn thiết bị nhận trả lời
+                throw err;
             }
             return body;
         }
@@ -600,7 +603,8 @@
         let conversationHistory = [];
         let lastLoadedMessages = []; // hội thoại thật đang mở (để Copilot biết tin cuối có phải của khách)
         // Hội thoại web: thiết bị nào gửi tin nào + trả lời tới đâu (static/js/bp_reply_target.js). replyPick = thiết bị nhân viên
-        // tự chọn ở thanh phía trên ô soạn tin (null = mặc định tin khách mới nhất đang hiện).
+        // tự chọn ở thanh phía trên ô soạn tin (null = mặc định tin khách mới nhất đang hiện; >= 2 thiết bị nhắn từ sau trả lời
+        // gần nhất -> KHÔNG mặc định, Gửi bị chặn tới khi chọn — BPReplyTarget.needsPick).
         let replyPlan = null, replyPick = null;
         let allCustomers = [];
         let isMockMode = false;
@@ -1438,6 +1442,12 @@
             // Hội thoại web: trả lời tin khách đang hiện trên màn hình lúc bấm Gửi (mặc định tin mới nhất, hoặc thiết bị đã chọn) —
             // server ghi trả lời kèm mã trình duyệt của ĐÚNG tin đó nên chỉ thiết bị đó thấy trên trang chat.
             const plan = replyPlan;
+            if (window.BPReplyTarget && BPReplyTarget.needsPick(plan, replyPick)) {
+                // >= 2 thiết bị đã nhắn từ sau trả lời gần nhất: không tự gửi cho tin mới nhất — giữ chữ, chờ nhân viên chọn
+                renderReplyBar();
+                showToast(escapeHtml(BPReplyTarget.text(cpLang(), 'mustPick')), 'error');
+                return;
+            }
             const target = window.BPReplyTarget ? BPReplyTarget.target(plan, replyPick) : null;
             userInput.value = '';
             appendUserMessageStatic(text, null, 'staff', null, target ? BPReplyTarget.targetTag(target, cpLang()) : '');
@@ -1462,7 +1472,16 @@
                 if (c) c.ai_paused = true;
             } catch (ex) {
                 console.error("Failed to send message:", ex);
-                showToast('Failed to send message', 'error');
+                if (ex && ex.code === 'reply_target_required') {
+                    // server (409): >= 2 thiết bị đã nhắn từ sau trả lời gần nhất, chưa chọn thiết bị -> chưa gửi gì. Giữ chữ,
+                    // tải lại hội thoại để hiện thanh chọn thiết bị.
+                    showToast(escapeHtml(ex.message), 'error');
+                    if (!userInput.value) userInput.value = text;
+                    replyPick = null;
+                    loadMessages(currentCustomerId, { silent: true });
+                } else {
+                    showToast('Failed to send message', 'error');
+                }
             } finally {
                 if (btnSend) btnSend.disabled = false;
                 userInput.focus();

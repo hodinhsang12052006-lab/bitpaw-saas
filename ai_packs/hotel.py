@@ -651,7 +651,15 @@ def _create_booking(args, c):
                         "say": _status_say('pending', c),
                         "note": "Passed to the hotel, which confirms it with the guest by phone. Nothing new was booked in this "
                                 "chat: give no booking number and never say it is confirmed."}
-    _caps(c, phone)
+    # Yêu cầu đang chờ nhân viên (STAFF_REQUEST, vượt trần chat web) của CHÍNH chat này — khách sửa số khách / nói lại y hệt —
+    # không phải xin thêm phòng: đi thẳng vào đường cập nhật / trùng của create_staff_request, TRƯỚC giới hạn số phòng mỗi chat
+    # (_caps tính cả dòng đó -> từng từ chối 'đặt đoàn' ở đúng giới hạn), và không giữ thêm 1 phòng thật bên cạnh yêu cầu cũ
+    # khi trần giữ phòng web đã nhả (nhân viên Duyệt yêu cầu = 2 phòng cho 1 khách).
+    waiting = bool(c.customer_id and not _yes(args.get('another_room')) and rh.create_staff_request(
+        c.business_id, checkin=ci, checkout=co, guests=guests, room_type=types[key]['name'], guest_name=name,
+        guest_phone=phone, extra={'ai_conversation_id': c.customer_id, 'chat_token_hash': c.token_hash}, match_only=True)[1])
+    if not waiting:
+        _caps(c, phone)
 
     whole_type_priced = all(r['_rate'] for r in types[key]['rooms'])
     status = 'confirmed' if (settings['auto_confirm'] and whole_type_priced) else 'pending'
@@ -670,6 +678,8 @@ def _create_booking(args, c):
              'note': ('; '.join(note_bits) or None), 'ai_verified': not unverified}
     if c.client_key:
         extra['client_key'] = c.client_key   # giới hạn số phòng theo mạng (_caps)
+    if waiting:
+        return _web_cap_request(c, types[key]['name'], ci, co, guests, name, phone, note_bits, extra, another_room=False)
     try:
         doc, av = rh.create_hold(c.business_id, checkin=ci, checkout=co, guests=guests, room_type_key=key, guest_name=name,
                                  guest_phone=phone, status=status, today=c.today, min_nights=settings['min_nights'],

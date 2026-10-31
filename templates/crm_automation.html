@@ -1104,7 +1104,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         let allBotCustomersCache = [];
         let currentInboxCustomerId = null;
         // Hội thoại web: thiết bị nào gửi tin nào + trả lời tới đâu (static/js/bp_reply_target.js); inboxReplyPick = thiết bị nhân
-        // viên tự chọn ở thanh phía trên ô soạn tin (null = mặc định tin khách mới nhất đang hiện).
+        // viên tự chọn ở thanh phía trên ô soạn tin (null = mặc định tin khách mới nhất đang hiện; >= 2 thiết bị nhắn từ sau trả
+        // lời gần nhất -> KHÔNG mặc định, Gửi bị chặn tới khi chọn — BPReplyTarget.needsPick).
         let inboxReplyPlan = null, inboxReplyPick = null;
         function isInboxWebThread(customerId) {
             const c = allBotCustomersCache.find(x => x.id === customerId);
@@ -1235,6 +1236,12 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const input = document.getElementById('liveChatInput');
             const text = input.value.trim();
             if(!text) return;
+            if (window.BPReplyTarget && BPReplyTarget.needsPick(inboxReplyPlan, inboxReplyPick)) {
+                // >= 2 thiết bị đã nhắn từ sau trả lời gần nhất: không tự gửi cho tin mới nhất — giữ chữ, chờ nhân viên chọn
+                renderInboxReplyBar();
+                showToast(escapeHtml(BPReplyTarget.text(currentLang, 'mustPick')), 'error');
+                return;
+            }
 
             input.value = '';
             // Hội thoại web: trả lời tin khách đang hiện lúc bấm Gửi (mặc định tin mới nhất, hoặc thiết bị đã chọn) — server ghi trả
@@ -1251,6 +1258,15 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                     body: JSON.stringify(payload)
                 });
                 const result = await response.json();
+                if (!result.success && result.code === 'reply_target_required') {
+                    // server (409): >= 2 thiết bị đã nhắn từ sau trả lời gần nhất, chưa chọn thiết bị -> chưa gửi gì. Giữ chữ,
+                    // tải lại hội thoại để hiện thanh chọn thiết bị.
+                    if (!input.value) input.value = text;
+                    inboxReplyPick = null;
+                    showToast(escapeHtml(result.message || ''), 'error');
+                    await loadInboxMessages(currentInboxCustomerId, { silent: true });
+                    return;
+                }
                 if (!result.success) throw new Error(result.message || 'error');
                 const note = window.BPReplyTarget ? BPReplyTarget.sentNote(result, plan, currentLang) : null;
                 if (note) showToast(escapeHtml(note.text), note.ok ? 'success' : 'error');
