@@ -489,6 +489,8 @@ def record(business_id, channel, user_id, text, sender_type, *, name=None, phone
     st = {'last_message': text[:500], 'last_message_time': now, 'business_id': business_id, 'channel': channel,
           'ext_user_id': str(user_id)}
     on_insert = {'created_at': now}
+    if isinstance(name, str):  # h4b: tên do nền tảng / khách gửi -> bỏ '<' '>' (phòng thủ thêm; nơi hiển thị vẫn escape)
+        name = re.sub(r'[<>]', '', name).strip()
     if name:
         st['full_name'] = name
     else:
@@ -532,31 +534,73 @@ _PHONE_RE = re.compile(r'(?<![\w+])(\+?\d[\d\s.\-()]{7,17}\d)(?!\w)')
 
 
 def capture_phone(customer_id, text):
-    """Khách nhắn SĐT trong Messenger/Zalo/Viber -> lưu vào hội thoại để AI đặt lịch được (lịch hẹn cần SĐT)."""
+    """Khách nhắn SĐT trong Messenger/Zalo/Viber -> lưu vào hội thoại để AI đặt lịch được (lịch hẹn cần SĐT).
+    Trả SĐT CHỈ khi lần này thật sự lưu được (hội thoại chưa có SĐT): trước đây mỗi tin 1 số khác lại kích hoạt
+    link_customer cho 1 hồ sơ khách khác."""
     for mt in _PHONE_RE.finditer(text or ''):
         raw = mt.group(1)
         digits = re.sub(r'\D', '', raw)
         if 9 <= len(digits) <= 15:
             phone = ('+' + digits) if raw.strip().startswith('+') else digits
             # {'$in': [None, '']} cũng khớp khi chưa có field phone (Mongo coi thiếu field = null); không ghi đè SĐT đã có
-            db.bot_customers.update_one({'id': customer_id, 'phone': {'$in': [None, '']}}, {'$set': {'phone': phone}})
-            return phone
+            res = db.bot_customers.update_one({'id': customer_id, 'phone': {'$in': [None, '']}}, {'$set': {'phone': phone}})
+            return phone if res.modified_count else None
     return None
 
 
-def link_customer(business_id, channel, user_id, phone):
+def link_customer(business_id, channel, user_id, phone, conversation=None):
     """Khách đã nhắn qua Zalo/Messenger và có SĐT -> gắn id nền tảng vào hồ sơ khách (db.customers), để chiến dịch chăm
-    sóc gửi được qua đúng kênh đó (message_delivery_worker cần zalo_user_id / fb_psid)."""
+    sóc gửi được qua đúng kênh đó (message_delivery_worker cần zalo_user_id / fb_psid).
+
+    Bảo mật (h3): SĐT gõ trong tin nhắn KHÔNG được xác minh (ai cũng gõ được SĐT của người khác). Trước đây id Messenger/
+    Zalo của người gõ được gắn thẳng vào hồ sơ có SĐT đó (ghi đè cả id cũ) -> nhắc lịch, ngày sinh, điểm thưởng của khách
+    thật đi sang người lạ. h4b: chỉ TỰ gắn khi đúng 1 hồ sơ khách của tiệm có SĐT đó, hồ sơ đó CHƯA có id của nền tảng này
+    và id này chưa gắn hồ sơ khác (không ghi đè, không đoán giữa nhiều người). Còn lại ghi 1 LIÊN KẾT CHỜ DUYỆT lên hội
+    thoại (bot_customers.pending_customer_link); chủ tiệm xác nhận ở hộp thư (thanh trên đầu hội thoại ai_bot.html ->
+    confirm_customer_link, POST /api/bot/customer_link). True chỉ khi hồ sơ đã gắn đúng id này."""
     field = {'zalo': 'zalo_user_id', 'messenger': 'fb_psid'}.get(channel)
     want = re.sub(r'\D', '', phone or '')[-9:]
     if not field or len(want) < 8:
         return False
-    tail = r'\D*'.join(want[-4:]) + r'\D*$'  # SĐT lưu kiểu "0412 345 678" vẫn khớp
-    for c in db.customers.find({'business_id': business_id, 'phone': {'$regex': tail}}, {'_id': 0, 'id': 1, 'phone': 1}).limit(50):
-        if re.sub(r'\D', '', str(c.get('phone') or ''))[-9:] == want:
-            db.customers.update_one({'id': c['id'], 'business_id': business_id}, {'$set': {field: str(user_id)}})
+    uid = str(user_id)
+    pattern = r'\D*'.join(want) + r'\D*$'  # đủ 9 số cuối, bỏ qua dấu cách/chấm/gạch: SĐT lưu kiểu "0412 345 678" vẫn khớp
+    proj = {'_id': 0, 'id': 1, 'name': 1, 'phone': 1, field: 1}
+    matches = [c for c in db.customers.find({'business_id': business_id, 'phone': {'$regex': pattern}}, proj).limit(50)
+               if re.sub(r'\D', '', str(c.get('phone') or ''))[-9:] == want]
+    if not matches:
+        return False
+    if any(str(c.get(field) or '') == uid for c in matches):
+        return True
+    c = matches[0]
+    if len(matches) == 1 and not str(c.get(field) or '').strip() \
+            and not db.customers.find_one({'business_id': business_id, field: uid}, {'_id': 0, 'id': 1}):
+        # điều kiện "chưa có id" nằm trong chính lệnh ghi: chủ tiệm / tin khác vừa gắn id cùng lúc -> không ghi đè
+        if db.customers.update_one({'id': c['id'], 'business_id': business_id, field: {'$in': [None, '']}},
+                                   {'$set': {field: uid}}).modified_count:
             return True
+        c = db.customers.find_one({'id': c['id'], 'business_id': business_id}, proj) or c
+        if str(c.get(field) or '') == uid:
+            return True
+    if conversation:
+        db.bot_customers.update_one({'id': conversation, 'business_id': business_id}, {'$set': {'pending_customer_link': {
+            'customer_id': c['id'], 'customer_name': str(c.get('name') or '')[:80], 'field': field, 'channel': channel,
+            'user_id': uid, 'phone': phone, 'replaces': bool(str(c.get(field) or '').strip()), 'matches': len(matches),
+            'at': datetime.now().isoformat()}}})
     return False
+
+
+def confirm_customer_link(business_id, conversation, accept=True):
+    """Chủ tiệm duyệt liên kết chờ duyệt của 1 hội thoại (xem link_customer): accept -> gắn id kênh vào hồ sơ khách,
+    không -> bỏ. False nếu hội thoại (của đúng tiệm này) không có liên kết chờ duyệt."""
+    conv = db.bot_customers.find_one({'id': conversation, 'business_id': business_id}, {'_id': 0, 'pending_customer_link': 1})
+    link = (conv or {}).get('pending_customer_link')
+    if not isinstance(link, dict) or link.get('field') not in ('zalo_user_id', 'fb_psid'):
+        return False
+    if accept:
+        db.customers.update_one({'id': link.get('customer_id'), 'business_id': business_id},
+                                {'$set': {link['field']: str(link.get('user_id') or '')}})
+    db.bot_customers.update_one({'id': conversation, 'business_id': business_id}, {'$unset': {'pending_customer_link': ''}})
+    return True
 
 
 def plain_text(s):

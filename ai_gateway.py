@@ -114,7 +114,8 @@ def plan_feature(feature):
 
 
 def allowed(business_id, feature):
-    """True nếu gói HIỆN TẠI của tiệm có tính năng (cache CACHE_TTL giây). Tiệm cũ chưa có trường plan = Empire.
+    """True nếu gói HIỆN TẠI của tiệm có tính năng (cache CACHE_TTL giây) — plans.business_plan: tiệm cũ (trước
+    plans.GRANDFATHER_BEFORE) chưa có trường plan = Empire, chi nhánh = gói tiệm chính, tiệm mới thiếu plan / id rỗng = Essential.
     Không đọc được DB -> True (không cắt tính năng của tiệm đang trả tiền vì lỗi tạm)."""
     need = plan_feature(feature)
     if not need:

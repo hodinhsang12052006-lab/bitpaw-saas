@@ -166,28 +166,43 @@ def _quota_key(business_id, month):
     return f'{business_id}|{month}'
 
 
+def _quota_scope(business_id):
+    """(tiệm trả tiền, bộ lọc business_id) của hạn mức: chi nhánh dùng CHUNG hạn mức của tiệm chính — tạo thêm chi nhánh
+    không sinh thêm ảnh/video Replicate (trước đây mỗi chi nhánh mới có 1 hạn mức Empire riêng). Tiệm 1 chi nhánh: y như cũ."""
+    import plans
+    try:
+        scope = plans.billing_business_id(db, business_id) or business_id
+        family = plans.billing_family(db, scope)
+    except Exception:
+        scope, family = business_id, [business_id]
+    if business_id not in family:
+        family = list(family) + [business_id]
+    return scope, (family[0] if len(family) == 1 else {'$in': family})
+
+
 def quota_status(business_id):
     """used = sổ ai_usage tháng này; pending = job đang chạy; reserved = ô giữ chỗ nguyên tử (db.ai_media_quota) mà
-    create_job tăng/giảm — bình thường reserved == used + pending."""
+    create_job tăng/giảm — bình thường reserved == used + pending. Tính cho cả chuỗi (tiệm chính + chi nhánh, _quota_scope)."""
     import plans
     plan = plans.business_plan(db, business_id)
     limits = (getattr(plans, 'AI_MEDIA_QUOTA', {}) or {}).get(plan) or {'images': 0, 'video_seconds': 0}
+    scope, scope_bid = _quota_scope(business_id)
     start = _month_start()
     month = start.strftime('%Y-%m')
     used = {'image': 0, 'video': 0}
     for row in db.ai_usage.aggregate([
-        {'$match': {'business_id': business_id, 'kind': {'$in': ['image', 'video']}, 'created_at': {'$gte': start}}},
+        {'$match': {'business_id': scope_bid, 'kind': {'$in': ['image', 'video']}, 'created_at': {'$gte': start}}},
         {'$group': {'_id': '$kind', 'n': {'$sum': '$units'}}},
     ]):
         used[row['_id']] = int(row['n'] or 0)
     # Job đang chạy chưa vào sổ nhưng sắp tốn tiền -> giữ chỗ, để bấm liên tục không vượt hạn mức
     pending = {'image': 0, 'video': 0}
-    for j in db.ai_media_jobs.find({'business_id': business_id, 'status': {'$in': list(ACTIVE)}, 'created_at': {'$gte': start}},
+    for j in db.ai_media_jobs.find({'business_id': scope_bid, 'status': {'$in': list(ACTIVE)}, 'created_at': {'$gte': start}},
                                    {'_id': 0, 'kind': 1, 'duration': 1}):
         if j.get('kind') in pending:
             pending[j['kind']] += _units(j)
     try:
-        held = db.ai_media_quota.find_one({'_id': _quota_key(business_id, month)}) or {}
+        held = db.ai_media_quota.find_one({'_id': _quota_key(scope, month)}) or {}
     except Exception as e:
         print(f'[ai_media] quota doc: {e}')
         held = {}
@@ -218,14 +233,15 @@ def _reserve(business_id, kind, units):
     field = QUOTA_FIELDS[kind]
     q = quota_status(business_id)
     limit = q[field]['limit']
-    key = _quota_key(business_id, q['month'])
+    scope = _quota_scope(business_id)[0]   # ô giữ chỗ của TIỆM TRẢ TIỀN (chi nhánh dùng chung ô của tiệm chính)
+    key = _quota_key(scope, q['month'])
     now = _now()
     if units > limit:
         raise MediaError('quota_exceeded', 'Monthly AI media quota reached for your plan.', detail=q, status=402)
     try:
         # Lần đầu trong tháng: khởi tạo bằng số thật (đã dùng + đang chạy) — job từ trước bản vá cũng được tính
         db.ai_media_quota.update_one({'_id': key}, {'$setOnInsert': {
-            'business_id': business_id, 'month': q['month'], 'created_at': now,
+            'business_id': scope, 'month': q['month'], 'created_at': now,
             **{f: q[f]['used'] + q[f]['pending'] for f in QUOTA_FIELDS.values()}}}, upsert=True)
     except DuplicateKeyError:
         pass   # request song song vừa tạo trước -> dùng document đó

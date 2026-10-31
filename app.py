@@ -396,6 +396,12 @@ def _load_session_from_jwt(token):
         return False
     if not payload.get('user_id'):
         return False
+    # h1a-auth: JWT KHÔNG BAO GIỜ mang quyền Super Admin — quyền đó chỉ sinh ra từ đăng nhập God Mode trên web
+    # (_superadmin_emergency_login, sau khi so hash). Token mang uid/role/email Super Admin (vd cấp trước bản vá cho 1
+    # tài khoản tự đăng ký bằng email Super Admin) -> coi như token hỏng.
+    if payload['user_id'] == 'superadmin-fallback' or payload.get('role') == 'super_admin' \
+            or _is_authorized_superadmin_email(payload.get('user_email')):
+        return False
     session['user_id'] = payload['user_id']
     session['sv'] = payload.get('sv', 0)
     session['business_id'] = payload.get('business_id') or payload['user_id']
@@ -460,9 +466,11 @@ def _user_session_state(user_id):
         return hit[0]
     state = None
     try:
-        u = db.users.find_one({'id': user_id}, {'_id': 0, 'session_ver': 1, 'role': 1, 'is_active': 1})
+        u = db.users.find_one({'id': user_id}, {'_id': 0, 'session_ver': 1, 'role': 1, 'is_active': 1, 'is_deleted': 1})
         if u is not None:
-            state = {'sv': int(u.get('session_ver') or 0), 'role': u.get('role') or 'admin', 'active': u.get('is_active', True) is not False}
+            # h1a-auth: tài khoản đã xoá cũng là hết phiên (kể cả tài khoản xoá trước bản vá, khi session_ver chưa được tăng)
+            state = {'sv': int(u.get('session_ver') or 0), 'role': u.get('role') or 'admin',
+                     'active': u.get('is_active', True) is not False and not u.get('is_deleted')}
         else:
             state = {'missing': True}
     except Exception as e:
@@ -474,6 +482,10 @@ def _user_session_state(user_id):
 
 def bump_session_version(user_id):
     """Đăng xuất user này ở MỌI thiết bị (web, app di động, app Windows)."""
+    if user_id == 'superadmin-fallback':  # h1a-auth: phiên God Mode không có bản ghi users -> số phiên bản riêng
+        db.system_settings.update_one({'key': 'superadmin_session_ver'}, {'$inc': {'value': 1}}, upsert=True)
+        _SUPERADMIN_VER_CACHE.clear()
+        return
     db.users.update_one({'id': user_id}, {'$inc': {'session_ver': 1}})
     _SESSION_STATE_CACHE.pop(user_id, None)
 
@@ -481,12 +493,20 @@ def bump_session_version(user_id):
 @app.before_request
 def _session_guard():
     uid = session.get('user_id')
-    if not uid or uid == 'superadmin-fallback' or db is None or request.path.startswith('/static/'):
+    if not uid or request.path.startswith('/static/'):
         return None
-    st = _user_session_state(uid)
-    if st is None:
-        return None  # DB lỗi tạm thời: không đá người dùng ra
-    revoked = st.get('missing') or not st.get('active', True) or int(session.get('sv') or 0) != st.get('sv', 0)
+    if uid == 'superadmin-fallback':
+        # h1a-auth: trước đây phiên God Mode được bỏ qua hoàn toàn -> cookie bị lấy cắp sống ~31 ngày, đổi hash hay
+        # "đăng xuất mọi nơi" đều không cắt được. Nay: hết hạn sau SUPERADMIN_SESSION_MAX_SECONDS, gắn với hash hiện hành,
+        # theo số phiên bản riêng (không cần DB để kiểm 2 điều đầu -> vẫn chạy khi MongoDB sập).
+        st, revoked = {}, not _superadmin_session_ok()
+    else:
+        if db is None:
+            return None
+        st = _user_session_state(uid)
+        if st is None:
+            return None  # DB lỗi tạm thời: không đá người dùng ra
+        revoked = st.get('missing') or not st.get('active', True) or int(session.get('sv') or 0) != st.get('sv', 0)
     if revoked:
         security_shield.log_event('session_revoked', _get_real_client_ip(), 'old session after password change / account change',
                                   request.path, request.headers.get('User-Agent', ''), session.get('user_email'))
@@ -1577,11 +1597,50 @@ def _login_attempts_blocked(email):
         if db.login_failures.count_documents({'ip': _get_real_client_ip(), 'at': {'$gte': since}}, limit=_LOGIN_FAIL_MAX_PER_IP) >= _LOGIN_FAIL_MAX_PER_IP:
             return True
         email = (email or '').strip().lower()
-        if email and db.login_failures.count_documents({'email': email, 'at': {'$gte': since}}, limit=_LOGIN_FAIL_MAX_PER_EMAIL) >= _LOGIN_FAIL_MAX_PER_EMAIL:
-            return True
+        if email:
+            # h1a-auth: trước đây 10 lần sai/email từ BẤT KỲ đâu là khoá luôn chủ tiệm (kể cả đúng mật khẩu) — người lạ biết
+            # email (trang đặt lịch, email gửi khách) gửi 10 lần sai mỗi 15 phút là khoá được mãi. Máy đã từng đăng nhập đúng
+            # email này (cookie ký HMAC, _remember_login_device) chỉ bị tính lần sai từ CHÍNH IP của nó; máy lạ giữ nguyên
+            # ngưỡng chung 10 lần/email (trả cùng 1 thông báo trước khi xét mật khẩu -> không lộ mật khẩu đúng/sai).
+            q = {'email': email, 'at': {'$gte': since}}
+            if _is_known_login_device(email):
+                q['ip'] = _get_real_client_ip()
+            if db.login_failures.count_documents(q, limit=_LOGIN_FAIL_MAX_PER_EMAIL) >= _LOGIN_FAIL_MAX_PER_EMAIL:
+                return True
     except Exception as e:
         print(f"[login guard] check failed (bỏ qua, không chặn đăng nhập): {e}")
     return False
+
+
+_KNOWN_DEVICE_COOKIE = 'bp_kd'
+_KNOWN_DEVICE_MAX_AGE = 180 * 24 * 3600
+
+
+def _known_device_token(email):
+    """Thẻ "máy này từng đăng nhập ĐÚNG email này" (HMAC theo secret của app, không chứa email thô). Chỉ dùng để không bị
+    khoá theo email khi người lạ dò sai — vẫn phải đúng mật khẩu như thường, vẫn chịu giới hạn theo IP."""
+    email = (email or '').strip().lower()
+    return hmac.new(str(app.secret_key).encode(), b'bp-known-device:' + email.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def _is_known_login_device(email):
+    try:
+        return bool(email) and _known_device_token(email) in (request.cookies.get(_KNOWN_DEVICE_COOKIE) or '').split('.')
+    except Exception:
+        return False
+
+
+def _remember_login_device(email):
+    """Gọi ngay sau khi xác thực mật khẩu ĐÚNG: ghi thẻ vào cookie HttpOnly (tối đa 5 email/máy — máy POS dùng chung)."""
+    from flask import after_this_request
+    tok = _known_device_token(email)
+    tokens = [t for t in (request.cookies.get(_KNOWN_DEVICE_COOKIE) or '').split('.') if t and t != tok][-4:] + [tok]
+
+    @after_this_request
+    def _set_known_device_cookie(resp):
+        resp.set_cookie(_KNOWN_DEVICE_COOKIE, '.'.join(tokens), max_age=_KNOWN_DEVICE_MAX_AGE, secure=True,
+                        httponly=True, samesite='Lax')
+        return resp
 
 
 def _record_login_failure(email):
@@ -1687,9 +1746,18 @@ def register():
             license_nganh = (key_valid.get('nganh_nghe') or '').strip()
             if license_nganh and license_nganh.lower() != 'all':
                 business_type = license_nganh.lower()
+                license_industry = business_type
+            else:
+                # h4a: mã dùng chung -> businesses.license_industry = 'all' (/setup không khoá ngành); ngành theo dropdown phải là
+                # 1 trong 9 ngành — giá trị tự chế từng lưu thành business_mode lạ (tắt _industry_isolation_guard). Chưa giữ mã.
+                license_industry = 'all'
+                if business_type not in INDUSTRY_CONFIG:
+                    flash('Please choose your business type.', 'danger')
+                    return render_template('index.html', active_tab='register')
 
-            # Kiểm tra email đã tồn tại chưa (MongoDB không tự chặn như Supabase Auth)
-            if db.users.find_one(_email_query(email)):
+            # Kiểm tra email đã tồn tại chưa (MongoDB không tự chặn như Supabase Auth). h1a-auth: email Super Admin
+            # (root/SUPERADMIN_EMAILS) không bao giờ được tự đăng ký — trả đúng thông báo "đã tồn tại" như mọi email khác.
+            if _is_authorized_superadmin_email(email) or db.users.find_one(_email_query(email)):
                 flash('This email is already registered — please log in instead.', 'danger')
                 return render_template('index.html', active_tab='register')
 
@@ -1725,6 +1793,7 @@ def register():
                 'name': business_name or email,
                 'owner_name': fullname,
                 'industry_code': business_type,
+                'license_industry': license_industry,   # h4a: ngành mã kích hoạt cấp ('all' = mã dùng chung) — /setup khoá theo
                 'created_at': datetime.now().isoformat(),
                 **_signup_region(request.form),   # nước + tiền tệ (ô "Quốc gia của tiệm" / header Vercel), không rõ -> không lưu
                 **({'plan': key_valid['plan']} if key_valid.get('plan') in plans.PLAN_ORDER else {}),
@@ -1813,6 +1882,48 @@ def _is_authorized_superadmin_email(email):
     return normalized in allowed
 
 
+SUPERADMIN_SESSION_MAX_SECONDS = 12 * 3600   # h1a-auth: phiên God Mode tự hết hạn sau 12 giờ kể từ lúc đăng nhập
+_SUPERADMIN_VER_CACHE = {}
+
+
+def _superadmin_fallback_hash():
+    """Hash God Mode đang cấu hình — cùng thứ tự đọc như login(): SUPERADMIN_FALLBACK_HASH_B64 rồi SUPERADMIN_FALLBACK_HASH."""
+    decoded = ''
+    b64 = os.environ.get('SUPERADMIN_FALLBACK_HASH_B64', '')
+    if b64:
+        try:
+            decoded = base64.b64decode(b64).decode('utf-8').strip()
+        except Exception:
+            decoded = ''
+    return decoded or os.environ.get('SUPERADMIN_FALLBACK_HASH', '').strip()
+
+
+def _superadmin_key_fingerprint():
+    """h1a-auth: dấu HMAC của hash God Mode hiện hành, lưu trong phiên lúc đăng nhập — đổi hash = mọi phiên cũ hết ngay."""
+    h = _superadmin_fallback_hash()
+    if not h:
+        return ''
+    return hmac.new(str(app.secret_key).encode(), b'bp-superadmin-key:' + h.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def _superadmin_session_ver(fresh=False):
+    """h1a-auth: số phiên bản phiên God Mode (system_settings 'superadmin_session_ver', tăng bằng
+    bump_session_version('superadmin-fallback')). Đệm 30 giây/instance; DB lỗi -> None (chỉ còn kiểm tuổi + dấu hash)."""
+    now = time.time()
+    hit = _SUPERADMIN_VER_CACHE.get('v')
+    if hit and not fresh and now - hit[1] < _SESSION_STATE_TTL:
+        return hit[0]
+    ver = None
+    if db is not None:
+        try:
+            doc = db.system_settings.find_one({'key': 'superadmin_session_ver'}, {'_id': 0, 'value': 1}) or {}
+            ver = int(doc.get('value') or 0)
+        except Exception as e:
+            print(f"[superadmin session] {e}")
+    _SUPERADMIN_VER_CACHE['v'] = (ver, now)
+    return ver
+
+
 def _superadmin_emergency_login(email):
     """Lối vào khẩn cấp CHO ĐÚNG 1 tài khoản trùm hardcode, CHỈ kích hoạt khi MongoDB không kết
     nối được hoặc bản ghi user thật không còn tồn tại (vd: DB bị xoá/khôi phục từ backup cũ) —
@@ -1830,6 +1941,11 @@ def _superadmin_emergency_login(email):
     session['user_email'] = email.strip().lower()
     session['role'] = 'super_admin'
     session['business_mode'] = 'none'
+    # h1a-auth: dấu chỉ server đặt (cookie đã ký) — _is_superadmin() đòi dấu này, không tin riêng email trong phiên
+    session['sa_iat'] = int(time.time())
+    session['sa_key'] = _superadmin_key_fingerprint()
+    session['sv'] = _superadmin_session_ver(fresh=True) or 0
+    _remember_login_device(email)
     flash('Login successful (Superadmin emergency fallback)', 'success')
     return redirect('/super_admin')
 
@@ -1917,10 +2033,11 @@ def login():
                 raise Exception("MongoDB chưa kết nối.")
 
             user = db.users.find_one(_email_query(email))
-            if not user:
+            if not user or user.get('is_deleted') or user.get('is_active') is False:  # h1a-auth: đã xoá / bị khoá
                 raise Exception("Sai email hoặc mật khẩu")
             if not check_password_hash(user['password_hash'], password):
                 raise Exception("Sai email hoặc mật khẩu")
+            _remember_login_device(email)  # h1a-auth: máy quen không bị khoá theo email khi người lạ dò sai
 
             user_id = user['id']
             # Pha 28: phiên mới hoàn toàn (không giữ gì của phiên trước) + số phiên bản để thu hồi được
@@ -2025,11 +2142,19 @@ def api_auth_token():
         return jsonify({"success": False, "message": "Thiếu email hoặc password."}), 400
     if db is None:
         return jsonify({"success": False, "message": "Server chưa kết nối Database."}), 503
+    # h1a-auth: không bao giờ cấp JWT mang email/vai trò Super Admin (kể cả khi DB lỡ có 1 bản ghi trùng email đó)
+    if _is_authorized_superadmin_email(email):
+        return jsonify({"success": False, "message": "Sai email hoặc mật khẩu."}), 401
 
     user = db.users.find_one(_email_query(email))
-    if not user or not check_password_hash(user.get('password_hash', ''), password):
+    if user and (user.get('role') == 'super_admin' or user.get('id') == 'superadmin-fallback'
+                 or _is_authorized_superadmin_email(user.get('email'))):
+        user = None
+    if not user or user.get('is_deleted') or user.get('is_active') is False \
+            or not check_password_hash(user.get('password_hash') or '', password):
         _record_login_failure(email)
         return jsonify({"success": False, "message": "Sai email hoặc mật khẩu."}), 401
+    _remember_login_device(email)  # h1a-auth
 
     user_id = user['id']
     business_id = user.get('business_id') or user_id
@@ -2100,7 +2225,10 @@ def api_delete_account():
         return jsonify({"success": False, "message": "Vui lòng nhập mật khẩu để xác nhận xoá tài khoản."}), 400
 
     user = db.users.find_one({'id': user_id})
-    if not user or not check_password_hash(user.get('password_hash', ''), password):
+    if user and not user.get('password_hash'):  # h1a-auth: tài khoản chỉ Google/Facebook từng làm check_password_hash nổ 500
+        return jsonify({"success": False, "message": "Tài khoản này chưa có mật khẩu — hãy đặt mật khẩu bằng \"Quên mật khẩu\" rồi xác nhận xoá. / "
+                                                     "This account has no password yet — set one with \"Forgot password\", then confirm deletion."}), 400
+    if not user or not check_password_hash(user['password_hash'], password):
         return jsonify({"success": False, "message": "Mật khẩu xác nhận không đúng."}), 401
 
     now_iso = datetime.now().isoformat()
@@ -2118,12 +2246,22 @@ def api_delete_account():
                 # Giải phóng email gốc để user khác có thể đăng ký lại đúng email này sau này —
                 # không đổi 'id' (business_id vẫn giữ nguyên để dữ liệu lịch sử tra cứu được).
                 'email': f"deleted_{user_id}_{user.get('email', '')}",
-            }}
+                # h1a-auth: trước đây chỉ phiên của trình duyệt đang bấm bị xoá — cookie/JWT 30 ngày ở máy khác (kể cả của
+                # kẻ đã lấy được) vẫn dùng tiếp, và Google/Facebook đã liên kết vẫn đăng nhập lại được tài khoản "đã xoá".
+                'is_active': False,
+            }, '$inc': {'session_ver': 1}, '$unset': {'oauth': '', 'oauth_linked_at': ''}}
         )
-        db.businesses.update_one(
-            {'id': business_id},
-            {'$set': {'is_deleted': True, 'deleted_at': now_iso}}
-        )
+        revoked_ids = [user_id]
+        if business_id == user_id:  # chỉ CHỦ tiệm xoá mới đóng cả tiệm; nhân viên tự xoá chỉ khoá đúng tài khoản của mình
+            db.businesses.update_one(
+                {'id': business_id},
+                {'$set': {'is_deleted': True, 'deleted_at': now_iso}}
+            )
+            staff_q = {'business_id': business_id, 'id': {'$ne': user_id}}
+            revoked_ids += [u.get('id') for u in db.users.find(staff_q, {'_id': 0, 'id': 1})]
+            db.users.update_many(staff_q, {'$set': {'is_active': False}, '$inc': {'session_ver': 1}})
+        for uid in revoked_ids:
+            _SESSION_STATE_CACHE.pop(uid, None)
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -2760,8 +2898,10 @@ def _sse_tenant_match(*collection_names):
 def stream_hr_employees():
     """Thay kênh Supabase Realtime `hr_realtime` (nhanvien.html) — bảng employees. Kèm vị trí/trạng thái của đúng người
     vừa đổi (chỉ các trường an toàn) để bản đồ dời đúng 1 chấm thay vì tải lại cả danh sách cho mỗi lần GPS nhích."""
-    return _sse_change_signal(db.employees, _sse_tenant_match(), payload_colls={
-        'employees': ['ma_nv', 'ho_ten', 'toa_do_lat', 'toa_do_lng', 'trang_thai_gps', 'nhiem_vu_hien_tai', 'gps_at', 'avatar_url', 'diem_kudo']})
+    fields = ['ma_nv', 'ho_ten', 'toa_do_lat', 'toa_do_lng', 'trang_thai_gps', 'nhiem_vu_hien_tai', 'gps_at', 'avatar_url', 'diem_kudo']
+    if session.get('role', 'staff') not in ('admin', 'super_admin'):
+        fields = ['ma_nv', 'ho_ten', 'avatar_url', 'diem_kudo']  # vị trí GPS trực tiếp chỉ chủ tiệm/quản trị (bản đồ admin-only)
+    return _sse_change_signal(db.employees, _sse_tenant_match(), payload_colls={'employees': fields})
 
 
 @app.route('/api/stream/payroll')
@@ -2771,8 +2911,11 @@ def stream_payroll():
     employees cùng lúc, nên watch ở cấp Database thay vì 1 collection đơn lẻ.
 
     ?ma_nv=<mã thợ> (app thợ, thẻ "My earnings"): chỉ báo khi dòng chấm công CỦA THỢ ĐÓ đổi. Trước đây mọi
-    điện thoại nhận tín hiệu cho MỌI bill của cả tiệm — tiệm 60 thợ, mỗi bill làm 60 máy cùng tải lại thu nhập."""
-    ma_nv = request.args.get('ma_nv')
+    điện thoại nhận tín hiệu cho MỌI bill của cả tiệm — tiệm 60 thợ, mỗi bill làm 60 máy cùng tải lại thu nhập.
+    h4a: tài khoản nhân viên chỉ nghe dòng của chính mình (mã NV gắn với tài khoản, không theo ?ma_nv=)."""
+    ma_nv, denied = _hr_scope_ma_nv(session.get('business_id') or session['user_id'], request.args.get('ma_nv'))
+    if denied:
+        return denied
     if ma_nv:
         stage = _sse_tenant_match('chamcong')
         stage['$match'] = {'$and': [stage['$match'], {'$or': [
@@ -3373,6 +3516,26 @@ def render_message_page(status, icon, title_vi, title_en, message_vi, message_en
                            primary_label=primary_label, back_href=back_href, back_label=back_label), status
 
 
+def _license_locked_industry():
+    """Ngành của mã kích hoạt mà tiệm bị khoá vào, hoặc None. Tiệm tạo từ khi bán gói theo ngành (plans.GRANDFATHER_BEFORE)
+    chỉ dùng đúng ngành đó; tiệm cũ (và hồ sơ chưa ghi ngành) đổi mô hình tự do như trước.
+    h4a: register() ghi businesses.license_industry = ngành của mã ('all' = mã dùng chung -> KHÔNG khoá, chọn ngành tự do).
+    Hồ sơ chưa có trường này (tạo trước bản vá / qua oauth_complete) khoá theo industry_code như cũ."""
+    try:
+        root = plans.billing_business_id(db, _session_business_id())
+        doc = db.businesses.find_one({'id': root}, {'_id': 0, 'industry_code': 1, 'license_industry': 1, 'created_at': 1}) or {}
+    except Exception:
+        return None
+    if plans.created_before_plans(doc.get('created_at')):
+        return None
+    lic = doc.get('license_industry')
+    if isinstance(lic, str) and lic.strip():
+        lic = lic.strip().lower()
+        return lic if lic in INDUSTRY_CONFIG else None
+    industry = (doc.get('industry_code') or '').strip().lower() if isinstance(doc.get('industry_code'), str) else ''
+    return industry if industry in INDUSTRY_CONFIG else None
+
+
 @app.route('/setup', methods=['GET', 'POST'])
 @login_required
 def setup():
@@ -3380,6 +3543,19 @@ def setup():
         # Chuẩn hoá lowercase — cùng lý do đã áp dụng ở register() (INDUSTRY_CONFIG chỉ có
         # key lowercase, mọi so sánh == 'nail' ở nơi khác đều giả định giá trị đã sạch).
         mode = (request.form['mode'] or '').strip().lower()
+        # Chỉ 1 trong 9 ngành: giá trị lạ từng TẮT hẳn _industry_isolation_guard (mở trang/API của mọi ngành cùng lúc)
+        if mode not in INDUSTRY_CONFIG:
+            return render_message_page(400, '⚠️', 'Mô hình không hợp lệ', 'Unknown business type',
+                                       'Hãy chọn 1 mô hình trong danh sách.', 'Please choose one of the listed business types.',
+                                       back_href=url_for('setup'))
+        # Giá theo ngành: chỉ được dùng ngành mà mã kích hoạt cấp (đổi ngành = BitPaw đổi mã/gói cho tiệm)
+        locked = _license_locked_industry()
+        if locked and mode != locked:
+            return render_message_page(403, '🔒', 'Mã kích hoạt dành cho ngành khác', 'Your activation code is for another industry',
+                                       'Gói của tiệm được cấp cho đúng 1 ngành. Muốn đổi mô hình, hãy liên hệ BitPaw để đổi gói.',
+                                       'Your plan was issued for one industry. To switch business type, contact BitPaw to change your plan.',
+                                       primary_href=url_for('plan_page'), primary_label=_vi_en('Xem gói', 'View plans'),
+                                       back_href=url_for('index'))
         session['business_mode'] = mode
         try:
             business_mode_key = f"business_mode_{session['user_id']}"
@@ -4752,6 +4928,13 @@ def api_staff_income_today(staff_id):
     staff_doc = db.staff.find_one({'id': staff_id, 'business_id': business_id}, {'_id': 0})
     if not staff_doc:
         return jsonify({"success": False, "message": "Nhân viên không tồn tại hoặc không thuộc cửa hàng này."}), 404
+    # h4a: tài khoản nhân viên chỉ xem thu nhập của chính mình (dòng /staff liên kết với hồ sơ nhân viên của tài khoản)
+    own, denied = _hr_scope_ma_nv(business_id, None)
+    if denied:
+        return denied
+    if own and staff_doc.get('ma_nv') != own and (db.employees.find_one(
+            {'business_id': business_id, 'ma_nv': own}, {'_id': 0, 'staff_id': 1}) or {}).get('staff_id') != staff_id:
+        return _hr_denied('own_records_only')
 
     today_str, tomorrow_str = tenant_day_bounds(business_id)
     orders_today = list(db.orders.find({
@@ -5140,7 +5323,7 @@ def _queue_loyalty_notification(business_id, customer, event_type, message, send
     (ZALO_OA_ACCESS_TOKEN / FB_PAGE_ACCESS_TOKEN) — tin có thể đi ra từ OA/Page của tiệm KHÁC, luôn tiếng Việt.
     message: chuỗi, hoặc (tiếng Anh, tiếng Việt) để chọn theo ngôn ngữ của tiệm; '{shop}' = tên tiệm.
     Tích điểm/lên hạng: SMS (tốn phí mỗi bill) chỉ khi chủ tiệm bật loyalty_sms_enabled. Ghi nhật ký loyalty_events.
-    Trả trạng thái: queued | duplicate | skipped_no_channel | no_channel | opted_out | skipped | disabled | failed."""
+    Trả trạng thái: queued | duplicate | skipped_no_channel | no_channel | opted_out | skipped | disabled | not_in_plan | failed."""
     channel = None
     status = 'skipped_no_channel'
     try:
@@ -5159,6 +5342,8 @@ def _queue_loyalty_notification(business_id, customer, event_type, message, send
             st.get('loyalty_messages_enabled', True) if kind == 'loyalty' else True)
         if not enabled:
             status = 'disabled'
+        elif kind in messaging.AUTOMATED_KINDS and not messaging.automation_allowed(business_id):
+            status = 'not_in_plan'   # h4a: gói không có "SMS & email tự động" (Essential / vừa hạ gói) — không xếp hàng
         else:
             channel, status, _qid = messaging.queue_customer_message(business_id, customer or {}, message, kind, settings=st,
                                                                      send_after=send_after, dedupe_key=dedupe_key, allow=allow)
@@ -5269,6 +5454,12 @@ def _ensure_primary_membership(owner_user_id, business_id):
     if db is None:
         return
     try:
+        # h4a: chỉ CHỦ của business_id mới có dòng "chi nhánh chính". login()/OAuth gọi (user_id, user_id) cho MỌI tài khoản:
+        # nhân viên (users.business_id = tiệm của chủ) từng nhận 1 dòng chính mang id CỦA MÌNH -> /api/switch_branch chuyển phiên
+        # sang "tiệm" đó (không hồ sơ, gói khác tiệm thật). Tài khoản cũ thiếu business_id vẫn là chủ tiệm như trước.
+        acct = db.users.find_one({'id': owner_user_id}, {'_id': 0, 'business_id': 1})
+        if acct is None or (acct.get('business_id') or owner_user_id) != business_id:
+            return
         existing = db.business_memberships.find_one({'owner_user_id': owner_user_id, 'business_id': business_id})
         if not existing:
             db.business_memberships.insert_one({
@@ -5325,6 +5516,17 @@ def api_my_branches():
     })
 
 
+def _multi_location_denied():
+    """403 upgrade_required dạng JSON (dashboard gọi bằng fetch) khi gói của tiệm chính chưa có 'nhiều chi nhánh'."""
+    need = plans.FEATURE_MIN_PLAN['multi_location']
+    vi = resolve_lang(request) == 'vi'
+    label = plans.FEATURE_LABELS['multi_location'][0 if vi else 1]
+    msg = (f'{label} có trong gói {plans.PLAN_NAMES[need]} trở lên.' if vi
+           else f'{label} is included in {plans.PLAN_NAMES[need]} and above.')
+    return jsonify({'success': False, 'upgrade_required': True, 'feature': 'multi_location', 'required_plan': need,
+                    'message': msg}), 403
+
+
 @app.route('/api/switch_branch', methods=['POST'])
 @login_required
 def api_switch_branch():
@@ -5338,6 +5540,18 @@ def api_switch_branch():
     owned_ids = {b['business_id'] for b in owned}
     if target_business_id not in owned_ids:
         return jsonify({'success': False, 'message': 'Bạn không có quyền quản lý chi nhánh này.'}), 403
+    # h4a: dòng "chi nhánh chính" mang id CỦA CHÍNH tài khoản nhân viên (_ensure_primary_membership cũ tạo cho mọi tài khoản,
+    # còn trong DB) không phải tiệm nào -> không chuyển phiên vào đó. Chủ tiệm (users.business_id = id của mình) như cũ.
+    if target_business_id == user_id:
+        acct = db.users.find_one({'id': user_id}, {'_id': 0, 'business_id': 1}) or {}
+        if (acct.get('business_id') or user_id) != user_id:
+            return jsonify({'success': False, 'message': 'Bạn không có quyền quản lý chi nhánh này.'}), 403
+    # Chi nhánh PHỤ = tính năng "nhiều chi nhánh" (Empire) của tiệm chính (chi nhánh luôn mang gói của tiệm chính,
+    # plans.billing_business_id). Về chi nhánh CHÍNH thì luôn được — kể cả sau khi hạ gói.
+    is_primary = target_business_id == user_id or any(b['business_id'] == target_business_id and b.get('is_primary')
+                                                      for b in owned)
+    if not is_primary and not _is_superadmin() and not plans.business_allows(db, target_business_id, 'multi_location'):
+        return _multi_location_denied()
 
     session['business_id'] = target_business_id
     return jsonify({'success': True, 'business_id': target_business_id})
@@ -5347,13 +5561,31 @@ def api_switch_branch():
 @login_required
 def add_branch():
     user_id = session['user_id']
+    # Chỉ CHỦ TIỆM, và chỉ khi gói của TIỆM CHÍNH có "nhiều chi nhánh" (Empire). Trước đây ai đăng nhập cũng tạo được chi
+    # nhánh không có hồ sơ businesses -> plans.business_plan coi là tiệm cũ = Empire: gói Essential mở AI Studio/Copilot +
+    # 1 hạn mức ảnh/video Replicate mới cho MỖI chi nhánh tạo thêm.
+    if session.get('role') not in ('admin', 'super_admin'):
+        return jsonify({'success': False, 'message': 'Tài khoản của bạn không có quyền thực hiện thao tác này.'}), 403
+    parent_business_id = plans.billing_business_id(db, _session_business_id())
+    if not _is_superadmin() and not plans.business_allows(db, parent_business_id, 'multi_location'):
+        return _multi_location_denied()
     data = request.get_json() or request.form
     branch_name = (data.get('branch_name') or '').strip()
     if not branch_name:
         return jsonify({'success': False, 'message': 'Vui lòng nhập tên chi nhánh.'}), 400
+    if sum(1 for b in _get_owned_business_ids(user_id) if not b.get('is_primary')) >= plans.BRANCH_LIMIT:
+        return jsonify({'success': False, 'message': _vi_en(f'Tối đa {plans.BRANCH_LIMIT} chi nhánh — liên hệ BitPaw để thêm.',
+                                                            f'Up to {plans.BRANCH_LIMIT} locations — contact BitPaw to add more.')}), 400
 
     new_business_id = str(uuid.uuid4())
     try:
+        # Hồ sơ businesses của chi nhánh trỏ về tiệm chính: gói + hạn mức AI luôn là của tiệm chính (không lưu plan riêng)
+        parent = db.businesses.find_one({'id': parent_business_id}, {'_id': 0, 'industry_code': 1, 'country': 1, 'currency': 1}) or {}
+        db.businesses.insert_one({
+            'id': new_business_id, 'name': branch_name, 'parent_business_id': parent_business_id, 'owner_user_id': user_id,
+            'created_at': datetime.now().isoformat(),
+            **{k: parent[k] for k in ('industry_code', 'country', 'currency') if parent.get(k)},
+        })
         db.business_memberships.insert_one({
             'owner_user_id': user_id,
             'business_id': new_business_id,
@@ -5783,8 +6015,12 @@ def api_staff_list():
     """Bản JSON của cùng query trong staff_management() ở trên — dùng để load lại danh sách
     sau khi thêm/sửa/xóa mà không cần reload cả trang, thay Supabase select() cũ."""
     business_id = session.get('business_id') or session['user_id']
+    # h4a: dòng /staff có lương (salary_config), % hoa hồng, SĐT -> tài khoản nhân viên chỉ thấy danh bạ (trang gọi API này,
+    # staff_management.html, vốn chỉ chủ tiệm/quản trị vào được)
+    proj = {'_id': 0} if session.get('role', 'staff') in _HR_MANAGER_ROLES else \
+        {'_id': 0, 'id': 1, 'name': 1, 'role': 1, 'is_active': 1, 'ma_nv': 1}
     try:
-        staffs_data = list(db.staff.find({'business_id': business_id}, {'_id': 0}).sort('id', 1))
+        staffs_data = list(db.staff.find({'business_id': business_id}, proj).sort('id', 1))
         return jsonify({"success": True, "data": staffs_data})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -8261,15 +8497,23 @@ def restore_backup():
                     row.pop('_id', None)
                 db[table].insert_many(rows)
 
+        # Bảo mật (h4a): chỉ khôi phục mô hình kinh doanh ('value') khi đó là 1 trong 9 ngành (INDUSTRY_CONFIG) VÀ là ngành mã
+        # kích hoạt cho phép (_license_locked_industry, cùng quy tắc /setup); không thì GIỮ ngành hiện tại. Trước đây ghi nguyên
+        # dòng trong file: giá trị lạ tắt _industry_isolation_guard (mở trang/API của mọi ngành), ngành khác né khoá ngành của
+        # gói; các trường khác của dòng cũng bị ghi theo.
         settings_rows = data.get('system_settings')
-        if settings_rows:
+        mode_kept = False
+        if isinstance(settings_rows, list) and settings_rows:
             settings_key = f'business_mode_{business_id}'
-            for row in settings_rows:
-                row['key'] = settings_key
-                row.pop('_id', None)
-                db.system_settings.update_one({'key': settings_key}, {'$set': row}, upsert=True)
+            row = settings_rows[-1] if isinstance(settings_rows[-1], dict) else {}
+            mode = row['value'].strip().lower() if isinstance(row.get('value'), str) else ''
+            locked = _license_locked_industry()
+            if mode in INDUSTRY_CONFIG and (not locked or mode == locked):
+                db.system_settings.update_one({'key': settings_key}, {'$set': {'key': settings_key, 'value': mode}}, upsert=True)
+            else:
+                mode_kept = True
 
-        return jsonify({'success': True})
+        return jsonify({'success': True, **({'business_mode_kept': True} if mode_kept else {})})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -8328,8 +8572,53 @@ def _safe_image_content_type(filename):
     return _SAFE_IMAGE_CONTENT_TYPES.get(ext, 'application/octet-stream')
 
 
+def _sniff_image_type(data):
+    """Bảo mật (h3): loại ảnh THẬT theo magic bytes — đuôi file chỉ là tên client đặt ("x.png" chứa zip/HTML vẫn qua
+    _allowed_media_file). Chỉ PNG/JPEG/GIF/WebP, còn lại None."""
+    head = bytes(data[:12]) if data else b''
+    if head[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'image/png'
+    if head[:3] == b'\xff\xd8\xff':
+        return 'image/jpeg'
+    if head[:6] in (b'GIF87a', b'GIF89a'):
+        return 'image/gif'
+    if head[:4] == b'RIFF' and head[8:12] == b'WEBP':
+        return 'image/webp'
+    return None
+
+
+# Kind mà giao diện của /api/storage/upload thật sự gửi (app_nhanvien, diemdanh, chamcong_spa, chamcong_kythuat, chat,
+# app_chat). Kind khác do client tự khai -> 'misc' (riêng tư): ảnh công khai (brand_*/product_image/portal_chat) và media
+# AI Studio/Đăng bài (media_store.KINDS) có route riêng với kiểm tra riêng, không được tự gắn nhãn qua route này.
+_STORAGE_UPLOAD_KINDS = {'misc', 'avatar', 'checkin', 'evidence', 'signature', 'chat', 'job_photo', 'job_signature'}
+_STORAGE_UPLOAD_MAX_BYTES = 8 * 1024 * 1024      # ảnh điện thoại thật 2-8 MB (Vercel còn cắt body ở ~4,5 MB)
+_PORTAL_UPLOAD_MAX_BYTES = 5 * 1024 * 1024       # ảnh khách ẩn danh gửi trong chat CSKH
+_PORTAL_UPLOADS_PER_CONVERSATION_DAY = 20
+_PORTAL_UPLOADS_PER_SHOP_DAY = 300
+# Trần dung lượng GridFS 'media' mỗi tiệm cho ảnh của các route cũ (media AI Studio có trần riêng media_store.SHOP_CAP_BYTES)
+_LEGACY_MEDIA_SHOP_CAP_BYTES = int(os.environ.get('STORAGE_SHOP_CAP_BYTES') or 2_000_000_000)
+
+
+def _legacy_media_usage_bytes(business_id, kind=None):
+    """Dung lượng GridFS 'media' của tiệm. kind=None: ảnh CỦA TIỆM (check-in, chữ ký, avatar... của chủ tiệm/nhân viên) —
+    không tính media AI Studio (media_store, trần riêng) và ảnh khách ẩn danh gửi qua chat (portal_chat, trần riêng: h4a —
+    trước đây khách lạ tải ~1,5 GB/ngày qua /api/portal/upload là chạm trần của tiệm, nhân viên hết chấm công có ảnh).
+    kind='portal_chat': riêng ảnh chat của khách."""
+    from media_store import KINDS as _media_store_kinds
+    if kind:
+        match = {'business_id': business_id, 'kind': kind}
+    else:
+        match = {'business_id': business_id, 'kind': {'$nin': sorted(set(_media_store_kinds) | {'portal_chat'})}}
+    rows = list(db['media.files'].aggregate([
+        {'$match': match},
+        {'$group': {'_id': None, 'n': {'$sum': '$length'}}},
+    ]))
+    return int(rows[0]['n']) if rows else 0
+
+
 @app.route('/api/storage/upload', methods=['POST'])
 @login_required
+@limiter.limit("600 per hour")
 def api_storage_upload():
     """Upload ảnh (avatar, ảnh check-in, ảnh trước/sau dịch vụ VIP...) vào GridFS. Trả về
     `url` là link nội bộ (/api/storage/file/<id>) để nhúng thẳng vào <img src>, tương đương
@@ -8343,14 +8632,24 @@ def api_storage_upload():
         return jsonify({'success': False, 'error': 'Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp).'}), 400
     business_id = session.get('business_id') or session['user_id']
     kind = request.form.get('kind', 'misc')
+    if kind not in _STORAGE_UPLOAD_KINDS:
+        kind = 'misc'  # không tin kind client gửi (xem _STORAGE_UPLOAD_KINDS)
     filename = secure_filename(file.filename)
+    data = file.stream.read(_STORAGE_UPLOAD_MAX_BYTES + 1)
+    if len(data) > _STORAGE_UPLOAD_MAX_BYTES:
+        return jsonify({'success': False, 'error': 'Ảnh quá lớn (tối đa 8 MB).'}), 413
+    content_type = _sniff_image_type(data)
+    if not content_type:
+        return jsonify({'success': False, 'error': 'Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp).'}), 400
     try:
+        if _legacy_media_usage_bytes(business_id) + len(data) > _LEGACY_MEDIA_SHOP_CAP_BYTES:
+            return jsonify({'success': False, 'error': 'Dung lượng lưu ảnh của tiệm đã đầy.'}), 413
         file_id = media_fs.put(
-            file.stream.read(),
+            data,
             filename=filename,
             business_id=business_id,
             kind=kind,
-            content_type=_safe_image_content_type(filename)
+            content_type=content_type
         )
         return jsonify({'success': True, 'file_id': str(file_id), 'url': url_for('api_storage_file', file_id=str(file_id))})
     except Exception as e:
@@ -8398,6 +8697,29 @@ def api_storage_file(file_id):
 # /api/storage/file/<id> (private).
 _PUBLIC_MEDIA_KINDS = {'brand_logo', 'brand_cover', 'portal_chat', 'product_image'}
 
+# Bảo mật (h3): ảnh chat CSKH (portal_chat) là ảnh riêng khách gửi cho tiệm -> chỉ mở bằng link CÓ CHỮ KÝ HMAC (?sig=, do
+# api_portal_upload trả về); ObjectId đoán/dò được (giây + bộ đếm của process) nên biết id trần là chưa đủ. Link cũ chưa ký
+# (file trước bản vá, không có cờ link_signed) còn mở tới ngày PORTAL_CHAT_LEGACY_LINKS_UNTIL để hội thoại cũ không vỡ ảnh
+# ngay; sau ngày đó link cũ cần ký lại (thêm ?sig=_portal_chat_sig(id)) mới hiện.
+_PORTAL_CHAT_LEGACY_UNTIL = os.environ.get('PORTAL_CHAT_LEGACY_LINKS_UNTIL') or '2026-12-01'
+
+
+def _portal_chat_sig(file_id):
+    key = app.secret_key.encode() if isinstance(app.secret_key, str) else app.secret_key
+    return hmac.new(key, f'portal_chat|{file_id}'.encode(), hashlib.sha256).hexdigest()[:32]
+
+
+def _portal_chat_link_ok(grid_file, file_id, sig):
+    if isinstance(sig, str) and sig and hmac.compare_digest(sig.encode('utf-8'), _portal_chat_sig(file_id).encode()):
+        return True
+    if getattr(grid_file, 'link_signed', False):
+        return False
+    try:
+        until = datetime.strptime(_PORTAL_CHAT_LEGACY_UNTIL, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return False
+    return datetime.now(timezone.utc) < until
+
 
 @app.route('/api/public/storage/file/<file_id>', methods=['GET'])
 def api_public_storage_file(file_id):
@@ -8413,8 +8735,11 @@ def api_public_storage_file(file_id):
         return jsonify({'success': False, 'error': 'Không tìm thấy file.'}), 404
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-    if getattr(grid_file, 'kind', None) not in _PUBLIC_MEDIA_KINDS:
-        return jsonify({'success': False, 'error': 'File này không công khai.'}), 403
+    kind = getattr(grid_file, 'kind', None)
+    # 404 y hệt "không có file" (trước đây 403 "không công khai" cho biết file riêng tư nào tồn tại)
+    if kind not in _PUBLIC_MEDIA_KINDS or (
+            kind == 'portal_chat' and not _portal_chat_link_ok(grid_file, str(object_id), request.args.get('sig'))):
+        return jsonify({'success': False, 'error': 'Không tìm thấy file.'}), 404
     return Response(
         grid_file.read(),
         mimetype=grid_file.content_type or 'application/octet-stream',
@@ -12100,15 +12425,42 @@ def api_portal_upload():
     if not _allowed_media_file(file.filename):
         return jsonify({'success': False, 'error': 'Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp).'}), 400
     filename = secure_filename(file.filename)
+    business_id = customer['business_id']
+    # Bảo mật (h3): khách ẩn danh -> kiểm tra bytes là ảnh thật, trần cỡ file, trần số ảnh/ngày theo hội thoại và theo tiệm,
+    # trần dung lượng tiệm; link trả về có chữ ký (xem _portal_chat_sig).
+    data = file.stream.read(_PORTAL_UPLOAD_MAX_BYTES + 1)
+    if len(data) > _PORTAL_UPLOAD_MAX_BYTES:
+        return jsonify({'success': False, 'error': 'Ảnh quá lớn (tối đa 5 MB).'}), 413
+    content_type = _sniff_image_type(data)
+    if not content_type:
+        return jsonify({'success': False, 'error': 'Chỉ hỗ trợ ảnh (png/jpg/jpeg/gif/webp).'}), 400
     try:
-        file_id = media_fs.put(
-            file.stream.read(),
+        now = datetime.now(timezone.utc)
+        since = now - timedelta(days=1)
+        files = db['media.files']
+        if files.count_documents({'kind': 'portal_chat', 'customer_id': customer_id, 'uploaded_at': {'$gte': since}}) >= _PORTAL_UPLOADS_PER_CONVERSATION_DAY \
+                or files.count_documents({'kind': 'portal_chat', 'business_id': business_id, 'uploaded_at': {'$gte': since}}) >= _PORTAL_UPLOADS_PER_SHOP_DAY:
+            return jsonify({'success': False, 'error': 'Đã gửi quá nhiều ảnh hôm nay, vui lòng thử lại sau.'}), 429
+        # h4a: ảnh khách ẩn danh có trần dung lượng RIÊNG mỗi tiệm (PORTAL_CHAT_SHOP_CAP_BYTES, mặc định 1 GB), không bao giờ
+        # tính vào trần ảnh của tiệm (_LEGACY_MEDIA_SHOP_CAP_BYTES — ảnh check-in/nghiệm thu của nhân viên)
+        try:
+            portal_cap = int(os.environ.get('PORTAL_CHAT_SHOP_CAP_BYTES') or 1_000_000_000)
+        except ValueError:
+            portal_cap = 1_000_000_000
+        if _legacy_media_usage_bytes(business_id, kind='portal_chat') + len(data) > portal_cap:
+            return jsonify({'success': False, 'error': 'Tiệm tạm thời không nhận thêm ảnh.'}), 413
+        file_id = str(media_fs.put(
+            data,
             filename=filename,
-            business_id=customer['business_id'],
+            business_id=business_id,
             kind='portal_chat',
-            content_type=_safe_image_content_type(filename)
-        )
-        return jsonify({'success': True, 'file_id': str(file_id), 'url': url_for('api_public_storage_file', file_id=str(file_id))})
+            content_type=content_type,
+            customer_id=customer_id,
+            uploaded_at=now,
+            link_signed=True,
+        ))
+        return jsonify({'success': True, 'file_id': file_id,
+                        'url': url_for('api_public_storage_file', file_id=file_id, sig=_portal_chat_sig(file_id))})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -12166,7 +12518,26 @@ def _is_superadmin():
     """Gate truy cập trang/API superadmin cho session ĐANG đăng nhập — dùng chung đúng 1 nguồn
     chân lý _is_authorized_superadmin_email() với login() (xem comment ở đó), tránh lệch logic
     giữa "ai được phép đăng nhập fallback" và "ai được phép vào trang sau khi đã đăng nhập"."""
-    return _is_authorized_superadmin_email(session.get('user_email'))
+    return _superadmin_session_ok()
+
+
+def _superadmin_session_ok():
+    """h1a-auth: quyền Super Admin CHỈ đến từ quyết định phía server lúc đăng nhập God Mode đã so hash
+    (_superadmin_emergency_login đặt uid 'superadmin-fallback' + role + sa_iat trong cookie đã ký), KHÔNG từ chuỗi email
+    người dùng tự đăng ký được (trước đây 1 chủ tiệm đăng ký email root rồi lấy JWT qua /api/auth/token là thành Super
+    Admin). Email vẫn phải còn trong danh sách cho phép (gỡ khỏi SUPERADMIN_EMAILS = mất quyền ngay). Phiên còn phải chưa
+    quá SUPERADMIN_SESSION_MAX_SECONDS, cùng hash God Mode hiện hành và cùng số phiên bản ("đăng xuất mọi nơi")."""
+    if not (session.get('user_id') == 'superadmin-fallback' and session.get('role') == 'super_admin'
+            and _is_authorized_superadmin_email(session.get('user_email'))):
+        return False
+    iat = session.get('sa_iat')
+    if not isinstance(iat, int) or time.time() - iat > SUPERADMIN_SESSION_MAX_SECONDS or iat - time.time() > 300:
+        return False
+    fp = _superadmin_key_fingerprint()
+    if not fp or not hmac.compare_digest(str(session.get('sa_key') or ''), fp):
+        return False
+    ver = _superadmin_session_ver()
+    return ver is None or int(session.get('sv') or 0) == ver
 
 
 @app.route('/super_admin')
@@ -12730,7 +13101,11 @@ def api_bot_customers_list():
 
 
 def _assert_owns_bot_customer(customer_id, business_id):
-    doc = db.bot_customers.find_one({'id': customer_id}, {'business_id': 1, '_id': 0})
+    # Bảo mật (h3): customer_id PHẢI là chuỗi — body JSON gửi {"$in": [hội thoại của mình, của tiệm khác]} từng là toán tử
+    # Mongo, khớp tài liệu đầu tiên (của mình) nên lọt kiểm tra; lọc luôn theo business_id thay vì chỉ so sau khi đọc.
+    if not isinstance(customer_id, str) or not customer_id:
+        return False
+    doc = db.bot_customers.find_one({'id': customer_id, 'business_id': business_id}, {'business_id': 1, '_id': 0})
     return bool(doc) and doc.get('business_id') == business_id
 
 
@@ -12826,14 +13201,15 @@ def api_bot_messages_create():
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
     customer_id = data.get('customer_id', '')
-    content = (data.get('content') or '').strip()
+    content = data.get('content')
+    content = content.strip() if isinstance(content, str) else ''
     if not content:
         return jsonify({"success": False, "message": "Tin nhắn trống."}), 400
-    if not _assert_owns_bot_customer(customer_id, business_id):
+    if not isinstance(customer_id, str) or not _assert_owns_bot_customer(customer_id, business_id):
         return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
     try:
         now_iso = datetime.now().isoformat()
-        bc = db.bot_customers.find_one({'id': customer_id}, {'_id': 0, 'channel': 1, 'ext_user_id': 1}) or {}
+        bc = db.bot_customers.find_one({'id': customer_id, 'business_id': business_id}, {'_id': 0, 'channel': 1, 'ext_user_id': 1}) or {}
         channel = bc.get('channel') or 'web'
         delivery = stamp = None
         if channel != 'web' and bc.get('ext_user_id'):
@@ -12884,6 +13260,24 @@ def api_bot_ai_mode():
     paused = not bool(data.get('enabled'))
     db.bot_customers.update_one({'id': customer_id, 'business_id': business_id}, {'$set': {'ai_paused': paused, 'handoff_by_ai': False}})
     return jsonify({"success": True, "ai_paused": paused})
+
+
+@app.route('/api/bot/customer_link', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def api_bot_customer_link():
+    """Chủ tiệm duyệt liên kết chờ duyệt: khách nhắn SĐT trong Messenger/Zalo -> gắn id kênh vào hồ sơ khách có SĐT đó
+    (inbox_channels.link_customer không tự gắn nữa vì SĐT gõ tay chưa xác minh). Hội thoại cần duyệt mang trường
+    pending_customer_link (GET /api/bot/customers). Body: {customer_id: <id hội thoại>, confirm: true|false}."""
+    business_id = session.get('business_id') or session['user_id']
+    data = request.get_json(silent=True)
+    data = data if isinstance(data, dict) else {}
+    customer_id = data.get('customer_id')
+    if not isinstance(customer_id, str) or not _assert_owns_bot_customer(customer_id, business_id):
+        return jsonify({"success": False, "message": "Không tìm thấy hội thoại này."}), 403
+    if not inbox_channels.confirm_customer_link(business_id, customer_id, accept=data.get('confirm') is True):
+        return jsonify({"success": False, "message": "Hội thoại này không có liên kết chờ duyệt."}), 404
+    return jsonify({"success": True})
 
 
 # ========== HỘP THƯ CHUNG (Unified Inbox): Messenger · Instagram · WhatsApp · Zalo · Viber · SMS · website ==========
@@ -13024,8 +13418,8 @@ def _inbox_handle_event(doc, ev):
     inbox_channels.record(business_id, channel, ev['user_id'], ev['text'], 'customer', name=ev['name'], phone=ev['phone'],
                           ext_msg_id=ev['ext_msg_id'], default_name=_inbox_walkin(business_id))
     phone = inbox_channels.capture_phone(cid, ev['text']) or ev['phone']
-    if phone:
-        inbox_channels.link_customer(business_id, channel, ev['user_id'], phone)
+    if phone:  # SĐT gõ tay chưa xác minh -> liên kết chờ chủ tiệm duyệt, không tự gắn vào hồ sơ có sẵn
+        inbox_channels.link_customer(business_id, channel, ev['user_id'], phone, conversation=cid)
     db.inbox_channels.update_one({'business_id': business_id, 'channel': channel},
                                  {'$set': {'last_inbound_at': datetime.now().isoformat()}})
     # Mặc định theo ngành (Nails/Spa bật; ngành khác tắt trừ khi chủ tiệm tự bật — inbox_channels.ai_auto_reply_on)
@@ -13411,8 +13805,18 @@ def api_ai_usage():
     return jsonify({"success": True, **summary})
 
 
+def _anon_sales_chat_request():
+    """Lượt chat của bot BÁN PHẦN MỀM BitPaw từ khách ẩn danh (không session, không phải chat đặt lịch của tiệm) — chi phí
+    DeepSeek do BitPaw trả, nên có thêm giới hạn theo IP mỗi ngày (decorator dưới) và trần chung mỗi ngày (trong hàm)."""
+    if 'user_id' in session:
+        return False
+    body = request.get_json(silent=True)
+    return not (isinstance(body, dict) and body.get('context') == 'customer_booking')
+
+
 @app.route('/api/ai/studio/generate', methods=['POST'])
 @limiter.limit("20 per minute")
+@limiter.limit("300 per day", exempt_when=lambda: not _anon_sales_chat_request())
 def secure_ai_generate():
     data = request.get_json() or {}
 
@@ -13443,8 +13847,59 @@ def secure_ai_generate():
     # tính năng Pro ('ai_inbox'). Tiệm Essential / vừa hạ gói: trang đặt lịch vẫn chạy (form), chat trả 1 câu "đặt bằng form
     # hoặc gọi / nhắn cho tiệm" KHÔNG dùng AI, cờ ai_unavailable + contact để widget đổi sang nút gọi/nhắn.
     import ai_gateway
-    if public_customer_chat and not ai_gateway.allowed(business_id, 'ai_inbox'):
-        return jsonify(ai_gateway.unavailable_reply(business_id, data.get('customer_message') or data.get('userPrompt')))
+    _no_ai_msg = data.get('customer_message') or data.get('userPrompt')
+    if public_customer_chat:
+        # Bảo mật (h4a): chat trang đặt lịch là API công khai, DeepSeek do BitPaw trả -> MỌI lượt đều được đếm, trước khi gọi AI:
+        #  1. business_id phải là TIỆM THẬT: hồ sơ businesses, chi nhánh (business_memberships không phải dòng chính), hoặc tài
+        #     khoản chủ tiệm cũ chưa có hồ sơ. Trước đây id bịa / thiếu được plans coi là "tiệm cũ = Empire" -> gọi AI vô hạn;
+        #  2. gói của tiệm có trợ lý AI ('ai_inbox');
+        #  3. trần mỗi ngày (giờ UTC) theo IP người gọi, tính chung MỌI tiệm (BOOKING_CHAT_DAILY_CAP_PER_IP, mặc định 300) và
+        #     theo tiệm (BOOKING_CHAT_DAILY_CAP_PER_SHOP, mặc định 1500). Máy quầy đang đăng nhập ĐÚNG tiệm đó không tính theo
+        #     IP (cả tiệm chung 1 Wi-Fi). Đếm IP trước: lượt bị chặn theo IP không ăn vào trần của tiệm.
+        # Tiệm lạ / hết lượt: trả lời KHÔNG dùng AI (ai_unavailable — widget chuyển tin của khách cho nhân viên tiệm).
+        _shop_ok = False
+        if isinstance(business_id, str) and 0 < len(business_id.strip()) <= 128 and db is not None:
+            try:
+                _shop_ok = bool(db.businesses.find_one({'id': business_id}, {'_id': 1})
+                                or db.business_memberships.find_one({'business_id': business_id, 'is_primary': {'$ne': True}},
+                                                                    {'_id': 1}))
+                if not _shop_ok:
+                    _acct = db.users.find_one({'id': business_id}, {'_id': 0, 'business_id': 1})
+                    _shop_ok = _acct is not None and (_acct.get('business_id') or business_id) == business_id
+            except Exception as e:
+                print(f"[booking_chat] shop lookup: {e}")
+                _shop_ok = False
+        if not _shop_ok:
+            _out = ai_gateway.unavailable_reply(None, _no_ai_msg)
+            _out['reason'] = 'unknown_business'
+            return jsonify(_out), 404
+        if not ai_gateway.allowed(business_id, 'ai_inbox'):
+            return jsonify(ai_gateway.unavailable_reply(business_id, _no_ai_msg))
+        import hashlib as _hashlib
+        import security_shield as _shield
+        _day = time.strftime('%Y-%m-%d', time.gmtime())
+        _meters = []
+        if not (is_authenticated and business_id == (session.get('business_id') or session.get('user_id'))):
+            _ip_tag = _hashlib.sha256(str(_shield.client_ip(request)).encode('utf-8')).hexdigest()[:24]   # không lưu IP thô
+            _meters.append((f'booking_ip:{_day}:{_ip_tag}', 'BOOKING_CHAT_DAILY_CAP_PER_IP', 300))
+        _meters.append((f'booking_shop:{_day}:{business_id}', 'BOOKING_CHAT_DAILY_CAP_PER_SHOP', 1500))
+        for _key, _env, _default in _meters:
+            try:
+                _cap = int(os.environ.get(_env) or _default)
+            except ValueError:
+                _cap = _default
+            try:
+                db.ai_budget.update_one({'_id': _key}, {'$inc': {'n': 1},
+                                                        '$setOnInsert': {'expires_at': datetime.utcnow() + timedelta(days=2)}},
+                                        upsert=True)
+                _used = int((db.ai_budget.find_one({'_id': _key}, {'n': 1}) or {}).get('n') or 0)
+            except Exception as e:
+                print(f"[booking_chat budget] {e}")
+                _used = 0
+            if _used > _cap:
+                _out = ai_gateway.unavailable_reply(business_id, _no_ai_msg)
+                _out['reason'] = 'daily_limit'
+                return jsonify(_out)
     # Sổ chi phí AI (db.ai_usage): mọi lệnh DeepSeek của request này ghi đúng tính năng + tiệm. Bot bán phần mềm BitPaw là
     # chi phí của BitPaw (business_id có thể do trình duyệt tự khai) -> không ghi vào sổ của tiệm nào.
     ai_gateway.tag_request('booking_chat' if public_customer_chat else 'sales_bot', business_id if public_customer_chat else None)
@@ -13466,6 +13921,8 @@ def secure_ai_generate():
     # đã đủ) và nó làm lệch ngôn ngữ trả lời. Dùng đúng chữ khách gõ.
     if chat_context == 'customer_booking' and isinstance(data.get('customer_message'), str) and data['customer_message'].strip():
         user_prompt = data['customer_message'].strip()[:2000]
+    if public_customer_chat:
+        user_prompt = user_prompt[:2000]   # h4a: lượt chỉ có userPrompt (không customer_message) từng đi nguyên văn (~10 MB)
     # Kẹp tham số model: endpoint công khai, client từng tự đặt max_tokens tuỳ ý (đốt chi phí AI).
     try:
         temperature = max(0.0, min(1.5, float(data.get('temperature', 0.7))))
@@ -13475,6 +13932,30 @@ def secure_ai_generate():
         max_tokens = max(1, min(2000, int(data.get('max_tokens', 1500))))
     except (TypeError, ValueError):
         max_tokens = 1500
+    # Bảo mật (h3): bot bán phần mềm cho khách ẩn danh — DeepSeek do BitPaw trả, giới hạn theo IP đổi IP là né được. Cắt độ
+    # dài + TRẦN CHUNG mỗi ngày cho mọi IP cộng lại (SALES_BOT_DAILY_CAP lượt/ngày theo giờ UTC, mặc định 2000); quá trần thì
+    # trả câu "để lại SĐT/email" mà KHÔNG gọi DeepSeek (kể cả bộ phân loại phản đối bên dưới).
+    if not public_customer_chat and not is_authenticated:
+        user_prompt = user_prompt[:2000]
+        max_tokens = min(max_tokens, 600)
+        day_key = 'sales_bot:' + time.strftime('%Y-%m-%d', time.gmtime())
+        try:
+            db.ai_budget.update_one({'_id': day_key}, {'$inc': {'n': 1}}, upsert=True)
+            used = int((db.ai_budget.find_one({'_id': day_key}, {'n': 1}) or {}).get('n') or 0)
+        except Exception as e:
+            print(f"[sales_bot budget] {e}")
+            used = 0
+        try:
+            cap = int(os.environ.get('SALES_BOT_DAILY_CAP') or 2000)
+        except ValueError:
+            cap = 2000
+        if used > cap:
+            _vi_cap = bool(re.search(r'[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]', user_prompt, re.I))
+            return jsonify({"choices": [{"message": {"content": (
+                "Dạ hệ thống đang hơi chậm một chút. Anh/chị để lại số điện thoại hoặc email, đội BitPaw sẽ liên hệ trong 1 ngày làm việc nhé!"
+                if _vi_cap else
+                "Sorry, I'm running a little slow right now. Leave your phone or email and the BitPaw team will get back to you within 1 business day.")}}],
+                "fallback": True, "error": "daily_budget"})
     customer_phone = data.get('customer_phone')  # tuỳ chọn: để AI cá nhân hoá theo hạng/lịch sử chi tiêu
     if customer_phone is not None and not isinstance(customer_phone, str):
         customer_phone = None
@@ -13493,6 +13974,19 @@ def secure_ai_generate():
     if not isinstance(client_history, list):
         client_history = []
     client_history = [t for t in client_history if isinstance(t, dict)]
+    if public_customer_chat or not is_authenticated:
+        # Bảo mật (h4a): lịch sử trình duyệt gửi lên (người gọi ẩn danh / chat khách công khai) — tối đa 10 lượt, mỗi lượt 2000
+        # ký tự, tổng 8000 ký tự, giữ các lượt MỚI nhất. Trước đây 12 lượt x 2000 = ~24k ký tự prompt mỗi lệnh gọi, và nội
+        # dung không phải chuỗi làm lỗi 500.
+        _kept, _total = [], 0
+        for _t in reversed(client_history[-10:]):
+            _c = _t.get('content')
+            _c = _c[:2000] if isinstance(_c, str) else ''
+            if _total + len(_c) > 8000:
+                break
+            _total += len(_c)
+            _kept.append({'role': _t.get('role'), 'content': _c})
+        client_history = _kept[::-1]
 
     if public_customer_chat:  # chỉ dữ liệu công khai, ngành lấy từ hồ sơ tiệm (không tin 'industry' client gửi)
         ctx = AIContextEngine.build_context_prompt(business_id, None, customer_phone=customer_phone,
@@ -15652,6 +16146,68 @@ _EMPLOYEE_PATCHABLE_FIELDS = (
     'nhiem_vu_hien_tai',
 )
 
+# Bảo mật (h3): tài khoản KHÔNG phải chủ tiệm/quản trị (app thợ, chat nội bộ, danh sách chọn đồng nghiệp) chỉ thấy DANH BẠ —
+# không lương (luong_cb/luong_gio/phu_cap), không vị trí GPS trực tiếp (toa_do_*, trang_thai_gps, nhiem_vu_hien_tai, gps_at).
+# Bảng lương (/bangluong) và bản đồ (/map_dashboard) vốn đã chỉ admin; trước đây GET /api/hr/employees trả hết cho mọi người.
+_EMPLOYEE_DIRECTORY_FIELDS = ('id', 'ma_nv', 'ho_ten', 'chuc_vu', 'linh_vuc', 'avatar_url', 'diem_kudo', 'thu_tu_tua')
+
+
+def _employee_projection():
+    if session.get('role', 'staff') in ('admin', 'super_admin'):
+        return {'_id': 0, 'face_template': 0}  # mẫu khuôn mặt không bao giờ rời máy chủ
+    proj = {f: 1 for f in _EMPLOYEE_DIRECTORY_FIELDS}
+    proj['_id'] = 0
+    return proj
+
+
+# Bảo mật (h4a): API ĐỌC chấm công / thu nhập / đơn từ của nhân viên (/api/hr/chamcong, .../month_summary, /api/stream/payroll,
+# /api/leave_requests, /api/expense_requests, /api/staff/<id>/income_today). Chủ tiệm / quản trị: cả tiệm như cũ. Tài khoản
+# KHÁC (nhân viên): CHỈ dòng của chính mình — trước đây ?ma_nv=<đồng nghiệp> (hoặc bỏ trống = cả tiệm) trả hoa hồng, tip,
+# phụ cấp, toạ độ GPS và ảnh check-in của mọi người. "Chính mình" = mã NV gắn với TÀI KHOẢN đang đăng nhập, phía máy chủ:
+# hồ sơ nhân viên của tiệm có email trùng email đăng nhập (chủ tiệm điền ở trang Lịch ca, cùng cách chat nội bộ nhận ra
+# người gửi — _resolve_chat_identity). KHÔNG BAO GIỜ lấy theo ?ma_nv= trình duyệt gửi (app nhân viên chỉ gõ mã NV, ai cũng
+# gõ được mã của người khác).
+_HR_MANAGER_ROLES = ('admin', 'super_admin')
+
+
+def _session_employee_code(business_id):
+    """ma_nv của tài khoản đang đăng nhập trong tiệm business_id; None nếu chưa gắn (hoặc email trùng nhiều hồ sơ)."""
+    email = str(session.get('user_email') or '').strip().lower()
+    if not email or not business_id or db is None:
+        return None
+    try:
+        codes = {str(e['ma_nv']) for e in db.employees.find({'business_id': business_id, 'email': {'$nin': [None, '']}},
+                                                           {'_id': 0, 'ma_nv': 1, 'email': 1})
+                 if e.get('ma_nv') and isinstance(e.get('email'), str) and e['email'].strip().lower() == email}
+    except Exception as e:
+        print(f"[hr scope] {e}")
+        return None
+    return codes.pop() if len(codes) == 1 else None
+
+
+def _hr_scope_ma_nv(business_id, requested):
+    """Phạm vi đọc dữ liệu nhân sự của phiên này -> (ma_nv, None) chỉ dòng của ma_nv đó; (None, None) cả tiệm (chỉ chủ
+    tiệm/quản trị khi không lọc); (None, phản hồi 403) từ chối. Chủ tiệm/quản trị giữ nguyên ?ma_nv= như cũ."""
+    if session.get('role', 'staff') in _HR_MANAGER_ROLES:
+        return (requested or None), None
+    own = _session_employee_code(business_id)
+    if not own:
+        return None, _hr_denied('staff_not_linked')
+    if requested not in (None, '') and str(requested).strip().upper() != own.strip().upper():
+        return None, _hr_denied('own_records_only')
+    return own, None
+
+
+def _hr_denied(code):
+    if code == 'staff_not_linked':
+        msg = _vi_en('Tài khoản này chưa gắn với hồ sơ nhân viên nào. Nhờ chủ tiệm điền email đăng nhập của bạn vào hồ sơ của '
+                     'bạn ở trang Lịch ca.',
+                     "This account isn't linked to a staff profile yet. Ask the owner to add your sign-in email to your "
+                     "profile on the Roster page.")
+    else:
+        msg = _vi_en('Bạn chỉ xem được chấm công và thu nhập của chính mình.', 'You can only view your own attendance and earnings.')
+    return jsonify({'success': False, 'code': code, 'error': msg, 'message': msg}), 403
+
 
 @app.route('/api/hr/employees', methods=['GET'])
 @login_required
@@ -15659,7 +16215,7 @@ def api_hr_employees_list():
     business_id = session.get('business_id') or session['user_id']
     sort = _EMPLOYEE_SORT_FIELDS.get(request.args.get('sort'), [('id', 1)])
     try:
-        employees = list(db.employees.find({'business_id': business_id}, {'_id': 0, 'face_template': 0}).sort(sort))  # mẫu khuôn mặt không bao giờ rời máy chủ
+        employees = list(db.employees.find({'business_id': business_id}, _employee_projection()).sort(sort))  # mẫu khuôn mặt không bao giờ rời máy chủ
         return jsonify({"success": True, "data": employees})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -15673,7 +16229,7 @@ def api_hr_employees_get(ma_nv):
     trùng giữa 2 doanh nghiệp khác nhau)."""
     business_id = session.get('business_id') or session['user_id']
     try:
-        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, {'_id': 0, 'face_template': 0})
+        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, _employee_projection())
         if not emp:
             return jsonify({"success": False, "error": "Employee not found."}), 404
         return jsonify({"success": True, "data": emp})
@@ -15682,18 +16238,21 @@ def api_hr_employees_get(ma_nv):
 
 
 @app.route('/api/public/hr/employees/lookup', methods=['GET'])
+@limiter.limit("300 per hour")
 def api_public_employee_lookup():
-    """PUBLIC (không @login_required) — dùng bởi màn "Fast Check-in" ở index.html, nơi nhân
-    viên gõ mã NV để đi thẳng vào camera chấm công (diemdanh.html) TRƯỚC KHI đăng nhập, nên
-    chưa có session/business_id để lọc tenant. Chỉ trả về ho_ten/ma_nv (không lương, không
-    business_id, không thông tin nhạy cảm khác) — cùng mức lộ dữ liệu như lookup không đăng
-    nhập cũ, nếu 2 doanh nghiệp trùng ma_nv thì có thể lộ tên nhân viên của nhau, đây là giới
-    hạn kế thừa từ luồng kiosk chưa đăng nhập, không phải lỗi mới phát sinh."""
-    ma_nv = (request.args.get('ma_nv') or '').strip()
+    """Màn "Fast Check-in" ở index.html: nhân viên gõ mã NV để vào camera chấm công (diemdanh.html).
+    Bảo mật (h3): trước đây tra mã NV KHÔNG lọc tiệm và không cần đăng nhập — mã NV0001, NV0002... tiệm nào cũng có,
+    nên ai cũng dò được họ tên nhân viên của mọi tiệm. Nút mở Fast Check-in chỉ hiện khi máy ĐÃ đăng nhập tài khoản
+    tiệm (khối {% if session.get('user_id') %} của index.html) và /diemdanh cũng @login_required, nên chỉ tra trong
+    ĐÚNG tiệm của phiên đăng nhập; không có phiên -> 401. Chỉ trả ho_ten/ma_nv."""
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "Please sign in to continue."}), 401
+    business_id = session.get('business_id') or session['user_id']
+    ma_nv = (request.args.get('ma_nv') or '').strip()[:64]
     if not ma_nv:
         return jsonify({"success": False, "message": "Missing employee ID."}), 400
     try:
-        emp = db.employees.find_one({'ma_nv': ma_nv}, {'ho_ten': 1, 'ma_nv': 1, '_id': 0})
+        emp = db.employees.find_one({'ma_nv': ma_nv, 'business_id': business_id}, {'ho_ten': 1, 'ma_nv': 1, '_id': 0})
         if not emp:
             return jsonify({"success": False, "message": "Employee not found."}), 404
         return jsonify({"success": True, "data": emp})
@@ -15808,7 +16367,9 @@ def api_hr_employees_delete(ma_nv):
 def api_hr_chamcong_list():
     business_id = session.get('business_id') or session['user_id']
     query = {'business_id': business_id}
-    ma_nv = request.args.get('ma_nv')
+    ma_nv, denied = _hr_scope_ma_nv(business_id, request.args.get('ma_nv'))   # h4a: nhân viên chỉ dòng của mình
+    if denied:
+        return denied
     if ma_nv:
         query['ma_nv'] = ma_nv
     ngay_cham = request.args.get('ngay_cham')
@@ -15864,6 +16425,9 @@ def api_hr_chamcong_month_summary():
     ma_nv = request.args.get('ma_nv')
     if not ma_nv:
         return jsonify({'success': False, 'error': 'Thiếu ma_nv.'}), 400
+    ma_nv, denied = _hr_scope_ma_nv(business_id, ma_nv)   # h4a: hoa hồng/tip từng ngày của đồng nghiệp -> 403
+    if denied:
+        return denied
     try:
         month = int(request.args.get('month'))
         year = int(request.args.get('year'))
@@ -16456,7 +17020,9 @@ def api_leave_requests_list():
     `ma_nv` -> chỉ đơn của đúng nhân viên đó (tab "Đơn từ" của app_nhanvien.html)."""
     business_id = session.get('business_id') or session['user_id']
     query = {'business_id': business_id}
-    ma_nv = request.args.get('ma_nv')
+    ma_nv, denied = _hr_scope_ma_nv(business_id, request.args.get('ma_nv'))   # h4a: nhân viên chỉ đơn của mình
+    if denied:
+        return denied
     if ma_nv:
         query['ma_nv'] = ma_nv
     try:
@@ -16540,7 +17106,9 @@ def api_expense_requests_list():
     chỉ đơn của đúng nhân viên đó (tab Utilities của app_nhanvien.html)."""
     business_id = session.get('business_id') or session['user_id']
     query = {'business_id': business_id}
-    ma_nv = request.args.get('ma_nv')
+    ma_nv, denied = _hr_scope_ma_nv(business_id, request.args.get('ma_nv'))   # h4a: nhân viên chỉ đơn của mình
+    if denied:
+        return denied
     if ma_nv:
         query['ma_nv'] = ma_nv
     try:
