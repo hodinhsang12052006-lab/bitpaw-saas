@@ -1,13 +1,27 @@
 from datetime import datetime, timedelta
 
 from mongo_client import db, MONGO_STATUS
-from currency_utils import format_money
+from currency_utils import format_money, shop_currency
 
 # Chỉ tính doanh thu 30 ngày gần nhất cho context AI (chatbot cần trả lời NHANH, không phải báo
 # cáo kế toán chính xác all-time) — giới hạn cả về THỜI GIAN (30 ngày) LẪN để MongoDB tự cộng
 # tổng bằng $group thay vì kéo toàn bộ mảng order về RAM rồi sum() bằng Python. Business càng
 # nhiều đơn, cách cũ càng chậm tuyến tính và càng dễ khiến request chat timeout trên serverless.
 AI_CONTEXT_REVENUE_WINDOW_DAYS = 30
+
+
+def _tenant_currency(business_id, biz):
+    """Tiền tệ của tiệm cho prompt AI (bảng giá, doanh thu, tổng chi tiêu): tiền đã lưu, else tiền của nước tiệm
+    (ai_packs.shop_country: hồ sơ -> múi giờ trang Nhắn tin -> tiền), else USD — cùng quy tắc customer_context / TenantEngine.
+    Không bao giờ mặc định VND: tiệm CA / NZ / GB mới đăng ký (chưa lưu tiền) hay 'Theo quốc gia' từng bị báo '45đ'."""
+    biz = biz or {}
+    try:
+        import ai_packs
+        country = ai_packs.shop_country(dict(biz, id=business_id))
+    except Exception as e:
+        print(f"[ai_context_engine] shop_country: {e}")
+        country = biz.get('country')
+    return shop_currency(biz.get('currency'), country)
 
 
 class AIContextEngine:
@@ -118,14 +132,14 @@ class AIContextEngine:
         # đúng currency_utils.format_money() đã có sẵn (đã hỗ trợ VND/USD/AUD) thay vì tự ghép
         # chuỗi "đ" thủ công ở 3 chỗ trong hàm này.
         business_name = None
-        tenant_currency = 'VND'
+        tenant_currency = shop_currency()   # USD tới khi biết tiệm — không bao giờ mặc định VND
         if MONGO_STATUS == "CONNECTED" and business_id:
             try:
-                biz = db.businesses.find_one({'id': business_id}, {'name': 1, 'industry_code': 1, 'currency': 1, '_id': 0})
+                biz = db.businesses.find_one({'id': business_id}, {'name': 1, 'industry_code': 1, 'currency': 1, 'country': 1, '_id': 0})
                 if biz:
                     business_name = biz.get('name') or None
                     industry_code = industry_code or biz.get('industry_code')
-                    tenant_currency = biz.get('currency') or 'VND'
+                    tenant_currency = _tenant_currency(business_id, biz)
             except:
                 pass
 

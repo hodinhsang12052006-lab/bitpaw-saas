@@ -33,7 +33,7 @@ from pymongo.errors import DuplicateKeyError
 
 import ai_packs
 import booking_rules
-from currency_utils import format_money
+from currency_utils import format_money, shop_currency
 from mongo_client import db, next_mongo_id
 
 INDUSTRIES = ('retail',)
@@ -316,8 +316,11 @@ def _shop(business_id):
 
 
 def currency_of(business_id, shop=None):
+    """Tiền của tiệm (giá retail_find_products / my_holds, 'Prices are in ...' của prompt): tiền đã lưu, else tiền của nước
+    tiệm (ai_packs.shop_country: hồ sơ -> múi giờ trang Nhắn tin -> tiền), else USD — cùng quy tắc customer_context /
+    TenantEngine. Không bao giờ mặc định VND: tiệm 'Nước khác' ({'country': 'OTHER'}) / chưa có nước từng báo giá '45đ'."""
     shop = shop if shop is not None else _shop(business_id)
-    return (shop.get('currency') or COUNTRY_CURRENCY.get(str(shop.get('country') or '').upper()) or 'VND').upper()
+    return shop_currency(shop.get('currency'), ai_packs.shop_country(dict(shop, id=business_id)))
 
 
 def money(amount, cur):

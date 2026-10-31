@@ -12738,21 +12738,36 @@ def _web_device_labels(customer_id):
 
 def _web_reply_stamp(customer_id, reply_to):
     """Đích của 1 trả lời nhân viên trên hội thoại web (chủ tiệm /api/bot/messages, super admin /api/superadmin/chat/messages):
-    ({'chat_token_hash', 'device', 'reply_to'}, None), hoặc (None, (mã HTTP, câu VI, câu EN)) khi reply_to sai.
+    ({'chat_token_hash', 'device', 'reply_to'}, None), hoặc (None, (mã HTTP, câu VI, câu EN, code)) khi không ghi được.
     reply_to = created_at của tin khách đang được trả lời — hộp thư luôn gửi (tin khách mới nhất đang hiện trên màn hình lúc bấm
-    Gửi, hoặc thiết bị nhân viên chọn khi >= 2 thiết bị cùng nhắn); không gửi = tin khách mới nhất. Trả lời mang mã băm của tin
+    Gửi, hoặc thiết bị nhân viên chọn khi >= 2 thiết bị cùng nhắn); không gửi = tin khách mới nhất, TRỪ KHI >= 2 trình duyệt đã
+    nhắn từ sau trả lời gần nhất của nhân viên -> 409 'reply_target_required' (phải chọn thiết bị). Trả lời mang mã băm của tin
     đó -> chỉ ĐÚNG trình duyệt đó đọc được qua trang công khai (/api/portal/*, /api/cskh/chat/*). device: nhãn thiết bị nhận
     ('A', 'B'...), None khi tin đó không có mã trình duyệt (widget cũ) -> mã '' = không trình duyệt nào đọc được trả lời này,
     hộp thư báo rõ cho nhân viên thay vì im lặng như đã gửi tới khách."""
     q = {'customer_id': customer_id, 'sender_type': 'customer'}
     if reply_to is not None:
         if not isinstance(reply_to, str) or not reply_to:
-            return None, (400, "Tin nhắn được trả lời (reply_to) không hợp lệ.", "Invalid reply_to message.")
+            return None, (400, "Tin nhắn được trả lời (reply_to) không hợp lệ.", "Invalid reply_to message.", 'bad_reply_to')
         q['created_at'] = reply_to
+    else:
+        # >= 2 trình duyệt (mã băm; '' = cửa sổ chat cũ không mã) đã nhắn từ sau trả lời gần nhất của nhân viên — cùng luật
+        # plan().mustPick của static/js/bp_reply_target.js: KHÔNG tự trả lời tin mới nhất (người gõ SĐT của người khác trên
+        # widget nhắn liên tục để tin của mình luôn mới nhất -> trả lời của nhân viên tới trình duyệt đó). Phải chọn thiết bị.
+        last = db.bot_messages.find_one({'customer_id': customer_id, 'sender_type': 'staff'}, {'_id': 0, 'created_at': 1},
+                                        sort=[('created_at', -1)])
+        since = dict(q, created_at={'$gt': (last or {}).get('created_at') or ''})
+        devices = {m.get('chat_token_hash') if isinstance(m.get('chat_token_hash'), str) else ''
+                   for m in db.bot_messages.find(since, {'_id': 0, 'chat_token_hash': 1}).limit(5000)}
+        if len(devices) >= 2:
+            return None, (409, f"{len(devices)} thiết bị khác nhau đã nhắn bằng số này từ sau trả lời gần nhất — hãy chọn "
+                               "thiết bị nhận trả lời rồi gửi lại. Trả lời CHƯA được gửi.",
+                          f"{len(devices)} different devices have messaged from this number since the last reply — choose "
+                          "which device gets your reply, then send again. Nothing was sent.", 'reply_target_required')
     answered = db.bot_messages.find_one(q, {'_id': 0, 'chat_token_hash': 1, 'created_at': 1}, sort=[('created_at', -1)])
     if reply_to is not None and not answered:
         return None, (404, "Không tìm thấy tin nhắn của khách mà bạn đang trả lời.",
-                      "The customer message you're replying to wasn't found.")
+                      "The customer message you're replying to wasn't found.", 'reply_to_not_found')
     h = (answered or {}).get('chat_token_hash')
     h = h if isinstance(h, str) else ''
     return {'chat_token_hash': h, 'device': _web_device_labels(customer_id).get(h) if h else None,
@@ -12766,7 +12781,8 @@ def api_bot_messages_create():
     KHÁC với sender_type='ai'/'customer' do _persist_chat_turn() ghi tự động từ widget
     landing page. Dùng chung 1 collection, chỉ khác nhãn người gửi.
     reply_to (hội thoại web): created_at của tin khách mà nhân viên đang trả lời — hộp thư (ai_bot.html, crm_automation.html)
-    luôn gửi; không gửi = tin khách mới nhất (_web_reply_stamp). Phản hồi kèm device = thiết bị nhận trả lời ('A', 'B'...;
+    luôn gửi; không gửi = tin khách mới nhất, trừ khi >= 2 thiết bị đã nhắn từ sau trả lời gần nhất -> 409 code
+    'reply_target_required' (_web_reply_stamp). Phản hồi kèm device = thiết bị nhận trả lời ('A', 'B'...;
     None = trả lời KHÔNG hiện trên trang chat của khách) + reply_to = tin khách đã được trả lời."""
     business_id = session.get('business_id') or session['user_id']
     data = request.json or {}
@@ -12797,7 +12813,7 @@ def api_bot_messages_create():
                 # trình duyệt nào đọc được qua trang công khai, và phản hồi báo device=None để hộp thư nói rõ cho nhân viên.
                 stamp, err = _web_reply_stamp(customer_id, data.get('reply_to'))
                 if err:
-                    return jsonify({"success": False, "message": _vi_en(err[1], err[2])}), err[0]
+                    return jsonify({"success": False, "message": _vi_en(err[1], err[2]), "code": err[3]}), err[0]
                 msg['chat_token_hash'] = stamp['chat_token_hash']
             db.bot_messages.insert_one(msg)
         # Nhân viên đã nhảy vào trả lời -> AI ngừng tự trả lời khách này (chủ tiệm bật lại bằng công tắc), để
@@ -14053,7 +14069,7 @@ def superadmin_chat_send_message(customer_id):
         if (cust.get('channel') or 'web') == 'web':
             stamp, err = _web_reply_stamp(customer_id, data.get('reply_to'))
             if err:
-                return jsonify({"success": False, "message": _vi_en(err[1], err[2])}), err[0]
+                return jsonify({"success": False, "message": _vi_en(err[1], err[2]), "code": err[3]}), err[0]
             msg['chat_token_hash'] = stamp['chat_token_hash']
         db.bot_messages.insert_one(msg)
         db.bot_customers.update_one(

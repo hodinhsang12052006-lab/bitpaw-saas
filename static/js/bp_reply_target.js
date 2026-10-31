@@ -9,6 +9,10 @@
  *   - Đích trả lời (reply_to = created_at của tin khách): mặc định tin khách MỚI NHẤT đang hiện trên màn hình lúc bấm Gửi. Từ 2
  *     thiết bị trở lên (nhắn từ sau trả lời gần nhất của nhân viên, hay trong cả hội thoại) -> khung soạn tin hiện rõ thiết bị
  *     nhận trả lời và cho chọn thiết bị khác.
+ *   - Từ 2 thiết bị trở lên nhắn TỪ SAU trả lời gần nhất của nhân viên (plan().mustPick): KHÔNG có mặc định — người gõ SĐT của
+ *     người khác nhắn liên tục để tin của mình luôn mới nhất thì trả lời không âm thầm tới trình duyệt đó. Gửi bị chặn
+ *     (needsPick) tới khi nhân viên tự chọn thiết bị; server cũng từ chối trả lời không có reply_to trên hội thoại như vậy
+ *     (409, code 'reply_target_required' — app.py::_web_reply_stamp), trang báo rõ + tải lại hội thoại để hiện thanh chọn.
  *   - Tin khách không có mã trình duyệt (cửa sổ chat cũ): trả lời cho tin đó không hiện được trên trang chat -> nói rõ cho nhân
  *     viên (gọi / nhắn SMS cho khách) thay vì im lặng như đã gửi.
  */
@@ -25,6 +29,8 @@
             pickSince: "{n} thiết bị khác nhau đã nhắn bằng số này kể từ lần trả lời trước — trả lời chỉ tới:",
             pickAll: "{n} thiết bị khác nhau đã nhắn bằng số này — trả lời chỉ tới:",
             pickAria: "Chọn thiết bị nhận trả lời",
+            pickPlaceholder: "— Chọn thiết bị —",
+            mustPick: "Chọn thiết bị nhận trả lời trước khi gửi — trả lời không tự gửi cho tin mới nhất khi nhiều thiết bị cùng nhắn.",
             noDeviceWarn: "Tin mới nhất của khách gửi từ cửa sổ chat cũ (không có mã trình duyệt): trả lời được lưu ở đây nhưng KHÔNG hiện được trên trang chat của khách — hãy gọi hoặc nhắn SMS cho khách.",
             pickedNoDevice: "Tin này gửi từ cửa sổ chat cũ (không có mã trình duyệt): trả lời được lưu ở đây nhưng KHÔNG hiện được trên trang chat của khách — hãy gọi hoặc nhắn SMS cho khách.",
             sentTo: "Đã gửi tới {who} — chỉ thiết bị này thấy trả lời trên trang chat.",
@@ -39,6 +45,8 @@
             pickSince: "{n} different devices have messaged from this number since your last reply — your reply goes only to:",
             pickAll: "{n} different devices have messaged from this number — your reply goes only to:",
             pickAria: "Choose the device that gets this reply",
+            pickPlaceholder: "— Choose a device —",
+            mustPick: "Choose which device gets this reply before sending — it isn't sent to the newest message by default when several devices are messaging.",
             noDeviceWarn: "The customer's latest message came from an older chat window (no browser ID): your reply is saved here but will NOT appear on their chat page — call or text them instead.",
             pickedNoDevice: "That message came from an older chat window (no browser ID): your reply is saved here but will NOT appear on the customer's chat page — call or text them instead.",
             sentTo: "Sent to {who} — only that device sees the reply on the chat page.",
@@ -49,6 +57,7 @@
     function tr(lang, key) { return TEXT[lang === "vi" ? "vi" : "en"][key]; }
     function letter(i) { return i < 26 ? String.fromCharCode(65 + i) : String(i + 1); }
     function hashOf(m) { var h = m && m.chat_token_hash; return typeof h === "string" ? h : null; }
+    var PICK = "__pick__";   // giá trị của dòng nhắc "Chọn thiết bị" trong ô chọn (không phải thiết bị nào)
 
     // { mã băm -> 'A' | 'B' | ... } theo thứ tự tin khách đầu tiên của mỗi trình duyệt (tin đã xếp theo created_at tăng dần)
     function deviceMap(msgs) {
@@ -65,7 +74,8 @@
     // Kế hoạch trả lời cho hội thoại đang hiện. isWeb=false (Messenger / SMS / WhatsApp...): không có thiết bị, không gửi reply_to.
     function plan(msgs, isWeb) {
         var rows = Array.isArray(msgs) ? msgs : [];
-        var out = { web: !!isWeb, map: isWeb ? deviceMap(rows) : new Map(), latest: null, choices: [], choose: false, sinceCount: 0 };
+        var out = { web: !!isWeb, map: isWeb ? deviceMap(rows) : new Map(), latest: null, choices: [], choose: false, sinceCount: 0,
+                    mustPick: false };
         if (!isWeb) return out;
         var lastStaff = -1;
         rows.forEach(function (m, i) { if (m && m.sender_type === "staff") lastStaff = i; });
@@ -84,17 +94,22 @@
         out.sinceCount = since.size;
         out.choices = since.size >= 2 ? pick(since) : (all.size >= 2 ? pick(all) : []);
         out.choose = out.choices.length >= 2;
+        out.mustPick = since.size >= 2;   // >= 2 thiết bị TỪ SAU trả lời gần nhất: không mặc định, phải chọn (cùng luật server)
         return out;
     }
 
-    // Đích khi bấm Gửi: thiết bị nhân viên đã chọn (nếu vẫn còn trong danh sách) hoặc tin khách mới nhất đang hiện.
+    // Đích khi bấm Gửi: thiết bị nhân viên đã chọn (nếu vẫn còn trong danh sách) hoặc tin khách mới nhất đang hiện — trừ khi
+    // mustPick (>= 2 thiết bị từ sau trả lời gần nhất): chưa chọn = null, không bao giờ âm thầm lấy tin mới nhất.
     function target(p, picked) {
         if (!p || !p.web || !p.latest) return null;
         if (p.choose && typeof picked === "string") {
             for (var i = 0; i < p.choices.length; i++) if (p.choices[i].device === picked) return p.choices[i];
         }
-        return p.latest;
+        return p.mustPick ? null : p.latest;
     }
+
+    // true = phải chọn thiết bị trước khi gửi (trang chặn nút Gửi, giữ nguyên chữ đang soạn)
+    function needsPick(p, picked) { return !!(p && p.web && p.latest && p.mustPick && !target(p, picked)); }
 
     // Nhãn của 1 tin khách: { text, title } | null (không phải hội thoại web / không phải tin khách)
     function customerTag(m, p, lang) {
@@ -123,11 +138,11 @@
     function renderBar(bar, p, picked, lang, onPick, selectClass) {
         if (!bar) return;
         while (bar.firstChild) bar.removeChild(bar.firstChild);
-        var t = target(p, picked);
-        var show = !!(t && (p.choose || t.device === ""));
+        var t = target(p, picked), wait = needsPick(p, picked);
+        var show = wait || !!(t && (p.choose || t.device === ""));
         bar.classList.toggle("hidden", !show);
         if (!show) { bar.removeAttribute("data-reply-target"); return; }
-        bar.setAttribute("data-reply-target", t.device || "none");
+        bar.setAttribute("data-reply-target", wait ? "pick" : (t.device || "none"));
         var doc = bar.ownerDocument || document;
         var label = doc.createElement("span");
         if (p.choose) {
@@ -137,16 +152,28 @@
             sel.setAttribute("aria-label", tr(lang, "pickAria"));
             sel.setAttribute("data-reply-target-select", "1");
             if (selectClass) sel.className = selectClass;
+            if (wait) {   // chưa chọn: ô chọn đứng ở dòng nhắc, không đứng sẵn ở thiết bị nào
+                var ph = doc.createElement("option");
+                ph.value = PICK;
+                ph.textContent = tr(lang, "pickPlaceholder");
+                ph.disabled = true;
+                ph.selected = true;
+                sel.appendChild(ph);
+            }
             p.choices.forEach(function (c) {
                 var o = doc.createElement("option");
                 o.value = c.device;
                 o.textContent = deviceName(c.device, lang) + (c.preview ? " — “" + c.preview + "”" : "");
-                if (c.device === t.device) o.selected = true;
+                if (t && c.device === t.device) o.selected = true;
                 sel.appendChild(o);
             });
-            sel.addEventListener("change", function () { if (onPick) onPick(sel.value); });
+            sel.addEventListener("change", function () { if (onPick && sel.value !== PICK) onPick(sel.value); });
             bar.appendChild(sel);
-            if (t.device === "") {
+            if (wait) {
+                var need = doc.createElement("span");
+                need.textContent = tr(lang, "mustPick");
+                bar.appendChild(need);
+            } else if (t.device === "") {
                 var warn = doc.createElement("span");
                 warn.textContent = tr(lang, "pickedNoDevice");
                 bar.appendChild(warn);
@@ -165,6 +192,6 @@
         return null;
     }
 
-    root.BPReplyTarget = { letter: letter, deviceMap: deviceMap, deviceName: deviceName, plan: plan, target: target,
+    root.BPReplyTarget = { letter: letter, deviceMap: deviceMap, deviceName: deviceName, plan: plan, target: target, needsPick: needsPick,
                            customerTag: customerTag, staffTag: staffTag, targetTag: targetTag, renderBar: renderBar, sentNote: sentNote, text: tr };
 })(typeof window !== "undefined" ? window : globalThis);
