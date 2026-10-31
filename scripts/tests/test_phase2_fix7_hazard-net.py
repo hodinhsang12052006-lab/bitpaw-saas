@@ -87,6 +87,8 @@ PRESENT_NEW = (   # biến thể cùng loại lỗi (từ vựng / khoảng các
     'sờ vô vỏ máy giặt thấy tê tê', 'tắm thấy tê tê khi chạm vòi sen', 'may giat bi giat',
     "There's a smell in the hallway - definitely gas", 'Something smells off, like gas, near the heater',
     'The gas company left but I can still smell it',
+    # phase2-fix8: đồ điện + nóng là từ khoá CHÍNH XÁC (như 'the light switch is buzzing and hot'; vòng 7: 'uncertain')
+    'ổ cắm kêu rè và nóng',
 )
 NET_UNCERTAIN = (   # CHỈ lưới an toàn thấy (không có cụm chính xác) -> 'uncertain', không phải 'danger'
     'the fridge is buzzing', "there's a strange smell in the kitchen", 'I turned the gas off', 'heard a bang upstairs',
@@ -94,14 +96,16 @@ NET_UNCERTAIN = (   # CHỈ lưới an toàn thấy (không có cụm chính xá
     'fire', 'fire?', 'the tv is flashing', 'a weird odour in the bedroom', 'fumes in the garage',
     'something stinks in the laundry', 'the gas heater is leaking', 'bếp từ bị cháy mạch', 'tủ lạnh kêu rè',
     'mùi lạ trong bếp', 'hôi quá anh ơi', 'nghe tiếng xì xì sau tủ', 'có lửa', 'tê tê', 'giật giật ở tay nắm cửa',
-    'mui la trong phong', 'khi dot', 'te tay', 'co lua', 'nong chay', 'ổ cắm kêu rè và nóng', 'báo động kêu liên tục',
+    'mui la trong phong', 'khi dot', 'te tay', 'co lua', 'nong chay', 'ổ cắm kêu rè', 'báo động kêu liên tục',
     'fridge leaking water, power point behind it', 'dột ngay đèn phòng khách',
     'No gas smell. The fridge is buzzing', 'Không có mùi gas, tủ lạnh kêu rè', 'there was a weird smell last week',
     'Is there a smell?', 'what if it buzzes?', 'GAS', 'Propane', 'Mùi', 'XẸT ở đâu đó',
+    # phase2-fix8 (raw-floor rule): "gas heater" là tên thiết bị, không phải phủ định -> 'uncertain' (vòng 7: 'negated')
+    'the gas heater is not hissing',
 )
 NET_NEGATED = (   # từ của lưới bị phủ định rõ / đã hết -> 'negated' (việc thường + câu dặn an toàn)
     'the outlet is not crackling', 'No smell or buzzing', 'No gas smell, buzzing or crackling',
-    'There was a weird smell, it is gone now', 'the gas heater is not hissing', 'không bị giật', 'dây điện không bị cháy',
+    'There was a weird smell, it is gone now', 'the heater is not hissing', 'không bị giật', 'dây điện không bị cháy',
     'no strange smell at all', 'không có mùi lạ', 'Không có mùi gas và tia lửa',
 )
 NET_NONE = (   # cụm KHÔNG nguy hiểm trong danh sách (_HZ_NET_SAFE / _HZ_EXCLUDE...) -> 'none'
@@ -132,6 +136,32 @@ STILL_DANGER = (   # cụm không-nguy-hiểm KHÔNG được che mất nguy hi�
     'khách báo cháy ổ điện', 'my gas heater smells like gas', 'water near the power point',
     'chimney fire, smoke is pouring into the room', 'the flue is blocked and there is a fire in the roof',
 )
+# phase2-fix8 — raw-floor rule (LUẬT AN TOÀN THEO CẤU TRÚC ở đầu bộ phân loại): cụm KHÔNG nguy hiểm trong danh sách
+# (_HZ_NET_SAFE / _HZ_EXCLUDE / _HZ_VENT_SMOKE / _HZ_PERSON_SMOKE...) chỉ chặn 'danger'. Các câu NET_NONE / CHECKER_OVER_ALERT
+# dưới đây có từ thuộc họ nguy hiểm trong văn bản gốc -> nay 'uncertain' (vòng 7: 'none'); 2 câu mà từ đó nằm trong phủ
+# định rõ ('không giật nước', 'quit smoking') -> 'negated'. Chỉ câu KHÔNG có từ nào thuộc họ còn là ('none', {}).
+FIX8_RAW_FLOOR = {t: 'uncertain' for t in (
+    'Need my gas heater serviced before winter', 'Gas bottle delivery', 'Convert BBQ to natural gas',
+    'Is the hot water gas or electric?', 'nạp gas máy lạnh', 'máy lạnh thiếu gas', 'đổi bình gas giúp em',
+    'we ran out of gas for the bbq', 'Need a gas safety certificate for my rental',
+    'I want the gas meter moved for a renovation', 'smells fine, gas heater works',
+    'Aircon smells musty when it turns on', 'Bồn cầu có mùi hôi', 'may lanh co mui hoi', 'Máy lạnh có mùi ẩm mốc',
+    'the speaker is crackling', 'loa bị rè', 'Coffee machine steam wand hissing a lot',
+    'Solar inverter showing an error light flashing', 'the light keeps flashing an error code',
+    'the pipes bang when I turn off the tap', 'The washing machine bangs during the spin cycle',
+    'Kettle element burnt out', 'Light globe burnt out in the hallway', 'ice cream is melting, freezer not cold',
+    "There's a burning sensation in my eyes from the cleaning products lol", 'trời nắng cháy da, cần lắp máy lạnh',
+    'Trời nóng như đổ lửa mà máy lạnh không mát', 'Tivi bị giật hình', 'Wifi bị giật lag', 'em giật mình',
+    'I was shocked by the price of the quote', 'Ceiling has water stains near the downlight',
+    'The security alarm keeps going off at night', 'car alarm going off outside', 'fire up the bbq',
+    'the gas log fire needs a service', 'His cooking is fire lol, anyway the oven light is broken',
+    'Bếp gas đánh lửa không lên', 'Pest control smoke treatment',
+    'the previous tenants smoked inside, walls are stained',
+    "We had smoke from cooking and the alarm went off, it's fine now, but the hood needs fixing",
+    'Sơn lại tường bị ố vàng do khói thuốc', 'Chimney clean to prevent a chimney fire',
+)}
+FIX8_RAW_FLOOR.update({t: 'uncertain' for t in CHECKER_OVER_ALERT[:8]})
+FIX8_RAW_FLOOR.update({'bồn cầu không giật nước': 'negated', 'he quit smoking last year': 'negated'})
 # Mọi từ thuộc HỌ nguy hiểm (mọi dạng) trong câu trung tính -> ít nhất 'uncertain'
 FAMILY_EN = ('gas', 'GAS', 'Propane', 'LPG', 'butane', 'smell', 'smells', 'smelly', 'odour', 'odor', 'reek', 'whiff', 'stink',
              'stench', 'fumes', 'spark', 'sparks', 'arc', 'arcing', 'crackle', 'crackling', 'buzz', 'buzzing', 'hiss',
@@ -175,8 +205,10 @@ class CheckerPhraseTests(unittest.TestCase):
             with self.subTest(txt=txt):
                 self.assertNotEqual(technical.classify_hazard(txt), 'danger')
                 self.assertFalse(technical.is_emergency(txt))
-        for txt in CHECKER_OVER_ALERT[:8]:   # cụm không-nguy-hiểm trong danh sách: việc thường, không còn từ nào
-            self.assertEqual(technical.hazard_check(txt), ('none', {}), txt)
+        for txt in CHECKER_OVER_ALERT[:8]:   # phase2-fix8 (raw-floor rule): cụm trong danh sách chỉ chặn 'danger' -> 'uncertain'
+            verdict, states = technical.hazard_check(txt)
+            self.assertEqual(verdict, 'uncertain', txt)
+            self.assertTrue(_net_only(states), states)
         self.assertEqual(technical.hazard_check(CHECKER_OVER_ALERT[8]), ('negated', {'water': 'negated'}))   # đã khô
 
     def test_new_present_phrasings_are_danger(self):
@@ -214,10 +246,18 @@ class SafetyNetTests(unittest.TestCase):
                 self.assertEqual(verdict, 'negated', states)
                 self.assertEqual(set(states.values()), {'negated'})
 
-    def test_listed_non_hazard_compounds_are_none_with_no_states(self):
+    def test_listed_non_hazard_compounds_only_cap_at_uncertain(self):
+        # phase2-fix8 (raw-floor rule): trước là ('none', {}); nay cụm trong danh sách chỉ chặn 'danger' — câu có từ thuộc họ
+        # nguy hiểm là 'uncertain' / 'negated' (FIX8_RAW_FLOOR, chỉ khoá 'possible_<họ>'), câu không có từ nào vẫn ('none', {})
         for txt in NET_NONE:
             with self.subTest(txt=txt):
-                self.assertEqual(technical.hazard_check(txt), ('none', {}))
+                verdict, states = technical.hazard_check(txt)
+                want = FIX8_RAW_FLOOR.get(txt, 'none')
+                if want == 'none':
+                    self.assertEqual((verdict, states), ('none', {}))
+                else:
+                    self.assertEqual(verdict, want, states)
+                    self.assertTrue(_net_only(states), states)
 
     def test_every_family_term_in_every_form_is_at_least_uncertain(self):
         n = 0
@@ -245,7 +285,13 @@ class SafetyNetTests(unittest.TestCase):
         for txt in NET_NONE + CHECKER_OVER_ALERT[:8]:
             with self.subTest(txt=txt):
                 verdict, states = technical.hazard_check(txt)
-                self.assertEqual((verdict, states), ('none', {}))
+                raw = technical._hz_raw_scan(technical._hz_norm(txt))
+                if txt in FIX8_RAW_FLOOR:   # phase2-fix8 (raw-floor rule): văn bản gốc có từ thuộc họ -> không 'none'
+                    self.assertTrue(raw, txt)
+                    self.assertEqual(verdict, FIX8_RAW_FLOOR[txt], states)
+                else:
+                    self.assertEqual(raw, {}, txt)
+                    self.assertEqual((verdict, states), ('none', {}))
         # câu có từ của lưới ngoài mọi cụm trong danh sách thì không bao giờ là 'none'
         for txt in NET_UNCERTAIN + NET_NEGATED:
             with self.subTest(txt=txt):
@@ -318,15 +364,19 @@ class HazardNetJobToolTests(unittest.TestCase):
                 self.assertIn('000', out['tell_customer'])
                 self.assertEqual([a[4] for a in alerts()], ['technical_emergency'])
 
-    def test_over_alerts_are_normal_jobs(self):
+    def test_over_alerts_are_not_emergencies(self):
+        # phase2-fix8 (raw-floor rule): trước là việc thường; nay câu có từ thuộc họ nguy hiểm trong cụm không-nguy-hiểm ->
+        # việc GẤP + người thật kiểm tra + câu dặn CÓ ĐIỀU KIỆN — KHÔNG bao giờ khẩn cấp hay bảo sơ tán
         for i, problem in enumerate(CHECKER_OVER_ALERT[:8] + ('Need my gas heater serviced before winter', 'nạp gas máy lạnh')):
             with self.subTest(problem=problem):
                 out = self.run_job(problem, 40 + i)
-                self.assertEqual(out['urgency'], 'normal')
-                self.assertNotIn('000', out['tell_customer'])
-                self.assertNotIn('possible_hazard', out)
-                self.assertEqual([a[4] for a in alerts()], ['technical_job'])
-                self.assertFalse(DB.bot_customers.find_one({'id': self.cid}).get('needs_human'))
+                self.assertEqual(out['urgency'], 'urgent')
+                self.assertTrue(out['possible_hazard'])
+                tell = out['tell_customer']
+                self.assertIn('right now, leave the area and call 000', tell)
+                for evacuate in ('somewhere safe', 'get everyone', 'If anyone is in danger'):
+                    self.assertNotIn(evacuate, tell)
+                self.assertEqual([a[4] for a in alerts()], ['technical_hazard_check'])
 
     def test_negated_net_term_is_a_normal_job_with_the_safety_tip(self):
         out = self.run_job('No smell or buzzing, it just will not turn on', 60)
