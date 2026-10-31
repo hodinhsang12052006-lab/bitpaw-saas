@@ -324,7 +324,7 @@
                                 <option value="NZD" data-i18n="brand_settings_currency_nzd">NZD - New Zealand dollar</option>
                                 <option value="GBP" data-i18n="brand_settings_currency_gbp">GBP - British pound</option>
                             </select>
-                            <p id="regionCurrencyPartial" class="text-[11px] text-amber-300 mt-1 ml-1 leading-relaxed hidden" data-i18n="brand_settings_currency_partial">Some reports and POS screens can only format VND, USD and AUD so far, so CAD, NZD or GBP amounts may look wrong there.</p>
+                            <p id="regionCurrencyPartial" class="text-[11px] text-amber-300 mt-1 ml-1 leading-relaxed hidden" data-i18n="brand_settings_currency_partial">Your AI receptionist quotes prices in this currency correctly, but some POS, dashboard and report screens and the QR table-order page can still only format VND, USD and AUD, so CAD, NZD or GBP amounts may look wrong there.</p>
                             <p class="text-[11px] text-gray-400 mt-1 ml-1 leading-relaxed" data-i18n="brand_settings_currency_no_convert">Changing the currency does not convert amounts you have already recorded. It only changes the currency they are shown in.</p>
                         </div>
                         <button type="submit" id="regionSaveBtn" class="w-full bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
@@ -435,7 +435,8 @@
                 brand_settings_currency_cad: 'CAD - Đô la Canada',
                 brand_settings_currency_nzd: 'NZD - Đô la New Zealand',
                 brand_settings_currency_gbp: 'GBP - Bảng Anh',
-                brand_settings_currency_partial: 'Một số báo cáo và màn hình POS hiện mới định dạng được VND, USD và AUD, nên số tiền CAD, NZD hoặc GBP có thể hiển thị chưa đúng ở đó.',
+                brand_settings_currency_partial: 'Lễ tân AI báo giá đúng theo tiền tệ này, nhưng một số màn hình POS, tổng quan, báo cáo và trang gọi món qua QR hiện mới định dạng được VND, USD và AUD, nên số tiền CAD, NZD hoặc GBP có thể hiển thị chưa đúng ở đó.',
+                brand_settings_currency_current: '{c} (đang dùng)',
                 brand_settings_currency_no_convert: 'Đổi tiền tệ không quy đổi các số tiền đã ghi, chỉ đổi đơn vị tiền hiển thị.',
                 brand_settings_region_save: 'Lưu quốc gia & tiền tệ',
                 brand_settings_region_saved: 'Đã lưu quốc gia và tiền tệ.',
@@ -490,7 +491,8 @@
                 brand_settings_currency_cad: 'CAD - Canadian dollar',
                 brand_settings_currency_nzd: 'NZD - New Zealand dollar',
                 brand_settings_currency_gbp: 'GBP - British pound',
-                brand_settings_currency_partial: 'Some reports and POS screens can only format VND, USD and AUD so far, so CAD, NZD or GBP amounts may look wrong there.',
+                brand_settings_currency_partial: 'Your AI receptionist quotes prices in this currency correctly, but some POS, dashboard and report screens and the QR table-order page can still only format VND, USD and AUD, so CAD, NZD or GBP amounts may look wrong there.',
+                brand_settings_currency_current: '{c} (current)',
                 brand_settings_currency_no_convert: 'Changing the currency does not convert amounts you have already recorded. It only changes the currency they are shown in.',
                 brand_settings_region_save: 'Save country & currency',
                 brand_settings_region_saved: 'Country and currency saved.',
@@ -658,6 +660,9 @@
         const regionSaveBtn = document.getElementById('regionSaveBtn');
         let regionData = null;
         let regionError = '';
+        let legacyCurrencyOpt = null;
+        // = currency_utils.COUNTRY_CURRENCY: 'Theo quốc gia (tự động)' dùng tiền của nước đang chọn; 'Nước khác' -> USD
+        const REGION_COUNTRY_CURRENCY = { US: 'USD', AU: 'AUD', VN: 'VND', CA: 'CAD', NZ: 'NZD', GB: 'GBP' };
 
         function countryLabel(code) {
             const opt = regionCountry.querySelector('option[value="' + code + '"]');
@@ -675,7 +680,15 @@
             }
             regionCountryNote.textContent = note;
             regionCountryNote.classList.toggle('hidden', !note);
-            regionCurrencyPartial.classList.toggle('hidden', ['CAD', 'NZD', 'GBP'].indexOf(regionCurrency.value) === -1);
+            if (legacyCurrencyOpt) legacyCurrencyOpt.textContent = t('brand_settings_currency_current').replace('{c}', legacyCurrencyOpt.value);
+            regionCurrencyPartial.classList.toggle('hidden', ['VND', 'USD', 'AUD'].indexOf(effectiveCurrency()) !== -1);
+        }
+        function effectiveCurrency() {   // tiền tệ các màn hình sẽ dùng với lựa chọn đang hiện (currency_utils.shop_currency)
+            const cur = regionCurrency.value || 'auto';
+            if (cur !== 'auto') return cur;
+            const c = regionCountry.value;
+            if (REGION_COUNTRY_CURRENCY[c]) return REGION_COUNTRY_CURRENCY[c];
+            return (!c && regionData && regionData.display_currency) || 'USD';   // chưa lưu nước: theo múi giờ / tiền đang đoán
         }
         function applyRegion(d) {
             regionData = d || {};
@@ -683,10 +696,11 @@
             regionCountry.value = regionData.country || '';
             const cur = regionData.currency || 'auto';
             if (!regionCurrency.querySelector('option[value="' + cur + '"]')) {   // tiền tệ cũ ngoài danh sách: hiện đúng, không tự đổi
-                const opt = document.createElement('option');
+                const opt = document.createElement('option');   // gửi lại đúng mã này -> server giữ nguyên (sửa nước vẫn được)
                 opt.value = cur;
                 opt.textContent = cur;
                 regionCurrency.appendChild(opt);
+                legacyCurrencyOpt = opt;
             }
             regionCurrency.value = cur;
             renderRegionNotes();
@@ -706,6 +720,7 @@
             }
         }
         regionCurrency.addEventListener('change', renderRegionNotes);
+        regionCountry.addEventListener('change', renderRegionNotes);   // 'Theo quốc gia': đổi nước = đổi tiền tệ
         regionForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!regionCountry.value) {

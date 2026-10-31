@@ -143,7 +143,7 @@ class RegisterCountryTests(core._Base):
             # CA/NZ/GB: chỉ lưu nước — tiền tệ để trống (CAD/NZD/GBP chưa định dạng được; mỗi module tự theo nước, fix4)
             ('CA', None, ('CA', None)), ('NZ', None, ('NZ', None)), ('GB', None, ('GB', None)), ('uk', None, ('GB', None)),
             (None, 'AU', ('AU', 'AUD')), (None, 'vn', ('VN', 'VND')), (None, 'US', ('US', 'USD')),
-            ('other', 'AU', (None, None)), ('', 'US', (None, None)), ('ZZ<script>', None, (None, None)),
+            ('other', 'AU', ('OTHER', None)), ('', 'US', (None, None)), ('ZZ<script>', None, (None, None)),
             (None, 'DE', (None, None)), (None, None, (None, None)),
         ]
         for n, (form_country, header, want) in enumerate(cases):
@@ -158,21 +158,27 @@ class RegisterCountryTests(core._Base):
         """Tiền tệ lưu khi đăng ký == app._shop_lang_currency / ai_copilot_tools.business_currency suy từ nước (gói bán USD/AUD,
         format_money chỉ VND/USD/AUD) — không đặt quy ước mới."""
         tree = ast.parse(core.APP_SRC)
+        from tenant_engine import TenantEngine
+        ns = {'db': DB, 'TenantEngine': TenantEngine}
         fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == '_shop_lang_currency')
-        self.assertIn("{'VN': 'VND', 'AU': 'AUD', '': 'VND'}.get(country, 'USD')", ast.get_source_segment(core.APP_SRC, fn))
+        exec(compile(ast.Module(body=[fn], type_ignores=[]), 'app.py::_shop_lang_currency', 'exec'), ns)
         saas = next(n for n in tree.body if isinstance(n, ast.Assign) and any(getattr(t, 'id', '') == 'SAAS_CURRENCIES'
                                                                               for t in n.targets))
         sold_in = set(ast.literal_eval(saas.value))   # tiền tệ BitPaw bán gói (checkout / plans.price): USD, AUD
         import ai_copilot_tools
         for n, country in enumerate(COUNTRIES):
             biz = self._register(100 + n, country)
-            if country in ('CA', 'NZ', 'GB'):   # fix4: không lưu tiền tệ app chưa định dạng được (test_phase2_fix4_country4.py)
+            # tiền tệ THẬT của tiệm (lễ tân AI, màn hình, đề xuất gửi chủ) luôn định dạng đúng: '$1,200.50' / '1.201đ' /
+            # 'CA$1,200.50' — fix5: CA/NZ/GB không lưu tiền tệ ('Theo quốc gia') nhưng KHÔNG còn ra 'VND' / '1.201đ'
+            effective = customer_context.currency_of(biz['id'])
+            self.assertEqual(effective, {'US': 'USD', 'AU': 'AUD', 'VN': 'VND', 'CA': 'CAD', 'NZ': 'NZD', 'GB': 'GBP'}[country])
+            self.assertEqual(ns['_shop_lang_currency'](biz['id'])[1], effective, country)
+            self.assertEqual(format_money(1200.5, effective).endswith('đ'), effective == 'VND', country)
+            if country in ('CA', 'NZ', 'GB'):   # fix4: chỉ lưu nước, tiền tệ theo nước (test_phase2_fix4_country4.py)
                 self.assertNotIn('currency', biz, country)
                 continue
             self.assertEqual(biz['currency'], ai_copilot_tools.business_currency(None, {'country': country}), country)
             self.assertIn(biz['currency'], sold_in | {'VND'}, country)
-            # tiền tệ lưu luôn định dạng đúng ('$1,200.50' / '1.201đ'): CAD/NZD/GBP sẽ bị format_money in thành 'đ'
-            self.assertEqual(format_money(1200.5, biz['currency']).endswith('đ'), biz['currency'] == 'VND', country)
 
     def test_new_us_shop_reads_national_numbers_as_us(self):
         biz = self._register(200, 'US')
@@ -221,8 +227,8 @@ class OAuthCompleteCountryTests(core._Base):
         biz = DB.businesses.find_one({'name': 'Bella Nails'})
         self.assertEqual((biz.get('country'), biz.get('currency'), biz.get('plan')), ('US', 'USD', 'pro'))
 
-    def test_header_used_when_the_form_has_no_country_field_and_other_stores_nothing(self):
-        for n, (form_country, header, want) in enumerate(((None, 'VN', ('VN', 'VND')), ('other', 'AU', (None, None)),
+    def test_header_used_when_the_form_has_no_country_field_and_other_stores_the_other_marker(self):
+        for n, (form_country, header, want) in enumerate(((None, 'VN', ('VN', 'VND')), ('other', 'AU', ('OTHER', None)),
                                                           (None, None, (None, None)))):
             with self.c.session_transaction() as s:
                 s['oauth_signup'] = {'provider': 'google', 'sub': f'g-{n}', 'email': f'n{n}@example.com', 'name': 'X',

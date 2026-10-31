@@ -51,9 +51,10 @@ class TenantEngine:
         country: ai_packs.shop_country — 1 nguồn cho mọi module (nước trên hồ sơ -> múi giờ trang Nhắn tin -> tiền tệ); nước
         BitPaw chưa có luật ('OTHER', 'SG'...) hoặc chưa rõ -> '' (không còn mặc định 'VN': tiệm Mỹ/Úc/Singapore chưa lưu nước
         từng bị coi là tiệm Việt, hiện '₫').
-        currency: businesses.currency; chưa lưu thì VN -> VND, AU -> AUD, còn lại (kể cả chưa rõ nước) -> USD — cùng quy ước
-        ai_copilot_tools.business_currency / app._shop_lang_currency (gói chỉ bán USD/AUD, format_money chỉ định dạng
-        VND/USD/AUD), không còn mặc định VND.
+        currency: currency_utils.shop_currency — businesses.currency; chưa lưu ('Theo quốc gia (tự động)') thì theo nước
+        (US -> USD, AU -> AUD, VN -> VND, CA -> CAD, NZ -> NZD, GB -> GBP), không rõ nước -> USD. Cùng 1 quy tắc với
+        customer_context (lễ tân AI) và app._shop_lang_currency; format_money định dạng đủ 6 tiền này, không bao giờ 'đ'
+        cho tiền khác VND.
         Không có tiệm / không có dòng businesses / lỗi DB: {'country': '', 'currency': 'USD'}."""
         default = {"country": "", "currency": "USD"}
         
@@ -74,5 +75,10 @@ class TenantEngine:
         except Exception as e:
             print(f"[!] get_region_config country failed for business_id={business_id}: {str(e)}")
             country = ''
-        currency = str(row.get('currency') or '').strip().upper() or {'VN': 'VND', 'AU': 'AUD'}.get(country, 'USD')
+        try:
+            from currency_utils import shop_currency
+            currency = shop_currency(row.get('currency'), country)
+        except Exception as e:
+            print(f"[!] get_region_config currency failed for business_id={business_id}: {str(e)}")
+            currency = str(row.get('currency') or '').strip().upper() or 'USD'
         return {"country": country, "currency": currency}

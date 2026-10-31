@@ -116,6 +116,15 @@ def on_my_way(task_id):
     return jsonify({'success': True, 'sent': sent, 'url': url, 'text': body, 'phone': phone or '', 'eta_min': st['eta_min']})
 
 
+def _shop_country(business_id, biz):
+    """Nước của tiệm = ai_packs.shop_country (hồ sơ -> múi giờ trang Nhắn tin -> tiền tệ), 1 nguồn với mọi module; lỗi -> None."""
+    try:
+        import ai_packs
+        return ai_packs.shop_country(dict(biz or {}, id=business_id))
+    except Exception:
+        return None
+
+
 def _public_task(business_id, task_id, token):
     if not hmac.compare_digest(track_token(business_id, task_id), token or ''):
         return None
@@ -125,8 +134,8 @@ def _public_task(business_id, task_id, token):
 @tracking_bp.route('/track/<business_id>/<int:task_id>/<token>')
 def track_page(business_id, task_id, token):
     task = _public_task(business_id, task_id, token)
-    biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'country': 1}) or {}
-    lang = 'vi' if (biz.get('country') or '').upper() == 'VN' else 'en'
+    biz = db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'country': 1, 'currency': 1}) or {}
+    lang = 'vi' if _shop_country(business_id, biz) == 'VN' else 'en'
     if not task:
         return render_template('job_track.html', invalid=True, biz={}, lang='en', api_url=''), 404
     return render_template('job_track.html', invalid=False, biz=biz, lang=lang,

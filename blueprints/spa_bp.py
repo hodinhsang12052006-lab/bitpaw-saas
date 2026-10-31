@@ -313,8 +313,13 @@ def create_appointment():
 
 
 def _shop_is_vi(business_id):
-    b = db.businesses.find_one({'id': business_id}, {'_id': 0, 'country': 1}) or {}
-    return (b.get('country') or 'VN').upper() == 'VN'
+    """Tiếng Việt chỉ cho tiệm ở Việt Nam theo ai_packs.shop_country (hồ sơ -> múi giờ trang Nhắn tin -> tiền tệ) — tiệm
+    chưa rõ nước / 'Nước khác' không còn bị coi là tiệm Việt. Lỗi -> tiếng Anh."""
+    try:
+        import ai_packs
+        return ai_packs.shop_country(business_id) == 'VN'
+    except Exception:
+        return False
 
 
 @app.route('/chamcong/spa')

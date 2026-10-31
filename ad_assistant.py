@@ -30,13 +30,15 @@ ALLOWED_OBJECTIVES = {'OUTCOME_TRAFFIC', 'OUTCOME_ENGAGEMENT', 'OUTCOME_LEADS', 
 
 
 def _shop_region(business_id):
-    """{'country','currency'} THẬT của tiệm — nhắm quốc gia + tiền tệ ngân sách theo tiệm, không mặc định cứng."""
+    """{'country','currency'} THẬT của tiệm — nhắm quốc gia + tiền tệ ngân sách theo tiệm, không mặc định cứng.
+    country: TenantEngine (ai_packs.shop_country) — '' khi chưa rõ hoặc chủ tiệm chọn 'Nước khác' (KHÔNG còn coi là 'VN':
+    quảng cáo thật từng bị nhắm vào Việt Nam). currency: TenantEngine (đã lưu -> theo nước -> USD); lỗi -> USD, không VND."""
     try:
         region = TenantEngine.get_region_config(business_id) or {}
     except Exception:
         region = {}
-    return {'country': str(region.get('country') or 'VN').strip().upper(),
-            'currency': str(region.get('currency') or 'VND').strip().upper()}
+    return {'country': str(region.get('country') or '').strip().upper(),
+            'currency': str(region.get('currency') or 'USD').strip().upper()}
 
 
 def _parse_amount(value):
@@ -339,10 +341,15 @@ def create_campaign():
     # không tự quy đổi tỷ giá (đổi sai = chi sai tiền thật).
     budget_currency = str(data.get('currency') or region['currency']).strip().upper()
 
+    # Chỉ nhắm quốc gia THẬT của tiệm (1 trong các nước BitPaw có luật). Chưa lưu nước / 'Nước khác' -> từ chối, không đoán.
+    import ai_packs
     country = region['country']
-    if not re.fullmatch(r'[A-Z]{2}', country):
-        return _err(business_id, 'shop_country_missing', "Chưa xác định được quốc gia của tiệm để nhắm quảng cáo.",
-                    "The shop's country is not set, so the ad cannot be targeted.", 400)
+    if country not in ai_packs.SHOP_COUNTRIES:
+        return _err(business_id, 'shop_country_missing',
+                    "Chưa biết quốc gia của tiệm (chưa chọn hoặc đang để 'Nước khác') nên chưa thể nhắm quảng cáo. Hãy chọn "
+                    "quốc gia ở Cài đặt thương hiệu > Quốc gia & tiền tệ rồi thử lại.",
+                    "Your shop country isn't set (or is set to 'Other country'), so the ad can't be targeted. Choose your "
+                    "country in Brand settings > Country & currency, then try again.", 400)
 
     # Mã "Go-Live Pentest" audit (High/SSRF) — image_url trước đây được fetch THẲNG server-side
     # (facebook_ads_client.upload_ad_image() gọi requests.get(image_url)) mà không kiểm tra gì.

@@ -33,9 +33,28 @@ def _biz(business_id):
     return db.businesses.find_one({'id': business_id}, {'_id': 0, 'name': 1, 'country': 1, 'currency': 1}) or {}
 
 
+def _shop_country(business_id, biz=None):
+    """Nước của tiệm = ai_packs.shop_country (hồ sơ -> múi giờ trang Nhắn tin -> tiền tệ), 1 nguồn với mọi module; lỗi -> None."""
+    try:
+        import ai_packs
+        return ai_packs.shop_country(dict(biz if biz is not None else _biz(business_id), id=business_id))
+    except Exception:
+        return None
+
+
+def _shop_currency(business_id, biz=None):
+    """Tiền của tiệm = currency_utils.shop_currency (đã lưu -> theo nước, CA -> CAD... -> USD), như TenantEngine."""
+    biz = biz if biz is not None else _biz(business_id)
+    try:
+        from currency_utils import shop_currency
+        return shop_currency(biz.get('currency'), _shop_country(business_id, biz))
+    except Exception:
+        return (biz.get('currency') or 'USD').upper()
+
+
 def _default_max_hours(business_id):
     # Úc: tuần làm việc tiêu chuẩn 38 giờ (Fair Work NES); Mỹ: 40 giờ (FLSA, quá 40 giờ là tăng ca)
-    return 38 if (_biz(business_id).get('country') or '').upper() == 'AU' else 40
+    return 38 if _shop_country(business_id) == 'AU' else 40
 
 
 def _local_now(business_id):
@@ -376,7 +395,7 @@ def roster_get():
         e['leave_dates'] = sorted(leave.get(e['ma_nv'], ()))
         e['max_hours'] = e.get('max_hours') or max_h
     biz = _biz(bid)
-    ot_limit = 38 if (biz.get('country') or '').upper() == 'AU' else 40
+    ot_limit = 38 if _shop_country(bid, biz) == 'AU' else 40
     overtime, ot_cost = [], 0.0
     for e in staff:
         if e['hours'] > ot_limit:
@@ -390,7 +409,7 @@ def roster_get():
                     'open_shifts': [x for x in shifts if x.get('status') == 'open'],
                     'swaps_pending': list(db.roster_swaps.find({'business_id': bid, 'status': 'pending_owner'}, {'_id': 0}).sort('id', -1).limit(20)), 'days': [(ws + timedelta(days=i)).isoformat() for i in range(7)],
                     'staff': staff, 'shifts': shifts, 'needs': needs, 'max_hours_week': max_h,
-                    'coverage': coverage(needs, shifts, ws), 'labor_cost': cost, 'currency': (biz.get('currency') or 'USD').upper(),
+                    'coverage': coverage(needs, shifts, ws), 'labor_cost': cost, 'currency': _shop_currency(bid, biz),
                     'drafts': sum(1 for s in shifts if s.get('status') == 'draft')})
 
 

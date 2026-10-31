@@ -15,7 +15,7 @@ import re
 from datetime import datetime
 
 from mongo_client import db
-from currency_utils import format_money
+from currency_utils import format_money, shop_currency
 
 import booking_rules
 
@@ -62,11 +62,12 @@ def business(business_id):
         except Exception as e:
             print(f"[customer_context] country: {e}")
             country = profile_country
+        # currency: stored, else the shop country's (CA -> CAD...), else USD — never a silent VND ('45đ' for a Canadian shop)
         return {'id': business_id, 'name': name or None, 'industry': _norm_industry(b.get('industry_code')) or None,
-                'currency': (b.get('currency') or 'VND').upper(), 'country': country, 'profile_country': profile_country,
+                'currency': shop_currency(b.get('currency'), country), 'country': country, 'profile_country': profile_country,
                 'phone': str(b.get('phone') or '').strip(), 'address': str(b.get('address') or '').strip()}
     if not business_id:
-        return {'id': None, 'name': None, 'industry': None, 'currency': 'VND', 'country': None, 'profile_country': None,
+        return {'id': None, 'name': None, 'industry': None, 'currency': shop_currency(), 'country': None, 'profile_country': None,
                 'phone': '', 'address': ''}
     return booking_rules._cached(('cc_business', business_id), _load)
 
