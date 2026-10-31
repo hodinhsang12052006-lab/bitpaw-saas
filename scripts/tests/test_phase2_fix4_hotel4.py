@@ -202,7 +202,8 @@ class TestAcknowledgedHoldsLeaveTheQuota(_Staff):
             resv(703, D(-2), D(0), room_id=1, source='ai_bot', ai_verified=False),   # trả phòng sáng nay
             resv(704, D(0), D(1), room_id=2, source='ai_bot', ai_verified=False),
             resv(705, D(0), D(1), room_id=1, source='ai_bot', ai_verified=False, status='cancelled')])
-        self.assertEqual(rh.mark_checked_in(BID, 1, TODAY), 1)
+        # khách vừa tới = khách của đặt phòng (resv() mặc định 'Other Guest'); khách khác: test_phase2_fix5_hotel5
+        self.assertEqual(rh.mark_checked_in(BID, 1, TODAY, guest_name='Other Guest'), 1)
         self.assertEqual([r['id'] for r in DB.hotel_reservations.docs if r.get('checked_in_at')], [701])
 
 

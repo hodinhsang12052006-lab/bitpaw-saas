@@ -440,14 +440,23 @@ def _block_hotel(ctx):
     else:
         lines.append("STAYS: no check-outs billed in the last 30 days yet.")
     today = ctx.today.isoformat()
-    live = {'business_id': ctx.bid, 'status': {'$nin': _CANCELLED}}
-    arrivals = list(db.hotel_reservations.find({**live, 'checkin_date': {'$gte': today,
-                                                                          '$lt': (ctx.today + timedelta(days=7)).isoformat()}},
+    week = {'$gte': today, '$lt': (ctx.today + timedelta(days=7)).isoformat()}
+    # Yêu cầu AI chuyển nhân viên mà CHƯA giữ phòng (reservations_hotel.STAFF_REQUEST — chat web chưa xác minh vượt trần giữ
+    # phòng online) chưa phải khách đến: không tính vào khách đến / trả phòng, báo riêng để chủ Duyệt / Từ chối.
+    from reservations_hotel import STAFF_REQUEST
+    live = {'business_id': ctx.bid, 'status': {'$nin': _CANCELLED + [STAFF_REQUEST]}}
+    arrivals = list(db.hotel_reservations.find({**live, 'checkin_date': week},
                                                {'_id': 0, 'checkin_date': 1, 'status': 1}).limit(500))
     departures = db.hotel_reservations.count_documents({**live, 'checkout_date': today})
     a_today = sum(1 for r in arrivals if str(r.get('checkin_date'))[:10] == today)
     lines.append(f"ARRIVALS (reservations): today {a_today}, next 7 days {len(arrivals)} "
                  f"({sum(1 for r in arrivals if r.get('status') == 'pending')} still pending); departures today {departures}.")
+    req = {'business_id': ctx.bid, 'status': STAFF_REQUEST}
+    waiting = db.hotel_reservations.count_documents({**req, 'checkin_date': {'$gte': today}})
+    if waiting:
+        soon = db.hotel_reservations.count_documents({**req, 'checkin_date': week})
+        lines.append(f"BOOKING REQUESTS waiting for the team (no room held yet, not counted as arrivals above): {waiting} "
+                     f"({soon} arriving in the next 7 days) — approve or decline them on Hotel > Reservations.")
     return lines
 
 
