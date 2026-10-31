@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 
 import ai_packs
 import reservations_hotel as rh
+from currency_utils import shop_currency
 from mongo_client import db
 
 INDUSTRIES = ('hotel',)
@@ -255,13 +256,20 @@ def _shop(business_id):
 _COUNTRY_CURRENCY = {'US': 'USD', 'AU': 'AUD', 'VN': 'VND', 'CA': 'CAD', 'NZ': 'NZD', 'GB': 'GBP'}
 
 
-def _currency(shop):
-    """Tiền của khách sạn: trường currency; thiếu thì theo quốc gia; không có gì thì USD — KHÔNG mặc định VND cho khách
-    sạn ngoài Việt Nam (cùng quy ước ai_copilot_tools.business_currency / nail_turns.shop_currency)."""
-    cur = str(shop.get('currency') or '').strip().upper()
-    if re.fullmatch(r'[A-Z]{3}', cur):
-        return cur
-    return _COUNTRY_CURRENCY.get(str(shop.get('country') or '').strip().upper(), 'USD')
+def _currency(shop, business_id=None):
+    """Tiền của khách sạn = currency_utils.shop_currency(tiền đã lưu, nước): nước = ai_packs.shop_country (hồ sơ -> múi giờ
+    trang Nhắn tin -> tiền), else USD — KHÔNG mặc định VND cho khách sạn ngoài Việt Nam, khách sạn Việt Nam vẫn VND (cùng quy
+    tắc TenantEngine / ai_copilot_tools.business_currency / nail_turns.shop_currency). Gói nạp riêng (registry chưa có
+    shop_country) / lỗi: nước trên hồ sơ."""
+    shop = shop or {}
+    country = shop.get('country')
+    fn = getattr(ai_packs, 'shop_country', None)
+    if callable(fn):
+        try:
+            country = fn(dict(shop, id=business_id if business_id is not None else shop.get('id')))
+        except Exception as e:
+            print(f"[hotel] shop currency: {e}")
+    return shop_currency(shop.get('currency'), country)
 
 
 def _money(amount, cur):
@@ -516,7 +524,7 @@ def _check_availability(args, c):
             names = ', '.join(t['name'] for t in av['_types'].values())
             _refuse(c.t(f"There is no room type called '{str(args['room_type'])[:40]}'. Room types: {names}.",
                         f"Khách sạn không có loại phòng '{str(args['room_type'])[:40]}'. Các loại phòng: {names}."))
-    cur = _currency(_shop(c.business_id))
+    cur = _currency(_shop(c.business_id), c.business_id)
     shown = [t for t in av['types'] if key is None or t['key'] == key]
     out = {"success": True, "checkin_date": av['checkin'].isoformat(), "checkout_date": av['checkout'].isoformat(),
            "nights": av['nights'], "guests_per_room": guests, "currency": cur,
@@ -619,7 +627,7 @@ def _create_booking(args, c):
     except rh.HotelRequestError as e:
         _hotel_error(c, e)
     shop = _shop(c.business_id)
-    cur = _currency(shop)
+    cur = _currency(shop, c.business_id)
 
     # "đặt giúp em" nói 2 lần không được ra 2 phòng: cùng chat + cùng ngày + cùng loại + cùng tên -> trả lại đặt phòng cũ
     if not _yes(args.get('another_room')):
@@ -789,7 +797,7 @@ def _my_bookings(args, c):
     if not _can_verify(c):
         _not_verified(c)
     shop = _shop(c.business_id)
-    cur = _currency(shop)
+    cur = _currency(shop, c.business_id)
     rows = [r for r in db.hotel_reservations.find({'business_id': c.business_id, 'status': {'$in': list(rh.LIVE_STATUSES)},
                                                    'checkout_date': {'$gte': c.today.isoformat()}},
                                                   {'_id': 0}).sort('checkin_date', 1).limit(3000) if _owned(r, c)]
@@ -809,7 +817,7 @@ def _my_bookings(args, c):
 def _cancel_booking(args, c):
     booking_id = _int_arg(args.get('booking_id'), c, 'booking_id')
     res = _find_owned(c, booking_id)
-    cur = _currency(_shop(c.business_id))
+    cur = _currency(_shop(c.business_id), c.business_id)
     if res.get('status') not in rh.LIVE_STATUSES:
         return {"success": True, "already_cancelled": True, "booking_id": booking_id}
     if str(res.get('checkout_date') or '') <= c.today.isoformat():
@@ -852,7 +860,7 @@ def _cancel_booking(args, c):
 def _change_dates(args, c):
     booking_id = _int_arg(args.get('booking_id'), c, 'booking_id')
     res = _find_owned(c, booking_id)
-    cur = _currency(_shop(c.business_id))
+    cur = _currency(_shop(c.business_id), c.business_id)
     if res.get('status') not in rh.LIVE_STATUSES:
         _refuse(c.t(f"Booking #{booking_id} is cancelled — make a new booking instead.",
                     f"Đặt phòng #{booking_id} đã huỷ — hãy đặt phòng mới."))
@@ -1021,7 +1029,7 @@ def facts(business_id, lang, now_local):
     T = (lambda en, v: v if vi else en)  # noqa: E731
     now = _local_now(business_id, now_local)
     shop = _shop(business_id)
-    cur = _currency(shop)
+    cur = _currency(shop, business_id)
     try:
         settings = rh.hotel_settings(business_id)
         rooms = rh.list_rooms(business_id)

@@ -333,11 +333,15 @@ class StaffReplyAddressingTests(_Base):
         a = self.contents(TOKEN_A)
         self.assertNotIn('Hi Jane, your 3pm gel is moved to 4pm', a)
         self.assertEqual(a, ['A: hi, any slots Friday?', 'A: we have 10:00 and 15:00'])
-        # A nhắn tiếp (qua trang công khai, đúng trình duyệt) -> trả lời tiếp theo của nhân viên là của A, B không thấy
+        # A nhắn tiếp (qua trang công khai, đúng trình duyệt) -> 2 thiết bị trong hội thoại: trả lời không reply_to bị từ chối
+        # (fix7: không mặc định tin mới nhất kể cả khi từ sau trả lời gần nhất chỉ A nhắn); nhân viên chọn tin của A -> chỉ A thấy
         r = self.c.post('/api/portal/messages', json={'customer_id': WEB_CID, 'content': 'A: is 10:00 still free?',
                                                       'chat_token': TOKEN_A})
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(self.staff_reply('Yes, 10:00 is yours').status_code, 200)
+        self.assertEqual(self.staff_reply('Yes, 10:00 is yours').status_code, 409)
+        a_at = max(m['created_at'] for m in DB.bot_messages.find({'customer_id': WEB_CID, 'sender_type': 'customer'})
+                   if m.get('chat_token_hash') == HA)
+        self.assertEqual(self.staff_reply('Yes, 10:00 is yours', reply_to=a_at).status_code, 200)
         self.assertEqual(self.contents(TOKEN_A)[-2:], ['A: is 10:00 still free?', 'Yes, 10:00 is yours'])
         b = self.contents(TOKEN_B)
         self.assertNotIn('Yes, 10:00 is yours', b)

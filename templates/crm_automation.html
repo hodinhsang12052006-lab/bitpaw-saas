@@ -1104,8 +1104,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         let allBotCustomersCache = [];
         let currentInboxCustomerId = null;
         // Hội thoại web: thiết bị nào gửi tin nào + trả lời tới đâu (static/js/bp_reply_target.js); inboxReplyPick = thiết bị nhân
-        // viên tự chọn ở thanh phía trên ô soạn tin (null = mặc định tin khách mới nhất đang hiện; >= 2 thiết bị nhắn từ sau trả
-        // lời gần nhất -> KHÔNG mặc định, Gửi bị chặn tới khi chọn — BPReplyTarget.needsPick).
+        // viên tự chọn ở thanh phía trên ô soạn tin (null = tin khách mới nhất đang hiện khi hội thoại chỉ có 1 thiết bị; >= 2 thiết
+        // bị ở bất kỳ đâu trong hội thoại -> KHÔNG mặc định, Gửi bị chặn tới khi chọn, chọn lại trước MỖI lần gửi — needsPick).
         let inboxReplyPlan = null, inboxReplyPick = null;
         function isInboxWebThread(customerId) {
             const c = allBotCustomersCache.find(x => x.id === customerId);
@@ -1237,14 +1237,14 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const text = input.value.trim();
             if(!text) return;
             if (window.BPReplyTarget && BPReplyTarget.needsPick(inboxReplyPlan, inboxReplyPick)) {
-                // >= 2 thiết bị đã nhắn từ sau trả lời gần nhất: không tự gửi cho tin mới nhất — giữ chữ, chờ nhân viên chọn
+                // >= 2 thiết bị trong hội thoại, chưa chọn: không tự gửi cho tin mới nhất — giữ chữ, chờ nhân viên chọn
                 renderInboxReplyBar();
                 showToast(escapeHtml(BPReplyTarget.text(currentLang, 'mustPick')), 'error');
                 return;
             }
 
             input.value = '';
-            // Hội thoại web: trả lời tin khách đang hiện lúc bấm Gửi (mặc định tin mới nhất, hoặc thiết bị đã chọn) — server ghi trả
+            // Hội thoại web: trả lời tin khách đang hiện lúc bấm Gửi (1 thiết bị: tin mới nhất; >= 2: thiết bị đã chọn) — server ghi trả
             // lời kèm mã trình duyệt của ĐÚNG tin đó nên chỉ thiết bị đó thấy trên trang chat.
             const plan = inboxReplyPlan;
             const target = window.BPReplyTarget ? BPReplyTarget.target(plan, inboxReplyPick) : null;
@@ -1259,7 +1259,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 });
                 const result = await response.json();
                 if (!result.success && result.code === 'reply_target_required') {
-                    // server (409): >= 2 thiết bị đã nhắn từ sau trả lời gần nhất, chưa chọn thiết bị -> chưa gửi gì. Giữ chữ,
+                    // server (409): >= 2 thiết bị trong hội thoại, chưa chọn thiết bị -> chưa gửi gì. Giữ chữ,
                     // tải lại hội thoại để hiện thanh chọn thiết bị.
                     if (!input.value) input.value = text;
                     inboxReplyPick = null;
@@ -1270,7 +1270,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 if (!result.success) throw new Error(result.message || 'error');
                 const note = window.BPReplyTarget ? BPReplyTarget.sentNote(result, plan, currentLang) : null;
                 if (note) showToast(escapeHtml(note.text), note.ok ? 'success' : 'error');
-                inboxReplyPick = null;
+                inboxReplyPick = null;     // >= 2 thiết bị: lần gửi sau phải chọn lại (thiết bị vừa chọn không thành mặc định)
+                renderInboxReplyBar();
 
                 await loadInboxMessages(currentInboxCustomerId, { silent: true });
                 loadInboxContacts();

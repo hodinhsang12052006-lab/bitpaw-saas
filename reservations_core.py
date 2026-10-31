@@ -698,11 +698,23 @@ def iso_slot(when):
 
 
 def currency(business_id):
+    """Tiền của quán cho AI (gói fnb, karaoke: bảng giá, tiền cọc...): TenantEngine.get_region_config (tiền đã lưu -> tiền của
+    nước quán -> USD). tenant_engine không nạp được / lỗi / không có tiền -> cùng quy tắc currency_utils.shop_currency(tiền đã
+    lưu, country_of): quán Việt Nam vẫn VND, không rõ -> USD. Không bao giờ mặc định VND (trước: `or 'VND'`, lỗi -> 'VND')."""
     try:
         from tenant_engine import TenantEngine
-        return (TenantEngine.get_region_config(business_id) or {}).get('currency') or 'VND'
-    except Exception:
-        return 'VND'
+        cur = (TenantEngine.get_region_config(business_id) or {}).get('currency')
+        if cur:
+            return cur
+    except Exception as e:
+        print(f"[reservations_core] currency: {e}")
+    from currency_utils import shop_currency
+    stored = None
+    try:
+        stored = (db.businesses.find_one({'id': business_id}, {'_id': 0, 'currency': 1}) or {}).get('currency') if business_id else None
+    except Exception as e:
+        print(f"[reservations_core] currency: {e}")
+    return shop_currency(stored, country_of(business_id))
 
 
 def money(amount, cur):

@@ -1134,8 +1134,9 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
         let currentChatCustomerId = null;
         let chatConversationsCache = [];
         // Hội thoại web (của tiệm hay lead landing): thiết bị nào gửi tin nào + trả lời tới đâu (static/js/bp_reply_target.js);
-        // chatReplyPick = thiết bị tự chọn ở thanh phía trên ô trả lời (null = mặc định tin khách mới nhất đang hiện; >= 2 thiết bị
-        // nhắn từ sau trả lời gần nhất -> KHÔNG mặc định, Gửi bị chặn tới khi chọn — BPReplyTarget.needsPick).
+        // chatReplyPick = thiết bị tự chọn ở thanh phía trên ô trả lời (null = tin khách mới nhất đang hiện khi hội thoại chỉ có 1
+        // thiết bị; >= 2 thiết bị ở bất kỳ đâu trong hội thoại -> KHÔNG mặc định, Gửi bị chặn tới khi chọn, chọn lại trước MỖI lần
+        // gửi — BPReplyTarget.needsPick).
         let chatReplyPlan = null, chatReplyPick = null;
         function renderChatReplyBar() {
             if (!window.BPReplyTarget) return;
@@ -1390,7 +1391,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const content = input.value.trim();
             if (!content || !currentChatCustomerId) return;
             if (window.BPReplyTarget && BPReplyTarget.needsPick(chatReplyPlan, chatReplyPick)) {
-                // >= 2 thiết bị đã nhắn từ sau trả lời gần nhất: không tự gửi cho tin mới nhất — giữ chữ, chờ chọn thiết bị
+                // >= 2 thiết bị trong hội thoại, chưa chọn: không tự gửi cho tin mới nhất — giữ chữ, chờ chọn thiết bị
                 renderChatReplyBar();
                 showToast(BPReplyTarget.text(currentLang, 'mustPick'));
                 return;
@@ -1398,7 +1399,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             const sendBtn = document.getElementById('chatReplySendBtn');
             input.disabled = true;
             if (sendBtn) sendBtn.disabled = true;
-            // Hội thoại web: trả lời tin khách đang hiện lúc bấm Gửi (mặc định tin mới nhất, hoặc thiết bị đã chọn) — server ghi trả
+            // Hội thoại web: trả lời tin khách đang hiện lúc bấm Gửi (1 thiết bị: tin mới nhất; >= 2: thiết bị đã chọn) — server ghi trả
             // lời kèm mã trình duyệt của ĐÚNG tin đó nên chỉ thiết bị đó thấy trên trang chat / widget.
             const plan = chatReplyPlan;
             const target = window.BPReplyTarget ? BPReplyTarget.target(plan, chatReplyPick) : null;
@@ -1412,7 +1413,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 });
                 const json = await res.json();
                 if (!json.success && json.code === 'reply_target_required') {
-                    // server (409): >= 2 thiết bị đã nhắn từ sau trả lời gần nhất, chưa chọn thiết bị -> chưa gửi gì. Giữ chữ,
+                    // server (409): >= 2 thiết bị trong hội thoại, chưa chọn thiết bị -> chưa gửi gì. Giữ chữ,
                     // tải lại hội thoại để hiện thanh chọn thiết bị.
                     chatReplyPick = null;
                     showToast(json.message || '');
@@ -1423,7 +1424,8 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 input.value = '';
                 const note = window.BPReplyTarget ? BPReplyTarget.sentNote(json, plan, currentLang) : null;
                 if (note) showToast(note.text);
-                chatReplyPick = null;
+                chatReplyPick = null;     // >= 2 thiết bị: lần gửi sau phải chọn lại (thiết bị vừa chọn không thành mặc định)
+                renderChatReplyBar();
                 await openChatConversation(encodeURIComponent(currentChatCustomerId));
             } catch (err) {
                 showToast(t('super_admin_err_load_data_prefix') + err.message);

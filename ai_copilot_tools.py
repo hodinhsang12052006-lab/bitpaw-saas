@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from mongo_client import db
-from currency_utils import format_money
+from currency_utils import format_money, shop_currency
 import booking_rules
 
 # Đơn được tính doanh thu — ĐỊNH NGHĨA DUY NHẤT, dùng chung cho công cụ sales_report, stock_status và bảng tóm tắt
@@ -94,14 +94,19 @@ def _server_iso(bid, d, offset=None):
 
 
 def business_currency(bid, biz=None):
-    """Tiền tệ của tiệm: trường currency; thiếu thì theo quốc gia (VN -> VND, AU -> AUD); không có gì thì USD.
-    KHÔNG BAO GIỜ mặc định VND cho tiệm không ở Việt Nam (trước đây bảng tóm tắt rơi về VND -> tiệm Mỹ/Úc thấy 'đ')."""
+    """Tiền tệ của tiệm = currency_utils.shop_currency(tiền đã lưu, ai_packs.shop_country): tiền đã lưu, else tiền của nước
+    tiệm (hồ sơ -> múi giờ trang Nhắn tin -> tiền; US -> USD, AU -> AUD, VN -> VND, CA -> CAD, NZ -> NZD, GB -> GBP), else USD
+    — cùng quy tắc TenantEngine / customer_context. KHÔNG BAO GIỜ mặc định VND cho tiệm không ở Việt Nam (trước đây bảng tóm
+    tắt rơi về VND -> tiệm Mỹ/Úc thấy 'đ'; rồi đọc thô nước: tiệm CA / GB thành USD, tiệm chỉ có múi giờ thành USD)."""
     if biz is None:
         biz = db.businesses.find_one({'id': bid}, {'_id': 0, 'currency': 1, 'country': 1}) or {}
-    cur = str(biz.get('currency') or '').strip().upper()
-    if cur:
-        return cur
-    return {'VN': 'VND', 'AU': 'AUD'}.get(str(biz.get('country') or '').strip().upper(), 'USD')
+    try:
+        import ai_packs
+        country = ai_packs.shop_country(dict(biz, id=bid))
+    except Exception as e:
+        print(f"[ai_copilot_tools] shop_country: {e}")
+        country = biz.get('country')
+    return shop_currency(biz.get('currency'), country)
 
 
 def money_formatter(cur):
