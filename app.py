@@ -1687,6 +1687,14 @@ def register():
             license_nganh = (key_valid.get('nganh_nghe') or '').strip()
             if license_nganh and license_nganh.lower() != 'all':
                 business_type = license_nganh.lower()
+                license_industry = business_type
+            else:
+                # h4a: mã dùng chung -> businesses.license_industry = 'all' (/setup không khoá ngành); ngành theo dropdown phải là
+                # 1 trong 9 ngành — giá trị tự chế từng lưu thành business_mode lạ (tắt _industry_isolation_guard). Chưa giữ mã.
+                license_industry = 'all'
+                if business_type not in INDUSTRY_CONFIG:
+                    flash('Please choose your business type.', 'danger')
+                    return render_template('index.html', active_tab='register')
 
             # Kiểm tra email đã tồn tại chưa (MongoDB không tự chặn như Supabase Auth). h1a-auth: email Super Admin
             # (root/SUPERADMIN_EMAILS) không bao giờ được tự đăng ký — trả đúng thông báo "đã tồn tại" như mọi email khác.
@@ -1726,6 +1734,7 @@ def register():
                 'name': business_name or email,
                 'owner_name': fullname,
                 'industry_code': business_type,
+                'license_industry': license_industry,   # h4a: ngành mã kích hoạt cấp ('all' = mã dùng chung) — /setup khoá theo
                 'created_at': datetime.now().isoformat(),
                 **({'plan': key_valid['plan']} if key_valid.get('plan') in plans.PLAN_ORDER else {}),
             })
@@ -2842,8 +2851,11 @@ def stream_payroll():
     employees cùng lúc, nên watch ở cấp Database thay vì 1 collection đơn lẻ.
 
     ?ma_nv=<mã thợ> (app thợ, thẻ "My earnings"): chỉ báo khi dòng chấm công CỦA THỢ ĐÓ đổi. Trước đây mọi
-    điện thoại nhận tín hiệu cho MỌI bill của cả tiệm — tiệm 60 thợ, mỗi bill làm 60 máy cùng tải lại thu nhập."""
-    ma_nv = request.args.get('ma_nv')
+    điện thoại nhận tín hiệu cho MỌI bill của cả tiệm — tiệm 60 thợ, mỗi bill làm 60 máy cùng tải lại thu nhập.
+    h4a: tài khoản nhân viên chỉ nghe dòng của chính mình (mã NV gắn với tài khoản, không theo ?ma_nv=)."""
+    ma_nv, denied = _hr_scope_ma_nv(session.get('business_id') or session['user_id'], request.args.get('ma_nv'))
+    if denied:
+        return denied
     if ma_nv:
         stage = _sse_tenant_match('chamcong')
         stage['$match'] = {'$and': [stage['$match'], {'$or': [
@@ -3413,18 +3425,23 @@ def render_message_page(status, icon, title_vi, title_en, message_vi, message_en
 
 
 def _license_locked_industry():
-    """Ngành của mã kích hoạt mà tiệm bị khoá vào, hoặc None. register()/oauth_complete ghi businesses.industry_code = ngành
-    của mã (mã ghi 1 ngành) — tiệm tạo từ khi bán gói theo ngành (plans.GRANDFATHER_BEFORE) chỉ dùng đúng ngành đó; tiệm cũ
-    (và hồ sơ chưa ghi ngành) đổi mô hình tự do như trước."""
+    """Ngành của mã kích hoạt mà tiệm bị khoá vào, hoặc None. Tiệm tạo từ khi bán gói theo ngành (plans.GRANDFATHER_BEFORE)
+    chỉ dùng đúng ngành đó; tiệm cũ (và hồ sơ chưa ghi ngành) đổi mô hình tự do như trước.
+    h4a: register() ghi businesses.license_industry = ngành của mã ('all' = mã dùng chung -> KHÔNG khoá, chọn ngành tự do).
+    Hồ sơ chưa có trường này (tạo trước bản vá / qua oauth_complete) khoá theo industry_code như cũ."""
     try:
         root = plans.billing_business_id(db, _session_business_id())
-        doc = db.businesses.find_one({'id': root}, {'_id': 0, 'industry_code': 1, 'created_at': 1}) or {}
+        doc = db.businesses.find_one({'id': root}, {'_id': 0, 'industry_code': 1, 'license_industry': 1, 'created_at': 1}) or {}
     except Exception:
         return None
-    industry = (doc.get('industry_code') or '').strip().lower() if isinstance(doc.get('industry_code'), str) else ''
-    if industry not in INDUSTRY_CONFIG or plans.created_before_plans(doc.get('created_at')):
+    if plans.created_before_plans(doc.get('created_at')):
         return None
-    return industry
+    lic = doc.get('license_industry')
+    if isinstance(lic, str) and lic.strip():
+        lic = lic.strip().lower()
+        return lic if lic in INDUSTRY_CONFIG else None
+    industry = (doc.get('industry_code') or '').strip().lower() if isinstance(doc.get('industry_code'), str) else ''
+    return industry if industry in INDUSTRY_CONFIG else None
 
 
 @app.route('/setup', methods=['GET', 'POST'])
@@ -4819,6 +4836,13 @@ def api_staff_income_today(staff_id):
     staff_doc = db.staff.find_one({'id': staff_id, 'business_id': business_id}, {'_id': 0})
     if not staff_doc:
         return jsonify({"success": False, "message": "Nhân viên không tồn tại hoặc không thuộc cửa hàng này."}), 404
+    # h4a: tài khoản nhân viên chỉ xem thu nhập của chính mình (dòng /staff liên kết với hồ sơ nhân viên của tài khoản)
+    own, denied = _hr_scope_ma_nv(business_id, None)
+    if denied:
+        return denied
+    if own and staff_doc.get('ma_nv') != own and (db.employees.find_one(
+            {'business_id': business_id, 'ma_nv': own}, {'_id': 0, 'staff_id': 1}) or {}).get('staff_id') != staff_id:
+        return _hr_denied('own_records_only')
 
     today_str, tomorrow_str = tenant_day_bounds(business_id)
     orders_today = list(db.orders.find({
@@ -5207,7 +5231,7 @@ def _queue_loyalty_notification(business_id, customer, event_type, message, send
     (ZALO_OA_ACCESS_TOKEN / FB_PAGE_ACCESS_TOKEN) — tin có thể đi ra từ OA/Page của tiệm KHÁC, luôn tiếng Việt.
     message: chuỗi, hoặc (tiếng Anh, tiếng Việt) để chọn theo ngôn ngữ của tiệm; '{shop}' = tên tiệm.
     Tích điểm/lên hạng: SMS (tốn phí mỗi bill) chỉ khi chủ tiệm bật loyalty_sms_enabled. Ghi nhật ký loyalty_events.
-    Trả trạng thái: queued | duplicate | skipped_no_channel | no_channel | opted_out | skipped | disabled | failed."""
+    Trả trạng thái: queued | duplicate | skipped_no_channel | no_channel | opted_out | skipped | disabled | not_in_plan | failed."""
     channel = None
     status = 'skipped_no_channel'
     try:
@@ -5226,6 +5250,8 @@ def _queue_loyalty_notification(business_id, customer, event_type, message, send
             st.get('loyalty_messages_enabled', True) if kind == 'loyalty' else True)
         if not enabled:
             status = 'disabled'
+        elif kind in messaging.AUTOMATED_KINDS and not messaging.automation_allowed(business_id):
+            status = 'not_in_plan'   # h4a: gói không có "SMS & email tự động" (Essential / vừa hạ gói) — không xếp hàng
         else:
             channel, status, _qid = messaging.queue_customer_message(business_id, customer or {}, message, kind, settings=st,
                                                                      send_after=send_after, dedupe_key=dedupe_key, allow=allow)
@@ -5336,6 +5362,12 @@ def _ensure_primary_membership(owner_user_id, business_id):
     if db is None:
         return
     try:
+        # h4a: chỉ CHỦ của business_id mới có dòng "chi nhánh chính". login()/OAuth gọi (user_id, user_id) cho MỌI tài khoản:
+        # nhân viên (users.business_id = tiệm của chủ) từng nhận 1 dòng chính mang id CỦA MÌNH -> /api/switch_branch chuyển phiên
+        # sang "tiệm" đó (không hồ sơ, gói khác tiệm thật). Tài khoản cũ thiếu business_id vẫn là chủ tiệm như trước.
+        acct = db.users.find_one({'id': owner_user_id}, {'_id': 0, 'business_id': 1})
+        if acct is None or (acct.get('business_id') or owner_user_id) != business_id:
+            return
         existing = db.business_memberships.find_one({'owner_user_id': owner_user_id, 'business_id': business_id})
         if not existing:
             db.business_memberships.insert_one({
@@ -5416,6 +5448,12 @@ def api_switch_branch():
     owned_ids = {b['business_id'] for b in owned}
     if target_business_id not in owned_ids:
         return jsonify({'success': False, 'message': 'Bạn không có quyền quản lý chi nhánh này.'}), 403
+    # h4a: dòng "chi nhánh chính" mang id CỦA CHÍNH tài khoản nhân viên (_ensure_primary_membership cũ tạo cho mọi tài khoản,
+    # còn trong DB) không phải tiệm nào -> không chuyển phiên vào đó. Chủ tiệm (users.business_id = id của mình) như cũ.
+    if target_business_id == user_id:
+        acct = db.users.find_one({'id': user_id}, {'_id': 0, 'business_id': 1}) or {}
+        if (acct.get('business_id') or user_id) != user_id:
+            return jsonify({'success': False, 'message': 'Bạn không có quyền quản lý chi nhánh này.'}), 403
     # Chi nhánh PHỤ = tính năng "nhiều chi nhánh" (Empire) của tiệm chính (chi nhánh luôn mang gói của tiệm chính,
     # plans.billing_business_id). Về chi nhánh CHÍNH thì luôn được — kể cả sau khi hạ gói.
     is_primary = target_business_id == user_id or any(b['business_id'] == target_business_id and b.get('is_primary')
@@ -5885,8 +5923,12 @@ def api_staff_list():
     """Bản JSON của cùng query trong staff_management() ở trên — dùng để load lại danh sách
     sau khi thêm/sửa/xóa mà không cần reload cả trang, thay Supabase select() cũ."""
     business_id = session.get('business_id') or session['user_id']
+    # h4a: dòng /staff có lương (salary_config), % hoa hồng, SĐT -> tài khoản nhân viên chỉ thấy danh bạ (trang gọi API này,
+    # staff_management.html, vốn chỉ chủ tiệm/quản trị vào được)
+    proj = {'_id': 0} if session.get('role', 'staff') in _HR_MANAGER_ROLES else \
+        {'_id': 0, 'id': 1, 'name': 1, 'role': 1, 'is_active': 1, 'ma_nv': 1}
     try:
-        staffs_data = list(db.staff.find({'business_id': business_id}, {'_id': 0}).sort('id', 1))
+        staffs_data = list(db.staff.find({'business_id': business_id}, proj).sort('id', 1))
         return jsonify({"success": True, "data": staffs_data})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
@@ -8199,15 +8241,23 @@ def restore_backup():
                     row.pop('_id', None)
                 db[table].insert_many(rows)
 
+        # Bảo mật (h4a): chỉ khôi phục mô hình kinh doanh ('value') khi đó là 1 trong 9 ngành (INDUSTRY_CONFIG) VÀ là ngành mã
+        # kích hoạt cho phép (_license_locked_industry, cùng quy tắc /setup); không thì GIỮ ngành hiện tại. Trước đây ghi nguyên
+        # dòng trong file: giá trị lạ tắt _industry_isolation_guard (mở trang/API của mọi ngành), ngành khác né khoá ngành của
+        # gói; các trường khác của dòng cũng bị ghi theo.
         settings_rows = data.get('system_settings')
-        if settings_rows:
+        mode_kept = False
+        if isinstance(settings_rows, list) and settings_rows:
             settings_key = f'business_mode_{business_id}'
-            for row in settings_rows:
-                row['key'] = settings_key
-                row.pop('_id', None)
-                db.system_settings.update_one({'key': settings_key}, {'$set': row}, upsert=True)
+            row = settings_rows[-1] if isinstance(settings_rows[-1], dict) else {}
+            mode = row['value'].strip().lower() if isinstance(row.get('value'), str) else ''
+            locked = _license_locked_industry()
+            if mode in INDUSTRY_CONFIG and (not locked or mode == locked):
+                db.system_settings.update_one({'key': settings_key}, {'$set': {'key': settings_key, 'value': mode}}, upsert=True)
+            else:
+                mode_kept = True
 
-        return jsonify({'success': True})
+        return jsonify({'success': True, **({'business_mode_kept': True} if mode_kept else {})})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -8293,10 +8343,18 @@ _PORTAL_UPLOADS_PER_SHOP_DAY = 300
 _LEGACY_MEDIA_SHOP_CAP_BYTES = int(os.environ.get('STORAGE_SHOP_CAP_BYTES') or 2_000_000_000)
 
 
-def _legacy_media_usage_bytes(business_id):
+def _legacy_media_usage_bytes(business_id, kind=None):
+    """Dung lượng GridFS 'media' của tiệm. kind=None: ảnh CỦA TIỆM (check-in, chữ ký, avatar... của chủ tiệm/nhân viên) —
+    không tính media AI Studio (media_store, trần riêng) và ảnh khách ẩn danh gửi qua chat (portal_chat, trần riêng: h4a —
+    trước đây khách lạ tải ~1,5 GB/ngày qua /api/portal/upload là chạm trần của tiệm, nhân viên hết chấm công có ảnh).
+    kind='portal_chat': riêng ảnh chat của khách."""
     from media_store import KINDS as _media_store_kinds
+    if kind:
+        match = {'business_id': business_id, 'kind': kind}
+    else:
+        match = {'business_id': business_id, 'kind': {'$nin': sorted(set(_media_store_kinds) | {'portal_chat'})}}
     rows = list(db['media.files'].aggregate([
-        {'$match': {'business_id': business_id, 'kind': {'$nin': sorted(_media_store_kinds)}}},
+        {'$match': match},
         {'$group': {'_id': None, 'n': {'$sum': '$length'}}},
     ]))
     return int(rows[0]['n']) if rows else 0
@@ -11913,7 +11971,13 @@ def api_portal_upload():
         if files.count_documents({'kind': 'portal_chat', 'customer_id': customer_id, 'uploaded_at': {'$gte': since}}) >= _PORTAL_UPLOADS_PER_CONVERSATION_DAY \
                 or files.count_documents({'kind': 'portal_chat', 'business_id': business_id, 'uploaded_at': {'$gte': since}}) >= _PORTAL_UPLOADS_PER_SHOP_DAY:
             return jsonify({'success': False, 'error': 'Đã gửi quá nhiều ảnh hôm nay, vui lòng thử lại sau.'}), 429
-        if _legacy_media_usage_bytes(business_id) + len(data) > _LEGACY_MEDIA_SHOP_CAP_BYTES:
+        # h4a: ảnh khách ẩn danh có trần dung lượng RIÊNG mỗi tiệm (PORTAL_CHAT_SHOP_CAP_BYTES, mặc định 1 GB), không bao giờ
+        # tính vào trần ảnh của tiệm (_LEGACY_MEDIA_SHOP_CAP_BYTES — ảnh check-in/nghiệm thu của nhân viên)
+        try:
+            portal_cap = int(os.environ.get('PORTAL_CHAT_SHOP_CAP_BYTES') or 1_000_000_000)
+        except ValueError:
+            portal_cap = 1_000_000_000
+        if _legacy_media_usage_bytes(business_id, kind='portal_chat') + len(data) > portal_cap:
             return jsonify({'success': False, 'error': 'Tiệm tạm thời không nhận thêm ảnh.'}), 413
         file_id = str(media_fs.put(
             data,
@@ -13194,8 +13258,59 @@ def secure_ai_generate():
     # tính năng Pro ('ai_inbox'). Tiệm Essential / vừa hạ gói: trang đặt lịch vẫn chạy (form), chat trả 1 câu "đặt bằng form
     # hoặc gọi / nhắn cho tiệm" KHÔNG dùng AI, cờ ai_unavailable + contact để widget đổi sang nút gọi/nhắn.
     import ai_gateway
-    if public_customer_chat and not ai_gateway.allowed(business_id, 'ai_inbox'):
-        return jsonify(ai_gateway.unavailable_reply(business_id, data.get('customer_message') or data.get('userPrompt')))
+    _no_ai_msg = data.get('customer_message') or data.get('userPrompt')
+    if public_customer_chat:
+        # Bảo mật (h4a): chat trang đặt lịch là API công khai, DeepSeek do BitPaw trả -> MỌI lượt đều được đếm, trước khi gọi AI:
+        #  1. business_id phải là TIỆM THẬT: hồ sơ businesses, chi nhánh (business_memberships không phải dòng chính), hoặc tài
+        #     khoản chủ tiệm cũ chưa có hồ sơ. Trước đây id bịa / thiếu được plans coi là "tiệm cũ = Empire" -> gọi AI vô hạn;
+        #  2. gói của tiệm có trợ lý AI ('ai_inbox');
+        #  3. trần mỗi ngày (giờ UTC) theo IP người gọi, tính chung MỌI tiệm (BOOKING_CHAT_DAILY_CAP_PER_IP, mặc định 300) và
+        #     theo tiệm (BOOKING_CHAT_DAILY_CAP_PER_SHOP, mặc định 1500). Máy quầy đang đăng nhập ĐÚNG tiệm đó không tính theo
+        #     IP (cả tiệm chung 1 Wi-Fi). Đếm IP trước: lượt bị chặn theo IP không ăn vào trần của tiệm.
+        # Tiệm lạ / hết lượt: trả lời KHÔNG dùng AI (ai_unavailable — widget chuyển tin của khách cho nhân viên tiệm).
+        _shop_ok = False
+        if isinstance(business_id, str) and 0 < len(business_id.strip()) <= 128 and db is not None:
+            try:
+                _shop_ok = bool(db.businesses.find_one({'id': business_id}, {'_id': 1})
+                                or db.business_memberships.find_one({'business_id': business_id, 'is_primary': {'$ne': True}},
+                                                                    {'_id': 1}))
+                if not _shop_ok:
+                    _acct = db.users.find_one({'id': business_id}, {'_id': 0, 'business_id': 1})
+                    _shop_ok = _acct is not None and (_acct.get('business_id') or business_id) == business_id
+            except Exception as e:
+                print(f"[booking_chat] shop lookup: {e}")
+                _shop_ok = False
+        if not _shop_ok:
+            _out = ai_gateway.unavailable_reply(None, _no_ai_msg)
+            _out['reason'] = 'unknown_business'
+            return jsonify(_out), 404
+        if not ai_gateway.allowed(business_id, 'ai_inbox'):
+            return jsonify(ai_gateway.unavailable_reply(business_id, _no_ai_msg))
+        import hashlib as _hashlib
+        import security_shield as _shield
+        _day = time.strftime('%Y-%m-%d', time.gmtime())
+        _meters = []
+        if not (is_authenticated and business_id == (session.get('business_id') or session.get('user_id'))):
+            _ip_tag = _hashlib.sha256(str(_shield.client_ip(request)).encode('utf-8')).hexdigest()[:24]   # không lưu IP thô
+            _meters.append((f'booking_ip:{_day}:{_ip_tag}', 'BOOKING_CHAT_DAILY_CAP_PER_IP', 300))
+        _meters.append((f'booking_shop:{_day}:{business_id}', 'BOOKING_CHAT_DAILY_CAP_PER_SHOP', 1500))
+        for _key, _env, _default in _meters:
+            try:
+                _cap = int(os.environ.get(_env) or _default)
+            except ValueError:
+                _cap = _default
+            try:
+                db.ai_budget.update_one({'_id': _key}, {'$inc': {'n': 1},
+                                                        '$setOnInsert': {'expires_at': datetime.utcnow() + timedelta(days=2)}},
+                                        upsert=True)
+                _used = int((db.ai_budget.find_one({'_id': _key}, {'n': 1}) or {}).get('n') or 0)
+            except Exception as e:
+                print(f"[booking_chat budget] {e}")
+                _used = 0
+            if _used > _cap:
+                _out = ai_gateway.unavailable_reply(business_id, _no_ai_msg)
+                _out['reason'] = 'daily_limit'
+                return jsonify(_out)
     # Sổ chi phí AI (db.ai_usage): mọi lệnh DeepSeek của request này ghi đúng tính năng + tiệm. Bot bán phần mềm BitPaw là
     # chi phí của BitPaw (business_id có thể do trình duyệt tự khai) -> không ghi vào sổ của tiệm nào.
     ai_gateway.tag_request('booking_chat' if public_customer_chat else 'sales_bot', business_id if public_customer_chat else None)
@@ -13217,6 +13332,8 @@ def secure_ai_generate():
     # đã đủ) và nó làm lệch ngôn ngữ trả lời. Dùng đúng chữ khách gõ.
     if chat_context == 'customer_booking' and isinstance(data.get('customer_message'), str) and data['customer_message'].strip():
         user_prompt = data['customer_message'].strip()[:2000]
+    if public_customer_chat:
+        user_prompt = user_prompt[:2000]   # h4a: lượt chỉ có userPrompt (không customer_message) từng đi nguyên văn (~10 MB)
     # Kẹp tham số model: endpoint công khai, client từng tự đặt max_tokens tuỳ ý (đốt chi phí AI).
     try:
         temperature = max(0.0, min(1.5, float(data.get('temperature', 0.7))))
@@ -13257,6 +13374,19 @@ def secure_ai_generate():
     if not isinstance(client_history, list):
         client_history = []
     client_history = [t for t in client_history if isinstance(t, dict)]
+    if public_customer_chat or not is_authenticated:
+        # Bảo mật (h4a): lịch sử trình duyệt gửi lên (người gọi ẩn danh / chat khách công khai) — tối đa 10 lượt, mỗi lượt 2000
+        # ký tự, tổng 8000 ký tự, giữ các lượt MỚI nhất. Trước đây 12 lượt x 2000 = ~24k ký tự prompt mỗi lệnh gọi, và nội
+        # dung không phải chuỗi làm lỗi 500.
+        _kept, _total = [], 0
+        for _t in reversed(client_history[-10:]):
+            _c = _t.get('content')
+            _c = _c[:2000] if isinstance(_c, str) else ''
+            if _total + len(_c) > 8000:
+                break
+            _total += len(_c)
+            _kept.append({'role': _t.get('role'), 'content': _c})
+        client_history = _kept[::-1]
 
     if public_customer_chat:  # chỉ dữ liệu công khai, ngành lấy từ hồ sơ tiệm (không tin 'industry' client gửi)
         ctx = AIContextEngine.build_context_prompt(business_id, None, customer_phone=customer_phone,
@@ -15386,6 +15516,55 @@ def _employee_projection():
     return proj
 
 
+# Bảo mật (h4a): API ĐỌC chấm công / thu nhập / đơn từ của nhân viên (/api/hr/chamcong, .../month_summary, /api/stream/payroll,
+# /api/leave_requests, /api/expense_requests, /api/staff/<id>/income_today). Chủ tiệm / quản trị: cả tiệm như cũ. Tài khoản
+# KHÁC (nhân viên): CHỈ dòng của chính mình — trước đây ?ma_nv=<đồng nghiệp> (hoặc bỏ trống = cả tiệm) trả hoa hồng, tip,
+# phụ cấp, toạ độ GPS và ảnh check-in của mọi người. "Chính mình" = mã NV gắn với TÀI KHOẢN đang đăng nhập, phía máy chủ:
+# hồ sơ nhân viên của tiệm có email trùng email đăng nhập (chủ tiệm điền ở trang Lịch ca, cùng cách chat nội bộ nhận ra
+# người gửi — _resolve_chat_identity). KHÔNG BAO GIỜ lấy theo ?ma_nv= trình duyệt gửi (app nhân viên chỉ gõ mã NV, ai cũng
+# gõ được mã của người khác).
+_HR_MANAGER_ROLES = ('admin', 'super_admin')
+
+
+def _session_employee_code(business_id):
+    """ma_nv của tài khoản đang đăng nhập trong tiệm business_id; None nếu chưa gắn (hoặc email trùng nhiều hồ sơ)."""
+    email = str(session.get('user_email') or '').strip().lower()
+    if not email or not business_id or db is None:
+        return None
+    try:
+        codes = {str(e['ma_nv']) for e in db.employees.find({'business_id': business_id, 'email': {'$nin': [None, '']}},
+                                                           {'_id': 0, 'ma_nv': 1, 'email': 1})
+                 if e.get('ma_nv') and isinstance(e.get('email'), str) and e['email'].strip().lower() == email}
+    except Exception as e:
+        print(f"[hr scope] {e}")
+        return None
+    return codes.pop() if len(codes) == 1 else None
+
+
+def _hr_scope_ma_nv(business_id, requested):
+    """Phạm vi đọc dữ liệu nhân sự của phiên này -> (ma_nv, None) chỉ dòng của ma_nv đó; (None, None) cả tiệm (chỉ chủ
+    tiệm/quản trị khi không lọc); (None, phản hồi 403) từ chối. Chủ tiệm/quản trị giữ nguyên ?ma_nv= như cũ."""
+    if session.get('role', 'staff') in _HR_MANAGER_ROLES:
+        return (requested or None), None
+    own = _session_employee_code(business_id)
+    if not own:
+        return None, _hr_denied('staff_not_linked')
+    if requested not in (None, '') and str(requested).strip().upper() != own.strip().upper():
+        return None, _hr_denied('own_records_only')
+    return own, None
+
+
+def _hr_denied(code):
+    if code == 'staff_not_linked':
+        msg = _vi_en('Tài khoản này chưa gắn với hồ sơ nhân viên nào. Nhờ chủ tiệm điền email đăng nhập của bạn vào hồ sơ của '
+                     'bạn ở trang Lịch ca.',
+                     "This account isn't linked to a staff profile yet. Ask the owner to add your sign-in email to your "
+                     "profile on the Roster page.")
+    else:
+        msg = _vi_en('Bạn chỉ xem được chấm công và thu nhập của chính mình.', 'You can only view your own attendance and earnings.')
+    return jsonify({'success': False, 'code': code, 'error': msg, 'message': msg}), 403
+
+
 @app.route('/api/hr/employees', methods=['GET'])
 @login_required
 def api_hr_employees_list():
@@ -15544,7 +15723,9 @@ def api_hr_employees_delete(ma_nv):
 def api_hr_chamcong_list():
     business_id = session.get('business_id') or session['user_id']
     query = {'business_id': business_id}
-    ma_nv = request.args.get('ma_nv')
+    ma_nv, denied = _hr_scope_ma_nv(business_id, request.args.get('ma_nv'))   # h4a: nhân viên chỉ dòng của mình
+    if denied:
+        return denied
     if ma_nv:
         query['ma_nv'] = ma_nv
     ngay_cham = request.args.get('ngay_cham')
@@ -15600,6 +15781,9 @@ def api_hr_chamcong_month_summary():
     ma_nv = request.args.get('ma_nv')
     if not ma_nv:
         return jsonify({'success': False, 'error': 'Thiếu ma_nv.'}), 400
+    ma_nv, denied = _hr_scope_ma_nv(business_id, ma_nv)   # h4a: hoa hồng/tip từng ngày của đồng nghiệp -> 403
+    if denied:
+        return denied
     try:
         month = int(request.args.get('month'))
         year = int(request.args.get('year'))
@@ -16192,7 +16376,9 @@ def api_leave_requests_list():
     `ma_nv` -> chỉ đơn của đúng nhân viên đó (tab "Đơn từ" của app_nhanvien.html)."""
     business_id = session.get('business_id') or session['user_id']
     query = {'business_id': business_id}
-    ma_nv = request.args.get('ma_nv')
+    ma_nv, denied = _hr_scope_ma_nv(business_id, request.args.get('ma_nv'))   # h4a: nhân viên chỉ đơn của mình
+    if denied:
+        return denied
     if ma_nv:
         query['ma_nv'] = ma_nv
     try:
@@ -16276,7 +16462,9 @@ def api_expense_requests_list():
     chỉ đơn của đúng nhân viên đó (tab Utilities của app_nhanvien.html)."""
     business_id = session.get('business_id') or session['user_id']
     query = {'business_id': business_id}
-    ma_nv = request.args.get('ma_nv')
+    ma_nv, denied = _hr_scope_ma_nv(business_id, request.args.get('ma_nv'))   # h4a: nhân viên chỉ đơn của mình
+    if denied:
+        return denied
     if ma_nv:
         query['ma_nv'] = ma_nv
     try:

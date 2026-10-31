@@ -607,7 +607,7 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
             for (let i = 1; i <= daysInMonth; i++) {
                 const leaves = leaveData.filter(l => l.day === i);
                 const warningDot = leaves.length ? '<div class="w-1.5 h-1.5 bg-rose-500 rounded-full absolute top-1 right-1 shadow-[0_0_8px_#f43f5e] animate-pulse"></div>' : '';
-                const titleAttr = leaves.length ? `title="${t('dashboard_leave_tooltip_prefix')} ${leaves.map(l=>l.note).join(', ')}"` : '';
+                const titleAttr = leaves.length ? `title="${t('dashboard_leave_tooltip_prefix')} ${leaves.map(l=>__escHtml(l.note)).join(', ')}"` : '';
                 if (isCurrentMonth && i === today) {
                     html += `<div class="relative py-1.5 cursor-help group flex justify-center items-center" ${titleAttr}>
                                 ${warningDot}

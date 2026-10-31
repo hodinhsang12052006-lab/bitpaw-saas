@@ -786,6 +786,7 @@ class SalesBotBudgetTests(unittest.TestCase):
         self.assertIn('Dạ', body['choices'][0]['message']['content'])
 
     def test_booking_chats_and_signed_in_users_are_not_counted(self):
+        DB.businesses.insert_one({'id': 'shopA', 'name': 'Shop A'})   # h4a: chat đặt lịch chỉ chạy cho tiệm có thật
         for _ in range(5):
             self._gen({'context': 'customer_booking', 'business_id': 'shopA', 'customer_message': 'book a gel mani'})
             self._gen({'userPrompt': 'internal test', 'industry': 'nail'}, user='owner-a')
