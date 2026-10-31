@@ -125,7 +125,8 @@ NEGATED = (
     'Không ngửi thấy mùi gas',
     'không có dấu hiệu rò gas',
     'máy hút khói không hút được',
-    'Đầu báo khói kêu liên tục',
+    # 'Đầu báo khói kêu liên tục' (không nói hết pin) nay là chuông báo ĐANG kêu = khẩn cấp (phase2-fix4, ưu tiên không
+    # bỏ sót) — kiểm ở test_phase2_fix3_requests3.py / test_phase2_fix5_emergency5.py
     'không có mùi gas, tia lửa hay khói',
     'Giờ đã hết mùi gas',
     'hết bị chập điện',
