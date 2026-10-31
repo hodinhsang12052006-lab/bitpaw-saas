@@ -3410,6 +3410,21 @@ def render_message_page(status, icon, title_vi, title_en, message_vi, message_en
                            primary_label=primary_label, back_href=back_href, back_label=back_label), status
 
 
+def _license_locked_industry():
+    """Ngành của mã kích hoạt mà tiệm bị khoá vào, hoặc None. register()/oauth_complete ghi businesses.industry_code = ngành
+    của mã (mã ghi 1 ngành) — tiệm tạo từ khi bán gói theo ngành (plans.GRANDFATHER_BEFORE) chỉ dùng đúng ngành đó; tiệm cũ
+    (và hồ sơ chưa ghi ngành) đổi mô hình tự do như trước."""
+    try:
+        root = plans.billing_business_id(db, _session_business_id())
+        doc = db.businesses.find_one({'id': root}, {'_id': 0, 'industry_code': 1, 'created_at': 1}) or {}
+    except Exception:
+        return None
+    industry = (doc.get('industry_code') or '').strip().lower() if isinstance(doc.get('industry_code'), str) else ''
+    if industry not in INDUSTRY_CONFIG or plans.created_before_plans(doc.get('created_at')):
+        return None
+    return industry
+
+
 @app.route('/setup', methods=['GET', 'POST'])
 @login_required
 def setup():
@@ -3417,6 +3432,19 @@ def setup():
         # Chuẩn hoá lowercase — cùng lý do đã áp dụng ở register() (INDUSTRY_CONFIG chỉ có
         # key lowercase, mọi so sánh == 'nail' ở nơi khác đều giả định giá trị đã sạch).
         mode = (request.form['mode'] or '').strip().lower()
+        # Chỉ 1 trong 9 ngành: giá trị lạ từng TẮT hẳn _industry_isolation_guard (mở trang/API của mọi ngành cùng lúc)
+        if mode not in INDUSTRY_CONFIG:
+            return render_message_page(400, '⚠️', 'Mô hình không hợp lệ', 'Unknown business type',
+                                       'Hãy chọn 1 mô hình trong danh sách.', 'Please choose one of the listed business types.',
+                                       back_href=url_for('setup'))
+        # Giá theo ngành: chỉ được dùng ngành mà mã kích hoạt cấp (đổi ngành = BitPaw đổi mã/gói cho tiệm)
+        locked = _license_locked_industry()
+        if locked and mode != locked:
+            return render_message_page(403, '🔒', 'Mã kích hoạt dành cho ngành khác', 'Your activation code is for another industry',
+                                       'Gói của tiệm được cấp cho đúng 1 ngành. Muốn đổi mô hình, hãy liên hệ BitPaw để đổi gói.',
+                                       'Your plan was issued for one industry. To switch business type, contact BitPaw to change your plan.',
+                                       primary_href=url_for('plan_page'), primary_label=_vi_en('Xem gói', 'View plans'),
+                                       back_href=url_for('index'))
         session['business_mode'] = mode
         try:
             business_mode_key = f"business_mode_{session['user_id']}"
@@ -5362,6 +5390,17 @@ def api_my_branches():
     })
 
 
+def _multi_location_denied():
+    """403 upgrade_required dạng JSON (dashboard gọi bằng fetch) khi gói của tiệm chính chưa có 'nhiều chi nhánh'."""
+    need = plans.FEATURE_MIN_PLAN['multi_location']
+    vi = resolve_lang(request) == 'vi'
+    label = plans.FEATURE_LABELS['multi_location'][0 if vi else 1]
+    msg = (f'{label} có trong gói {plans.PLAN_NAMES[need]} trở lên.' if vi
+           else f'{label} is included in {plans.PLAN_NAMES[need]} and above.')
+    return jsonify({'success': False, 'upgrade_required': True, 'feature': 'multi_location', 'required_plan': need,
+                    'message': msg}), 403
+
+
 @app.route('/api/switch_branch', methods=['POST'])
 @login_required
 def api_switch_branch():
@@ -5375,6 +5414,12 @@ def api_switch_branch():
     owned_ids = {b['business_id'] for b in owned}
     if target_business_id not in owned_ids:
         return jsonify({'success': False, 'message': 'Bạn không có quyền quản lý chi nhánh này.'}), 403
+    # Chi nhánh PHỤ = tính năng "nhiều chi nhánh" (Empire) của tiệm chính (chi nhánh luôn mang gói của tiệm chính,
+    # plans.billing_business_id). Về chi nhánh CHÍNH thì luôn được — kể cả sau khi hạ gói.
+    is_primary = target_business_id == user_id or any(b['business_id'] == target_business_id and b.get('is_primary')
+                                                      for b in owned)
+    if not is_primary and not _is_superadmin() and not plans.business_allows(db, target_business_id, 'multi_location'):
+        return _multi_location_denied()
 
     session['business_id'] = target_business_id
     return jsonify({'success': True, 'business_id': target_business_id})
@@ -5384,13 +5429,31 @@ def api_switch_branch():
 @login_required
 def add_branch():
     user_id = session['user_id']
+    # Chỉ CHỦ TIỆM, và chỉ khi gói của TIỆM CHÍNH có "nhiều chi nhánh" (Empire). Trước đây ai đăng nhập cũng tạo được chi
+    # nhánh không có hồ sơ businesses -> plans.business_plan coi là tiệm cũ = Empire: gói Essential mở AI Studio/Copilot +
+    # 1 hạn mức ảnh/video Replicate mới cho MỖI chi nhánh tạo thêm.
+    if session.get('role') not in ('admin', 'super_admin'):
+        return jsonify({'success': False, 'message': 'Tài khoản của bạn không có quyền thực hiện thao tác này.'}), 403
+    parent_business_id = plans.billing_business_id(db, _session_business_id())
+    if not _is_superadmin() and not plans.business_allows(db, parent_business_id, 'multi_location'):
+        return _multi_location_denied()
     data = request.get_json() or request.form
     branch_name = (data.get('branch_name') or '').strip()
     if not branch_name:
         return jsonify({'success': False, 'message': 'Vui lòng nhập tên chi nhánh.'}), 400
+    if sum(1 for b in _get_owned_business_ids(user_id) if not b.get('is_primary')) >= plans.BRANCH_LIMIT:
+        return jsonify({'success': False, 'message': _vi_en(f'Tối đa {plans.BRANCH_LIMIT} chi nhánh — liên hệ BitPaw để thêm.',
+                                                            f'Up to {plans.BRANCH_LIMIT} locations — contact BitPaw to add more.')}), 400
 
     new_business_id = str(uuid.uuid4())
     try:
+        # Hồ sơ businesses của chi nhánh trỏ về tiệm chính: gói + hạn mức AI luôn là của tiệm chính (không lưu plan riêng)
+        parent = db.businesses.find_one({'id': parent_business_id}, {'_id': 0, 'industry_code': 1, 'country': 1, 'currency': 1}) or {}
+        db.businesses.insert_one({
+            'id': new_business_id, 'name': branch_name, 'parent_business_id': parent_business_id, 'owner_user_id': user_id,
+            'created_at': datetime.now().isoformat(),
+            **{k: parent[k] for k in ('industry_code', 'country', 'currency') if parent.get(k)},
+        })
         db.business_memberships.insert_one({
             'owner_user_id': user_id,
             'business_id': new_business_id,
