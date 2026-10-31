@@ -175,6 +175,27 @@ SCREENING = (
 TABLE = ([(t, 'none') for t in ITEM1_NONE] + [(t, 'negated') for t in ITEM2_NEGATED] + [(t, 'danger') for t in ITEM3_DANGER]
          + list(BRIEF) + [(t, 'danger') for t in DANGER_EN + DANGER_VI + DANGER_MIX]
          + [(t, 'negated') for t in NEGATED_EN + NEGATED_VI] + [(t, 'none') for t in NONE_ALL] + list(SCREENING))
+# phase2-fix4 (emergency4) — ƯU TIÊN KHÔNG BỎ SÓT: tin nhắn có nhắc nguy hiểm chỉ còn là việc thường ('none' /
+# 'negated') khi phủ định RÕ hoặc là cụm không-nguy-hiểm trong danh sách. Các dòng dưới đây vòng 3 ghi 'none' (việc
+# thường) — nay là 'uncertain' (việc GẤP + người thật gọi kiểm tra + câu dặn an toàn có điều kiện) hoặc 'danger'.
+# Bảng mới đầy đủ: test_phase2_fix5_emergency5.py.
+FIX4_CHANGED = {
+    # câu HỎI / GIẢ ĐỊNH về nguy hiểm: khách chưa loại trừ nguy hiểm -> 'uncertain' (không còn lặng lẽ là việc thường)
+    'Is it dangerous if there is smoke?': 'uncertain', 'What should I do if I smell gas?': 'uncertain',
+    'Is it safe to stay inside if there is no gas smell?': 'uncertain', 'Is there a gas leak?': 'uncertain',
+    'Could it be a gas leak?': 'uncertain', 'Có khói thì có nguy hiểm không?': 'uncertain',
+    'Không có mùi gas thì có nguy hiểm không?': 'uncertain', 'Nếu không có khói thì có sao không': 'uncertain',
+    'Có rò rỉ gas không?': 'uncertain', 'If there are sparks, should I turn off the power?': 'uncertain',
+    # chuyện ĐÃ QUA mà không nói đã hết -> 'uncertain' (người thật gọi hỏi xem còn không)
+    'The outlet sparked last week, now it does not work': 'uncertain',
+    'We had a gas leak last year, want a new heater installed': 'uncertain',
+    'Tháng trước bị chập điện một lần, giờ muốn kiểm tra lại': 'uncertain',
+    # câu sàng lọc CHƯA có câu trả lời: chưa loại trừ -> 'uncertain'
+    'Asked about gas smell': 'uncertain', 'Hỏi khách có mùi gas không': 'uncertain',
+    # đầu báo khói đang kêu liên tục (không nói hết pin / do nấu ăn) = chuông báo ĐANG kêu -> 'danger'
+    'Đầu báo khói kêu liên tục': 'danger',
+}
+TABLE = [(t, FIX4_CHANGED.get(t, w)) for t, w in TABLE]
 _VI_CHARS = 'ăâđêôơưáàảãạéèẻẽẹíìỉĩịóòỏõọúùủũụýỳỷỹỵ'
 
 
@@ -223,7 +244,8 @@ class HazardClassifierTableTests(unittest.TestCase):
                          ('danger', {'gas': 'negated', 'sparks': 'present'}))
         self.assertEqual(technical.hazard_check('Asked about gas smell, sparks, smoke: none'),
                          ('negated', {'gas': 'negated', 'sparks': 'negated', 'smoke': 'negated'}))
-        self.assertEqual(technical.hazard_check('Asked about gas smell'), ('none', {'gas': 'question'}))
+        # phase2-fix4: câu sàng lọc CHƯA có trả lời là chưa loại trừ -> 'uncertain' (trước: 'none')
+        self.assertEqual(technical.hazard_check('Asked about gas smell'), ('uncertain', {'gas': 'question'}))
         self.assertEqual(technical.hazard_check('Kiểm tra thấy chập điện'), ('danger', {'sparks': 'present'}))
 
     def test_questions_and_hypotheticals_are_not_emergencies_but_are_hazard_mentions(self):
@@ -231,7 +253,7 @@ class HazardClassifierTableTests(unittest.TestCase):
                     'Nếu có khói thì sao?', 'Có khói thì có nguy hiểm không?'):
             with self.subTest(txt=txt):
                 verdict, st = technical.hazard_check(txt)
-                self.assertEqual(verdict, 'none')
+                self.assertEqual(verdict, 'uncertain')   # phase2-fix4: không khẩn cấp nhưng KHÔNG phải việc thường
                 self.assertTrue(st and set(st.values()) <= {'question', 'hypothetical'}, st)
 
     def test_exclusions_are_not_hazard_mentions_at_all(self):
@@ -284,10 +306,15 @@ class HazardJobToolTests(unittest.TestCase):
                 out = job(customer_id=self.cid, args={'problem': problem, 'address': f'{i + 1} King St, Newtown NSW'})
                 self.assert_normal(out, tip=True)
 
-    def test_a_safety_question_is_a_normal_job_with_the_safety_line(self):
+    def test_a_safety_question_is_an_urgent_job_checked_by_a_person(self):
+        # phase2-fix4 (ưu tiên không bỏ sót): câu hỏi về nguy hiểm không còn là việc thường — việc GẤP, người thật gọi
+        # kiểm tra, câu dặn an toàn CÓ ĐIỀU KIỆN nằm trong tell_customer, không bảo sơ tán ngay
         out = job(customer_id=self.cid, args={'problem': 'Aircon noisy. Is it dangerous if there is smoke?'})
-        self.assert_normal(out, tip=True)
-        self.assertIn('leave the area and call 000', out['safety_tip'])
+        self.assertEqual(out['urgency'], 'urgent')
+        self.assertIn('leave the area and call 000', out['tell_customer'])
+        self.assertNotIn('somewhere safe', out['tell_customer'])
+        self.assertTrue(DB.bot_customers.find_one({'id': self.cid})['needs_human'])
+        self.assertEqual([a[4] for a in alerts()], ['technical_hazard_check'])
 
     def test_past_negation_then_danger_now_is_an_emergency(self):
         for i, problem in enumerate(ITEM3_DANGER):
