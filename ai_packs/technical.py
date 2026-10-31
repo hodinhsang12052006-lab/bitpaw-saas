@@ -14,7 +14,8 @@ Khẩn cấp (mùi gas, ngập nước, tia lửa / khói từ đồ điện, đ
 chỗ an toàn và gọi số khẩn cấp, không hẹn giờ. Có nhắc nguy hiểm mà KHÔNG loại trừ rõ (chuyện đã qua, chỉ hỏi / giả định,
 không chắc, phủ định rồi lại nhắc lại): việc 'urgent' (GẤP) + chuyển người thật kiểm tra + báo chủ + dặn "nếu ngay lúc này
 ngửi thấy gas / thấy tia lửa, khói thì ra chỗ an toàn và gọi số khẩn cấp" (không bảo sơ tán ngay). Máy hút mùi không hút
-hết khói bếp / ống khói / pin báo khói: việc thường; nguy hiểm khách nói rõ là KHÔNG có hay đã hết: việc thường + câu dặn an
+hết khói bếp / ống khói / pin báo khói: KHÔNG phải khẩn cấp, nhưng tin nhắn có từ thuộc họ nguy hiểm thì vẫn ít nhất GẤP
+(luật SÀN THÔ — xem LUẬT AN TOÀN THEO CẤU TRÚC); nguy hiểm khách nói rõ là KHÔNG có hay đã hết: việc thường + câu dặn an
 toàn (safety_tip).
 Yêu cầu trùng 1 việc đã có mà chat không chứng minh được là chủ (trình duyệt khác gõ cùng SĐT): không lộ mã việc.
 
@@ -45,6 +46,24 @@ EMERGENCY_NUMBER = {'AU': '000', 'US': '911', 'CA': '911', 'NZ': '111', 'GB': '9
 MAX_DAYS_AHEAD = 90
 # Phát hiện NGUY HIỂM trong mô tả việc / tin nhắn của khách — ƯU TIÊN KHÔNG BỎ SÓT (bỏ sót là chết người, báo nhầm chỉ
 # phiền): classify_hazard(text) -> 'danger' | 'uncertain' | 'negated' | 'none'.
+# LUẬT AN TOÀN THEO CẤU TRÚC (SAFE-BY-CONSTRUCTION — hazard_check ép luật này bằng MÃ, không chỉ bằng danh sách từ):
+#   1. SÀN THÔ (bước 0, _hz_raw_scan): họ nguy hiểm được tính trên văn bản GỐC đã chuẩn hoá (chữ thường; bản CÓ DẤU và bản
+#      BỎ DẤU cùng độ dài _hz_fold) TRƯỚC MỌI lớp che cụm không-nguy-hiểm: _HZ + _HZ_NET trên bản có dấu, _HZ_FOLD (từ gõ
+#      không dấu: "xet lua", "chay o cam", "day dien chay", "chich dien", "o cam nong qua"...) trên bản bỏ dấu — bỏ qua
+#      chữ có dấu mang nghĩa KHÁC (_HZ_HOMOGRAPH: chạy, giặt, mũi, khỏi, xét, lúa, gà...).
+#   2. Kết luận chỉ được là 'none' khi văn bản gốc KHÔNG có từ nào thuộc họ nguy hiểm. Có từ thuộc họ -> ít nhất
+#      'uncertain', trừ khi MỌI lần nhắc đều nằm trong phủ định rõ / đã hết rõ mà không có gì nhắc lại sau đó (luật câu
+#      bước 2-4) -> 'negated'. Cụm KHÔNG nguy hiểm (máy hút mùi không hút hết khói, khói ống khói / lò sưởi / wood heater
+#      tạt ngược hay cần vệ sinh, khói nấu ăn, đồ ăn cháy, NGƯỜI hút thuốc, báo khói kêu vì pin, nước chỉ do ống nước /
+#      nước mưa ngoài sân không nhắc đồ điện, thành ngữ nóng, tên thiết bị / dịch vụ như "gas heater service") CHỈ được
+#      chặn 'danger' (trần 'uncertain'), KHÔNG BAO GIỜ hạ dưới 'uncertain' (bước 6 lấy max với sàn thô).
+#   3. Lớp che không được giấu 1 từ mà cách đọc có-phủ-định cho thấy ĐANG có: ngữ cảnh cả tin nhắn (ống khói / lò sưởi,
+#      nguồn nước là ống nước / sân) chỉ bật khi được nhắc KHẲNG ĐỊNH và đang dùng (_hz_ctx_live: "we don't have a
+#      fireplace", "không có lò sưởi", "nhà có ống khói nhưng không dùng", "wood heater but its off" -> không che; "no fire
+#      going" _HZ_NO_FIRE, "khói từ đâu không biết" _HZ_UNKNOWN_SRC -> không che); pin chỉ che đúng LOẠI báo được nói là
+#      hết pin (_hz_battery_kinds: pin báo khói không che báo CO đang kêu); cụm có từ phủ định bên trong / ngay trước
+#      ("smoke not from cooking", "không nấu ăn mà khói tràn vào") không bị che (_hz_mask).
+#   4. 'danger' chỉ đến từ từ khoá CHÍNH XÁC _HZ (bước 1-4) — sàn thô và lưới an toàn không bao giờ tự lên 'danger'.
 #   'danger'    có ít nhất 1 nguy hiểm mà câu CUỐI nói về nó khẳng định nó đang / vừa xảy ra -> việc 'emergency', chuyển
 #               người thật + báo chủ + dặn ra chỗ an toàn, gọi số khẩn cấp ("I can smell gas", "ổ cắm bốc khói", "the range
 #               hood is smoking", "gas detector going off", "hôm qua không có khói, hôm nay có", "smelled gas yesterday,
@@ -61,13 +80,19 @@ MAX_DAYS_AHEAD = 90
 #   'negated'   MỌI lần nhắc đều bị phủ định rõ / đã HẾT rõ và không có gì nhắc lại sau đó ("no sparks or burning smell
 #               when switching on", "không có mùi khét khi bật máy", "smelled gas earlier, it's gone now") -> việc thường +
 #               câu dặn an toàn.
-#   'none'      không còn từ nào thuộc HỌ nguy hiểm (bước 5) sau khi bỏ cụm KHÔNG nguy hiểm trong danh sách -> việc thường.
-# BẤT BIẾN: tin nhắn có nhắc nguy hiểm chỉ thành 'negated' / 'none' qua phủ định RÕ hoặc cụm không-nguy-hiểm CÓ TRONG DANH
-# SÁCH (_HZ_EXCLUDE, _HZ_HEAT, _HZ_COOK_SMOKE, _HZ_VENT_SMOKE, _HZ_PERSON_SMOKE, _HZ_NET_SAFE, nước tràn chỉ do bồn cầu /
-# máy giặt / máy rửa chén / ống thoát mà không nhắc đồ điện, báo khói / báo CO kêu vì PIN yếu / hết hay vì nấu ăn). Còn
-# nghi ngờ -> 'uncertain', không bao giờ lặng lẽ thành việc thường. Thiết bị TỰ bốc khói / tóe lửa là NGUY HIỂM dù là máy
-# hút mùi / quạt hút / lò nướng; nước gần / chảy vào đồ điện là NGUY HIỂM dù nguồn nước là bồn cầu hay máy giặt.
+#   'none'      văn bản GỐC không có từ nào thuộc HỌ nguy hiểm (bước 0 — tính TRƯỚC mọi lớp che) -> việc thường.
+# BẤT BIẾN: tin nhắn có nhắc nguy hiểm chỉ thành 'negated' qua phủ định RÕ / đã hết RÕ (MỌI lần nhắc, không có gì nhắc lại
+# sau đó) và KHÔNG BAO GIỜ thành 'none'. Cụm không-nguy-hiểm CÓ TRONG DANH SÁCH (_HZ_EXCLUDE, _HZ_HEAT, _HZ_COOK_SMOKE,
+# _HZ_HOOD_WEAK, _HZ_FOOD_BURNT, _HZ_VENT_SMOKE, _HZ_PERSON_SMOKE, _HZ_NET_SAFE, nước tràn chỉ do bồn cầu / máy giặt /
+# máy rửa chén / ống thoát / nước mưa ngoài sân mà không nhắc đồ điện, báo khói / báo CO kêu vì PIN yếu / hết hay vì nấu
+# ăn) chỉ chặn 'danger' -> trần 'uncertain'. Còn nghi ngờ -> 'uncertain', không bao giờ lặng lẽ thành việc thường. Thiết bị
+# TỰ bốc khói / tóe lửa là NGUY HIỂM dù là máy hút mùi / quạt hút / lò nướng; nước gần / chảy vào đồ điện là NGUY HIỂM dù
+# nguồn nước là bồn cầu hay máy giặt.
 # Các bước (hazard_check):
+#   0. SÀN THÔ (_hz_raw_scan): trạng thái theo luật câu (bước 2-4) của MỌI từ thuộc họ nguy hiểm (_HZ + _HZ_NET trên bản
+#      có dấu, _HZ_FOLD trên bản bỏ dấu) trong văn bản GỐC — chưa bỏ cụm nào, chưa nối mùi gas. Ngữ cảnh cả tin nhắn của
+#      bước 1 (ống khói / lò sưởi _HZ_VENT_CTX, máy hút mùi yếu _HZ_HOOD_CTX, nguồn nước _HZ_PLUMB_SRC / _HZ_OUTDOOR_SRC,
+#      pin báo khói) chỉ bật khi được nhắc KHẲNG ĐỊNH (_hz_ctx_live, _HZ_NO_FIRE, _HZ_UNKNOWN_SRC, _hz_battery_kinds).
 #   1. Bỏ cụm KHÔNG phải nguy hiểm (_HZ_EXCLUDE; câu thành ngữ nóng _HZ_HEAT "burning hot / scorching weather / smoking
 #      hot" trừ khi chủ ngữ là đồ điện; khói nấu ăn / máy hút mùi không hút hết khói _HZ_COOK_SMOKE — trừ khi khói ra từ
 #      thiết bị: "the range hood is smoking", "smoke coming out of the exhaust fan" vẫn là NGUY HIỂM; NGƯỜI hút thuốc
@@ -86,30 +111,37 @@ MAX_DAYS_AHEAD = 90
 #   5. LƯỚI AN TOÀN (_HZ_NET — chạy SAU bước 1-4, không thay chúng): bộ từ khoá chính xác không bao giờ liệt kê hết mọi
 #      cách nói, nên MỌI từ thuộc HỌ nguy hiểm còn sót lại trong câu (ngoài từ khoá chính xác _HZ và ngoài cụm
 #      không-nguy-hiểm _HZ_NET_SAFE), có dấu hay không dấu, hoa hay thường:
-#        gas      gas / propane / LPG / butane / khí đốt / bình ga
-#        smell    smell / odour / reek / whiff / stink / stench / fumes / mùi / hôi / khét
+#        gas      gas / propane / LPG / butane / khí đốt / bình ga / ống ga / ga (không phải nhà ga, ga giường, chân ga)
+#        smell    smell / odour / reek / whiff / stink / stench / fumes / pong / mùi / hôi / khét
 #        sparks   spark / arc / crackle / buzz / hiss / flash / bang / sizzle / xẹt / lách tách / rè / xì
 #        smoke    smoke / smoking / khói / bốc khói
-#        burning  burn / burnt / scorch / melt / char / singe / cháy / chảy (nghĩa nóng chảy) / bị cháy
-#        shock    shock / tingle / zap / electrocute / giật / tê / rò điện / bi giat
+#        burning  burn / burnt / scorch / melt / char / singe / overheat / cháy / chảy (nghĩa nóng chảy) / bị cháy; đồ điện +
+#                 hot / warm / nóng / ấm ("the switch in the hall is getting hot", "ổ cắm nóng quá", "o cam nong qua");
+#                 vỏ dây / insulation bubbling / blistering / phồng rộp / sủi bọt / đổi màu
+#        shock    shock / tingle / zap / jolt / numb / electrocute / electrified / "the metal railing is live" / "bites you
+#                 when you touch it" / giật / tê / rò điện / chích điện / điện cắn / bi giat / chich dien
 #        water    water / flood / wet / leak / drip / nước / ngập / ướt / dột — CHỈ khi tin nhắn có đồ điện (ổ cắm, công
 #                 tắc, đèn, tủ điện, dây điện, power point, switchboard, lights, power...; _HZ_NET_ELEC)
 #        alarm    alarm / detector / siren + going off / beeping / sounding..., báo động / đầu báo / cảm biến + kêu / hú
-#        fire     fire / lửa
+#        fire     fire / flame / flames / lửa
 #      được xếp trạng thái bằng ĐÚNG luật câu của bước 2-4 (phủ định rõ, đã hết, đã qua, câu hỏi, giả định, câu sau nhắc
 #      lại / kết thúc; phủ định đầu danh sách phủ cả từ của lưới: "No smell or buzzing"). Từ nào KHÔNG được giải quyết sạch
 #      là 'negated' -> kết luận ít nhất 'uncertain' (GẤP + chuyển người thật + báo chủ + câu dặn an toàn CÓ ĐIỀU KIỆN,
 #      không bảo sơ tán) — KHÔNG BAO GIỜ tự lên 'danger' (khẩn cấp chỉ do từ khoá chính xác). Lưới chỉ NÂNG mức, không hạ:
 #      đã 'danger' thì giữ nguyên (dict trả về chỉ gồm loại chính xác); còn lại trạng thái của lưới nằm trong dict dưới
 #      khoá 'possible_<họ>' ('present' của lưới ghi là 'uncertain').
-#      => 'none' CHỈ khi không còn từ nào thuộc họ nguy hiểm, hoặc MỌI lần nhắc đều nằm trong cụm không-nguy-hiểm có trong
-#      danh sách: máy hút mùi / khói bếp (_HZ_COOK_SMOKE), vệ sinh ống khói / lò sưởi, khói lò sưởi / wood heater tạt vào
+#      => 'none' CHỈ khi không còn từ nào thuộc họ nguy hiểm trong văn bản GỐC (bước 0). Cụm không-nguy-hiểm có trong danh
+#      sách chỉ làm lưới bỏ qua từ đó (sàn thô ở bước 6 vẫn giữ ít nhất 'uncertain'): máy hút mùi / khói bếp
+#      (_HZ_COOK_SMOKE, _HZ_HOOD_WEAK), đồ ăn cháy (_HZ_FOOD_BURNT), vệ sinh ống khói / lò sưởi, khói lò sưởi / wood heater tạt vào
 #      phòng (_HZ_VENT_SMOKE), NGƯỜI hút thuốc (_HZ_PERSON_SMOKE), báo khói kêu vì pin / vì nấu ăn, nước tràn chỉ do ống
 #      nước, thành ngữ nóng (_HZ_HEAT), tên thiết bị / dịch vụ (gas heater, gas hot water, gas fitter, gas bill, bếp gas, đổi
 #      bình gas, nạp gas máy lạnh, regas), mùi ẩm mốc / cống / "smells fine", máy lạnh có mùi hôi, loa rè, đèn báo nháy,
 #      ống nước / cửa đập ("pipes bang"), "burnt out", burnt toast, đá / kem tan chảy, máy lạnh chảy nước, nắng cháy da,
 #      giật mình / giật nước / tivi bị giật, "shocked by the price", water heater / water stains / hot water, chuông báo
 #      trộm / xe, gas log fire / electric fire, bếp gas không lên lửa / lửa yếu (_HZ_EXCLUDE + _HZ_NET_SAFE).
+#   6. Kết luận = max(bước 1-5, SÀN THÔ bước 0): mỗi họ của sàn thô mà bước 1-5 không còn thấy (hay chỉ thấy là
+#      'negated') được ghi 'possible_<họ>' với trạng thái thô ('present' -> 'uncertain'); chỉ khi MỌI họ của sàn thô là
+#      'negated' thì sàn là 'negated'; văn bản gốc không có từ nào -> 'none'.
 # Chuông / đầu báo ĐANG kêu (không phải hết pin, không phải do nấu ăn): là NGUY HIỂM ("the gas detector is going off",
 # "smoke alarm keeps sounding", "báo động CO đang kêu"). Thiếu đuôi này thì "smoke alarm / gas detector / báo khói" chỉ là
 # tên thiết bị (lắp, thay, kiểm tra) -> bỏ qua.
@@ -205,25 +237,87 @@ _HZ_COOK_SMOKE = re.compile(
     r"(?:we\s+|i\s+|you\s+|they\s+|someone\s+|the\s+|our\s+|my\s+|a\s+)?(?:\w+\s+)?(?:cook(?:ing|s|ed)?|fr(?:y|ying|ied|ies)|"
     r"grill(?:ing|ed|s)?|bbq(?:ing|s)?|barbecu\w*|toast(?:ing|ed|s)?|bak(?:e|es|ed|ing)|sear(?:ing|ed)?|roast(?:ing|ed)?|"
     r"cigarettes?|cigars?|candles?|incense|fireplace|wood ?(?:fire|heater)s?|chimney|neighbou?rs?'?)\b"
-    r"|(?:\bnot|n't|\bnever|\bfails? to|\bunable to|\bbarely|\bweak(?:ly)?|\bpoorly)\s+(?:\w+\s+){0,2}?(?:pull|pulling|clear|"
-    r"clearing|extract|extracting|remove|removing|suck|sucking|draw|drawing|vent|venting|get(?:ting)? rid of|take|taking)\s+"
-    r"(?:out\s+|away\s+|up\s+)?(?:the\s+|all\s+(?:the\s+)?|any\s+|much\s+|enough\s+|of\s+the\s+)?(?:cooking\s+)?smok(?:e|y)\b"
-    r"(?:\s+out)?"
     r"|(?<!bốc )(?<!xì )(?<!tỏa )(?<!toả )(?<!phun )(?<!báo )(?<!biến )khói (?:\S+ ){0,2}(?:khi|lúc|mỗi khi|mỗi lần|trong lúc) (?:\S+ )?"
     r"(?:nấu|chiên|xào|nướng|rán|hút thuốc|đốt)"
     r"|(?:nấu|(?<!nồi )chiên|xào|(?<!lò )(?<!máy )nướng|rán)(?: \S+){0,2}? (?:bị |ra |có |thì |tỏa |bốc )?"
-    r"(?:nhiều |rất nhiều |toàn |hơi )?khói"
+    r"(?:nhiều |rất nhiều |toàn |hơi )?khói)"
+    + _HZ_NOT_FROM_SRC)
+# Máy hút mùi / quạt hút KHÔNG HÚT HẾT khói ("the range hood doesn't / doesnt pull the smoke out", "máy hút mùi không hút
+# khói"): từ phủ định nằm SẴN trong cụm nên _hz_mask không chặn cụm này vì phủ định (guard=False).
+_HZ_HOOD_WEAK = re.compile(
+    r"(?:(?:\bnot|n't|\b(?:doesnt|dont|didnt|isnt|wont|cant|aint|wasnt|arent|couldnt|cannot)|\bnever|\bfails? to|"
+    r"\bunable to|\bbarely|\bweak(?:ly)?|\bpoorly)\s+(?:\w+\s+){0,2}?(?:pull|pulling|clear|clearing|extract|extracting|remove|"
+    r"removing|suck|sucking|draw|drawing|vent|venting|get(?:ting)? rid of|take|taking)\s+"
+    r"(?:out\s+|away\s+|up\s+)?(?:the\s+|all\s+(?:the\s+)?|any\s+|much\s+|enough\s+|of\s+the\s+)?(?:cooking\s+)?smok(?:e|y)\b"
+    r"(?:\s+out)?"
     r"|(?:không|ko|chẳng|chả|hông|k|chưa) hút (?:\S+ ){0,2}khói|hút (?:không|ko|chẳng|chả|hông) (?:\S+ )?khói)"
     + _HZ_NOT_FROM_SRC)
+# ĐỒ ĂN cháy / khét ("nấu cơm bị cháy khét", "nướng thịt bị khét", "com bi chay"): không phải đồ điện cháy -> chặn 'danger'
+# (sàn thô vẫn 'uncertain'). Nồi cơm ĐIỆN / ổ cắm / dây / bếp / lò / máy cháy không nằm trong cụm -> vẫn là NGUY HIỂM.
+_HZ_FOOD_BURNT = re.compile(
+    r"(?:nấu|nướng|chiên|rán|kho|xào|hâm|luộc|đun|rang)(?: (?!(?:ổ|dây|công|phích|tủ|cầu|bảng|nồi|ấm|lò|máy|bếp|quạt)\b)"
+    r"[^\s,.;:!?]+){0,2}? (?:bị )?(?:cháy|khét|khê)(?: (?:khét|đen|xém|khê))*"
+    r"|(?<!nồi )(?<!ấm )\b(?:cơm|đồ ăn|thức ăn|thịt|cá|bánh mì|bánh|trứng|món ăn|cháo|chảo|nồi)"
+    r"(?: (?!(?:điện|cơm điện)\b)[^\s,.;:!?]+)? (?:bị )?(?:cháy|khét|khê)(?: (?:khét|đen|xém|khê))*"
+    r"|\b(?:nau|nuong|chien|ran|kho|xao|ham|luoc|dun|rang)(?: (?!(?:o|day|cong|phich|tu|cau|bang|noi|am|lo|may|bep|quat)\b)"
+    r"[^\s,.;:!?]+){0,2}? (?:bi )?(?:chay|khet|khe)(?: (?:khet|den|xem|khe))*\b"
+    r"|(?<!noi )\b(?:com|do an|thuc an|thit|banh mi|banh|trung|mon an)(?: (?!dien\b)[^\s,.;:!?]+)? (?:bi )?(?:chay|khet|khe)"
+    r"(?: (?:khet|den|xem|khe))*\b")
 # Chỉ khi tin nhắn nói về ống khói / lò sưởi (khói tạt ngược vào nhà: "chimney needs cleaning, smoke comes back in",
 # "smoke comes into the living room when we light the fire", "the fireplace smokes into the room", "wood heater is smoking
 # into the room", "khói tạt ngược vào nhà") hay máy hút mùi / quạt hút YẾU, hỏng, cần thay ("Máy hút mùi yếu, bếp nhiều
 # khói"). "bếp ĐẦY khói", "there is smoke in the house" (không nói khói TẠT vào từ lò sưởi) hay khói từ ổ cắm / tường thì
 # vẫn là nguy hiểm.
+# Chỉ tính khi được nhắc KHẲNG ĐỊNH và đang dùng (_hz_ctx_live, _HZ_NO_FIRE, _HZ_UNKNOWN_SRC — luật 3 ở đầu bộ phân loại):
+# "we don't have a fireplace but smoke is coming into the bedroom", "nhà có ống khói nhưng không dùng" -> khói KHÔNG bị che.
 _HZ_VENT_CTX = re.compile(
-    r"\b(?:chimneys?|flues?|fireplaces?|wood ?(?:heater|fire|stove)s?)\b|ống khói|lò sưởi"
-    r"|(?:máy hút mùi|hút mùi|máy hút khói|hút khói|quạt hút)(?: \S+){0,2}? (?:yếu|kém|không hút|hút không|hút yếu|hư|hỏng)"
+    r"\b(?:chimneys?|flues?|fireplaces?|wood ?(?:heater|fire|stove|burner)s?|pot ?belly(?: stove)?s?|log burners?|"
+    r"combustion heaters?|open fires?)\b|ống khói|lò sưởi|\b(?:ong khoi|lo suoi)\b")
+_HZ_HOOD_CTX = re.compile(
+    r"(?:máy hút mùi|hút mùi|máy hút khói|hút khói|quạt hút)(?: \S+){0,2}? (?:yếu|kém|không hút|hút không|hút yếu|hư|hỏng)"
     r"|(?:thay|lắp|mua) (?:máy hút mùi|máy hút khói|quạt hút)")
+# Ngữ cảnh bị PHỦ ĐỊNH / không dùng ngay TRƯỚC: "we don't have a fireplace", "no fireplace here", "haven't used the
+# fireplace in years", "it's not the chimney", "không có lò sưởi", "chưa dùng lò sưởi".
+_HZ_CTX_NEG_BEFORE = re.compile(
+    r"(?:\b(?:no|not|never|without|don'?t|doesn'?t|didn'?t|haven'?t|hasn'?t|hadn'?t|isn'?t|aren'?t|wasn'?t|weren'?t|won'?t|"
+    r"can'?t|dont|doesnt|didnt|havent|hasnt|hadnt|isnt|arent|wasnt|werent|wont|cant|cannot|rarely|seldom|no longer|"
+    r"stopped|khong|chua|ko)|\b(?:không|chẳng|chả|chưa|hông|ít khi))"
+    r"(?:\s+(?:have|has|had|got|own|owns|use|used|using|light|lit|lighting|run|running|even|really|actually|ever|a|an|any|"
+    r"the|our|my|this|that|real|working|proper|có|cái|dùng|xài|sử dụng|còn|đốt|nhóm|bật|hề|co|cai|dung|xai|con|dot))*\s+$")
+# Ngữ cảnh đang TẮT / không dùng ngay SAU: "we have a wood heater but its off", "the fireplace hasn't been used", "the
+# chimney, which we never use", "nhà có ống khói nhưng không dùng", "lò sưởi đang tắt".
+_HZ_CTX_IDLE_AFTER = re.compile(
+    r"^\s*(?:(?:here|there|anymore|any more|in (?:the |our |my )?[\w']+|for (?:years|ages|a long time)|nữa|ở đây)\s*)*,?\s*"
+    r"(?:(?:but|and|which|though|although|mà|nhưng|nhưng mà|thì|nhung|ma)\s+)?(?:(?:we|i|you)\s+)?"
+    r"(?:(?:it'?s|its|it is|is|are|they'?re|been|was|were|currently|now|always|nó|thì|đang|đã|cũng|vẫn|lâu rồi|hiện|giờ|"
+    r"even)\s+)*"
+    r"(?:off|out(?! of order)|(?:(?:is|are|was|were|has|have|had)(?:n'?t| not)|not)(?: been| even been)? (?:used|in use|lit|"
+    r"on|going|running|working|burning)|(?:don'?t|dont|do not|never|rarely|no longer) (?:use|light|run)|unused|never used|"
+    r"turned off|switched off|out of use|disconnected|blocked off|bricked up|boarded up|sealed(?: off| up)?|"
+    r"decommissioned|removed|cold|\bkhông (?:dùng|xài|sử dụng|đốt|nhóm|bật|chạy|hoạt động)|\b(?:ko|chưa|chẳng|hông) (?:dùng|"
+    r"xài|đốt|nhóm|bật)|bỏ không|tắt|bị bịt|bịt lại|khong (?:dung|xai|dot)|chua (?:dung|xai))\b")
+# Không có lửa nào đang đốt ("we have no fire going", "no fire lit", "haven't lit a fire", "the fire isn't lit", "không đốt
+# lửa", "lò sưởi không đốt"): khói KHÔNG phải từ lò sưởi -> không che khói tạt vào.
+_HZ_NO_FIRE = re.compile(
+    r"\b(?:no|not|never|without|haven'?t|hasn'?t|hadn'?t|didn'?t|don'?t|doesn'?t|havent|hasnt|didnt|dont|doesnt)\b"
+    r"(?:\s+[\w']+){0,3}?\s+(?:fires?|lit|light|lighting|burning)\b"
+    r"|\b(?:fires?|fireplaces?|wood ?heaters?|heaters?|stoves?)\b(?:\s+[\w']+){0,2}?\s+(?:is|was|are|were)(?:n'?t|\s+not)\s+"
+    r"(?:lit|on|going|burning|running)\b"
+    r"|\b(?:không|chưa|chẳng|chả|ko|hông)(?: \S+){0,2}? (?:đốt|nhóm|nhen|bật)(?: \S+){0,2}? (?:lửa|lò|lò sưởi|củi)"
+    r"|(?:lò sưởi|lửa|bếp củi)(?: \S+){0,2}? \b(?:không|chưa|ko|hông) (?:đốt|nhóm|bật|cháy)")
+# Khói không rõ từ đâu ("smoke is coming into the house from somewhere", "don't know where it's coming from", "khói bay vào
+# nhà từ đâu không biết"): KHÔNG che bằng ngữ cảnh lò sưởi / máy hút mùi.
+_HZ_UNKNOWN_SRC = re.compile(
+    r"\bfrom somewhere\b|\b(?:don'?t|dont|do not|can'?t|cant|cannot|not sure|unsure|no idea|no clue)(?: [\w']+){0,3}? "
+    r"where\b|\bunknown (?:source|origin|cause)\b|\bno (?:obvious |clear |known |visible )?source\b"
+    r"|(?:từ|ở) đâu(?: \S+){0,2}? (?:không biết|ko biết|k biết|chả biết|chẳng biết|không rõ|hông biết)"
+    r"|\b(?:không|ko|chả|chẳng|hông|k) (?:biết|rõ)(?: \S+){0,2}? (?:từ|ở) đâu|\bkhông rõ nguồn|\btừ đâu ra|\btu dau khong biet\b")
+# Phủ định ngay TRƯỚC 1 cụm không-nguy-hiểm ("not from cooking", "isn't cigarette smoke", "không nấu ăn mà khói tràn vào",
+# "không phải do nấu ăn"): cụm KHÔNG bị che (_hz_mask) — bước 2-4 tự xét câu đó.
+_HZ_MASK_NEG_BEFORE = re.compile(
+    r"(?:\b(?:not|isn'?t|wasn'?t|aren'?t|weren'?t|isnt|wasnt|arent|werent|never)(?:\s+(?:from|because of|due to|caused by|"
+    r"just|only|really|even))?|\b(?:không|chẳng|chả|ko|hông) phải(?:\s+(?:là|do|vì|từ|tại))?|"
+    r"\b(?:không|chưa|chẳng|chả|ko|hông)(?:\s+(?:có|hề|đang|đã|ai|còn))*)\s+(?:the\s+|a\s+|our\s+|my\s+|any\s+)?$")
 _HZ_VENT_SMOKE = re.compile(
     r"(?:\bsmoke (?:comes?|coming|blows?|blowing|goes?|going|pours?|pouring|gets?|getting|is coming|keeps coming) back "
     r"(?:in|into|down)\b|(?:nhà bếp|phòng bếp|căn bếp|bếp) (?:\S+ )?(?:nhiều|hay có|có nhiều|bị ám|ám) khói"
@@ -235,7 +329,11 @@ _HZ_VENT_SMOKE = re.compile(
     r"|\b(?:light|lit|lighting|have|having|use|using|start|starting|make|making|build|building) (?:the|a|our|my) "
     r"(?:wood |open |log )?fires?\b"
     r"|khói(?: \S+){0,3}? (?:tạt|bay|tràn|thổi|đẩy|dội|lùa|ùa|ngược|xộc|bị đẩy|bị tạt)(?:\s+\S+){0,5}?\s+(?:vào|vô) "
-    r"(?:trong )?(?:nhà|phòng)|khói (?:\S+ )?(?:tạt|bị đẩy|dội|thổi|bay) ngược)"
+    r"(?:trong )?(?:nhà|phòng)|khói (?:\S+ )?(?:tạt|bị đẩy|dội|thổi|bay) ngược"
+    r"|\bsmok(?:es|ing|ed) back(?: in| into| inside| down| out)?\b"
+    r"|\b(?:chimneys?|flues?|fireplaces?|wood ?(?:heater|fire|stove|burner)s?|pot ?belly(?: stove)?|log burners?|"
+    r"combustion heaters?|open fires?)(?: [\w']+){0,3}? (?:is |are |keeps |kept |always |still |just |often |sometimes |"
+    r"constantly |really |badly )*smok(?:es|ing|ed|e|y)\b)"
     + _HZ_NOT_FROM_SRC)
 # Nước tràn CHỈ do bồn cầu / máy rửa chén / máy giặt / bồn tắm / bồn rửa mà tin nhắn không nhắc đồ điện / nguồn điện: việc
 # ống nước thường. Vỡ ống / bể bình (_HZ_WATER_HARD) và nước gần ổ cắm, tủ điện, đèn vẫn là NGUY HIỂM.
@@ -251,6 +349,15 @@ _HZ_PLUMB_ELEC = re.compile(
 # "drain / shower / tap outlet" là lỗ thoát nước, không phải ổ điện (cho phép "chỉ nước tràn" vẫn là việc ống nước)
 _HZ_PLUMB_OUTLET = re.compile(r"\b(?:shower|drain|waste|sink|basin|bath|toilet|tap|storm ?water|storm|air|vent|hose|pipe|"
                               r"pump|floor|overflow|sewer|gutter|pool) outlets?\b")
+# Nước mưa / ngập NGOÀI SÂN ("storm water flooding the backyard"): việc thoát nước — chặn 'danger' khi tin nhắn không nhắc
+# đồ điện và không nhắc chỗ TRONG NHÀ (_HZ_INDOOR); sàn thô vẫn 'uncertain'.
+_HZ_OUTDOOR_SRC = re.compile(
+    r"\b(?:storm ?water|rain ?water|backyard|back yard|front yard|yard|garden|lawn|driveway|patio|courtyard|paddock|"
+    r"nature strip|street|road)\b|sân vườn|ngoài sân|\bvườn\b|\b(?:san vuon|ngoai san|vuon)\b")
+_HZ_INDOOR = re.compile(
+    r"\b(?:house|home|inside|indoors|rooms?|bedrooms?|kitchen|bathroom|laundry|garage|basement|cellar|lounge|living|"
+    r"hallway|carpets?|floors?|ceilings?|units?|flat|apartment|downstairs|upstairs|shed|office|shop|store)\b"
+    r"|trong nhà|vào nhà|\b(?:nhà|phòng|bếp|tầng|hầm)\b|\b(?:nha|phong|bep|tang|ham)\b")
 # Đồ điện mà nước chạm / chảy vào là NGUY HIỂM (dùng trong nhóm 'water' của _HZ).
 _HZ_WET_ELEC = (r"(?:light fittings?|lights?|downlights?|outlets?|sockets?|power ?points?|power ?boards?|extension leads?|"
                 r"gpos?|switch(?:es|board|boards)?|fuse ?box(?:es)?|electrical panel|panel|meter ?box|electrics|wiring|"
@@ -289,13 +396,13 @@ _HZ = re.compile(
     r"lpg |propane |bottled )*(?:gas{1,2}|gaz|propane|lpg|butane|khí đốt)\b(?! (?:heaters?|stoves?|bills?|cooktops?|ovens?|"
     r"hot water|meters?|bottles?|fireplaces?|appliances?))|"
     r"\b(?:gas{1,2}|gaz|propane|lpg|butane)(?:[- ]?(?:like|ish|type))? (?:sme+l+\w*|odou?rs?|stench|stink\w*|whiff\w*|"
-    r"reek\w*)|"
-    r"\b(?:(?:lpg|propane|butane|gas{1,2}|gaz) (?:bottles?|cylinders?|tanks?|lines?|pipes?|hoses?|valves?|regulators?|"
+    r"reek\w*|pong\w*)|"
+    r"\b(?:(?:lpg|propane|butane|gas{1,2}|gaz) (?:bottles?|cylinders?|tanks?|canisters?|cartridges?|lines?|pipes?|hoses?|valves?|regulators?|"
     r"meters?|fittings?|connections?|heaters?|stoves?|cooktops?|hobs?|ovens?|bbqs?|barbecues?|grills?|burners?|appliances?|"
     r"fireplaces?|hot water(?: systems?| units?)?)|stoves?|cooktops?|hobs?|burners?|regulators?|bbqs?|barbecues?)"
     + _HZ_GAP + r"{0,4}? hiss\w*|"
-    r"\b(?:lpg|propane|butane|gas{1,2}|gaz) (?:bottles?|cylinders?|tanks?|lines?|pipes?|hoses?|valves?|regulators?|"
-    r"fittings?|connections?)" + _HZ_GAP + r"{0,4}? leak\w*|"
+    r"\b(?:lpg|propane|butane|gas{1,2}|gaz) (?:bottles?|cylinders?|tanks?|canisters?|cartridges?|lines?|pipes?|hoses?|"
+    r"valves?|regulators?|fittings?|connections?)" + _HZ_GAP + r"{0,6}? leak\w*|"
     r"\bhiss\w* (?:[\w']+ ){0,2}?(?:from|at|near|in|out of|behind|under|around) (?:the |my |our |a )?(?:[\w']+ )?"
     r"(?:stoves?|cooktops?|hobs?|ovens?|bbqs?|barbecues?|grills?|burners?|regulators?|bottles?|cylinders?|gas heaters?)\b|"
     r"mùi (?:của )?(?:khí đốt|khí gas|khí ga)|(?:rò rỉ|rò|xì|hở) khí đốt|khí đốt (?:bị )?(?:rò rỉ|rò|xì|hở)|"
@@ -313,9 +420,10 @@ _HZ = re.compile(
     r"(?:the )?(?:gas{1,2}|gaz)\b|\b(?:gas{1,2}|gaz|lpg|propane) fumes\b|\b(?:lpg|propane|gas{1,2}|gaz) (?:bottle|cylinder|"
     r"tank|line|pipe|hose|valve|regulator|meter|fitting|connection)s? (?:is |are |has been |keeps )?(?:leak\w*|hiss\w*)|"
     r"mùi (?:khí )?(?:gas|ga|gaz)\b|mùi (?:\S+ ){0,2}(?:như|giống)(?: mùi)? (?:gas|ga|gaz)\b|hơi (?:gas|ga)\b|"
-    r"(?:rò rỉ|rò|xì|hở|xì hơi) (?:khí )?(?:gas|ga|gaz)\b|(?:bình|bếp|van|ống|dây|bồn) (?:gas|ga) (?:bị )?(?:xì|rò rỉ|rò|"
-    r"hở)|\b(?:gas|ga) (?:bị )?(?:xì|rò rỉ|rò|hở)\b|\b(?:mui|ro ri|ro|xi|ho) (?:gas|gaz)\b|\b(?:mui|ro ri) ga\b|"
-    r"\bbinh ga (?:bi )?(?:xi|ro)\b|\b(?:bep|van|ong|day|bon) (?:gas|ga) (?:bi )?(?:xi|ro ri|ro|ho)\b|"
+    r"(?:rò rỉ|rò|xì|hở|xì hơi) (?:khí )?(?:gas|ga|gaz)\b|(?:bình|bếp|van|ống|dây|bồn) (?:gas|ga)(?: (?!(?:không|ko|chưa|chẳng|chả|hết|hông|k)\b)\S+){0,3}? "
+    r"(?:kêu |có tiếng |bị |đang |vẫn |cứ )*(?:xì|rò rỉ|rò|hở)\b|\b(?:gas|ga) (?:bị )?(?:xì|rò rỉ|rò|hở)\b|\b(?:mui|ro ri|ro|xi|ho) (?:gas|gaz)\b|\b(?:mui|ro ri) ga\b|"
+    r"\b(?:bep|van|ong|day|bon|binh) (?:gas|ga)(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k)\b)\S+){0,3}? "
+    r"(?:keu |co tieng |bi |dang |van |cu )*(?:xi|ro ri|ro|ho)\b|"
     r"\b(?:gas|ga) bi (?:xi|ro ri|ro|ho)\b|tiếng xì(?: xì)? (?:ở|từ|chỗ|trong) (?:\S+ )?(?:bình|bếp|van|ống|dây|bồn) (?:gas|ga)\b)"
     r"|(?P<sparks>\bspark(?:s|ing|in|ed)?\b(?![- ](?:plugs?|arrest\w*|gaps?)\b)|\bspak(?:s|ing|in|ed)\b|"
     r"\bspark(?:es|ng|ign|inng|kin|kng)\b|\bsprak(?:s|ing|in|ed)?\b|\barc(?:ing|ed)\b|"
@@ -331,10 +439,15 @@ _HZ = re.compile(
     r"wiring|power ?boards?|breakers?|(?<!solar )(?<!control )(?<!display )(?<!shower )(?<!door )(?<!fence )(?<!ceiling )"
     r"(?<!touch )(?<!glass )(?<!front )(?<!access )panels?)" + _HZ_GAP + r"{0,4}? (?:crackl(?:e|es|ed|ing)|"
     r"sizzl(?:e|es|ed|ing)|fizz(?:es|ed|ing)?|buzz(?:es|ed|ing)?)\b|"
+    r"\b(?:crackl(?:e|es|ed|ing)|sizzl(?:e|es|ed|ing)|popping) (?:\w+ ){0,3}?(?:from|in|at|inside|behind|out of|within) "
+    r"(?:the |my |our |a )?(?:\S+ )?(?:walls?|ceilings?|roof ?space|attic)\b|"
     r"tia lửa|tóe lửa|toé lửa|tóe điện|toé điện|xẹt điện|xẹt lửa|chập điện|chập mạch|chập cháy|bị chập\b|đoản mạch|"
     r"nháy lửa|(?:ổ cắm|ổ điện|phích cắm|công tắc|cầu dao|aptomat|tủ điện|dây điện|bảng điện)(?: \S+){0,2}? (?:bị )?"
     r"(?:nổ|kêu) (?:lách tách|tách|lép bép|tạch|tanh tách|tí tách|bụp|lụp bụp|lẹt đẹt)|"
-    r"\b(?:tia lua|chap dien|chap mach|toe lua|xet dien|chap chay)\b|\bbi chap\b(?! chon))"
+    r"\b(?:tia lua|chap dien|chap mach|toe lua|xet dien|xet lua|chap chay)\b|\bbi chap\b(?! chon)|"
+    r"\b(?:o cam|o dien|phich cam|cong tac|cau dao|aptomat|tu dien|day dien|bang dien)(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k)\b)\S+){0,2}? (?:bi |dang )?xet\b"
+    r"(?! nghiem)|(?:ổ cắm|ổ điện|phích cắm|công tắc|cầu dao|aptomat|tủ điện|dây điện|bảng điện)(?: (?!(?:không|ko|chưa|chẳng|chả|hết|hông|k)\b)\S+){0,2}? "
+    r"(?:bị |đang )?xẹt\b)"
     r"|(?P<burning>\b(?:outlets?|switch\w*|wires?|wiring|cables?|plugs?|panel|sockets?|cords?|leads?|chargers?|"
     r"power ?boards?|power ?points?|adapt[eo]rs?|batter(?:y|ies)|motors?|fuse ?box(?:es)?)" + _HZ_GAP + r"{1,4}? "
     r"(?:burning|smouldering|smoldering|melting)\b|"
@@ -361,11 +474,23 @@ _HZ = re.compile(
     r"(?:melted|melting|charred|blackened|burnt|burned|scorched|singed)\b(?! out)|"
     r"\b(?:outlets?|sockets?|plugs?|power ?points?|gpos?|switch(?:es|board|boards)?|fuse ?box(?:es)?|breakers?|"
     r"wires?|wiring|cables?|cords?|leads?|extension leads?|power ?boards?|chargers?|adapt[eo]rs?|batter(?:y|ies)|"
-    r"transformers?|meter ?box(?:es)?|power ?packs?)(?: \w+){0,2}? (?:is|are|was|were|gets?|getting|got|"
+    r"transformers?|meter ?box(?:es)?|power ?packs?)" + _HZ_GAP + r"{0,4}? (?:is|are|was|were|gets?|getting|got|"
     r"feels?|felt|went|becomes?|running) (?:(?:still|always|getting|really|very|extremely|super|too|so|quite|burning|"
     r"scorching|red) )*hot\b|"
     r"(?:ổ cắm|ổ điện|phích cắm|dây điện|công tắc|cầu dao|aptomat|dây)(?: \S+){0,3}? (?:bị )?(?:chảy nhựa|nóng chảy|"
     r"cháy đen|cháy xém|xém)|"
+    r"(?:ổ cắm|ổ điện|phích cắm|phích|công tắc|dây điện|dây sạc|dây nguồn|tủ điện|cầu dao|aptomat|bảng điện|cục sạc)"
+    r"(?: (?!(?:không|ko|chưa|chẳng|chả|hết|hông|k|bình|máy|nước|lò|bếp|dây)\b)\S+){0,3}? (?:bị |rất |hơi |quá |cứ |đang |"
+    r"nghe |thấy |sờ |sờ vào |sờ vô )*nóng\b(?! (?:lạnh|nước)\b)|"
+    r"\b(?:o cam|o dien|phich cam|phich|cong tac|day dien|day sac|day nguon|tu dien|cau dao|aptomat|bang dien|cuc sac)"
+    r"(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k|binh|may|nuoc|lo|bep|day)\b)\S+){0,3}? (?:bi |rat |hoi |qua |cu |dang |"
+    r"nghe |thay )*nong\b(?! (?:lanh|nuoc)\b)|"
+    r"(?:vỏ |lớp )?(?:dây điện|dây|cáp|ổ cắm|phích cắm|công tắc)(?: (?!(?:không|ko|chưa|chẳng|chả|hết|hông|k)\b)\S+){0,2}? (?:bị )?(?:phồng rộp|rộp|sủi bọt)|"
+    r"\b(?:insulation|sheath\w*|casing|coating|cables?|wires?|wiring|cords?|leads?|plugs?|outlets?|sockets?|power ?points?)"
+    + _HZ_GAP + r"{0,3}? (?:is |are |was |were |has |have |got |looks? |started |starting |keeps? )*(?:bubbl(?:e|es|ed|ing)|"
+    r"blister(?:s|ed|ing)?)\b|\b(?:bubbl(?:ing|ed)|blister(?:ing|ed)|melt(?:ing|ed)) (?:insulation|sheath\w*|casing|coating)\b|"
+    r"\b(?:charred|blackened|singed|scorched|burnt|burned) (?:wires?|wiring|cables?|cords?|leads?|plugs?|outlets?|sockets?|"
+    r"switch(?:es)?|power ?points?|power ?boards?|insulation|fuse ?box(?:es)?)\b|"
     r"cháy xém|mùi khét|"
     r"khét(?! tiếng)|mùi (?:như )?(?:nhựa |dây |điện |đồ |dây điện )?cháy|cháy khét|mùi nhựa (?:cháy|chảy)|"
     r"mùi (?:như |giống )?burn\w*|\bmui khet\b|\bkhet\b|\b(?:o cam|o dien|phich cam|day dien|cong tac|cau dao|aptomat)"
@@ -374,15 +499,26 @@ _HZ = re.compile(
     r"\b(?:boc|xi|toa|co) khoi\b(?! (?:dong|"
     r"dau|nghia|phat|tao|xuong|cong))|\bkhoi den\b)"
     r"|(?P<shock>\bele\w{0,4}ic(?:al)? shoc?ks?\b|\belec\w{0,5}cut\w*|\bshoc?k(?:ed|s|ing)? (?:me|him|her|us|them|my \w+|someone|"
-    r"somebody|the kids?|the child|people|anyone)\b|\b(?:got|get|gets|getting|(?:give|gives|gave|giving) (?:me|him|her|"
-    r"us|them|my \w+|someone|people)|received|receiving|had|having|felt|feel|feeling) (?:a |an |some )?(?:small |mild |"
-    r"big |nasty |little |slight |bad |huge |strong )?(?:ele\w{0,4}ic(?:al)? )?shoc?ks?\b|"
+    r"somebody|the kids?|the child|people|anyone)\b|\b(?:got|get|gets|getting|(?:give|gives|gave|giving)(?: (?:me|him|her|"
+    r"us|them|you|my \w+|someone|people))?(?: off)?|received|receiving|had|having|felt|feel|feels|feeling) (?:a |an |some )?"
+    r"(?:small |mild |big |nasty |little |slight |bad |huge |strong |tiny |real |massive )?(?:ele\w{0,4}ic(?:al)? )?"
+    r"(?:shoc?ks?|jolts?)\b|\bjolt(?:ed|s)? (?:me|him|her|us|them|my \w+)\b|"
+    r"\b(?:bites?|biting) (?:me|you|him|her|us|them|my \w+)(?: [\w']+){0,2}? (?:when|whenever|if|every time|each time)"
+    r"(?: [\w']+){0,3}? (?:touch\w*|grabb?\w*|hold\w*|use|using)\b|"
+    r"\bnumb(?:ness)?\b(?: [\w']+){0,3}? (?:when|after|as|while|whenever|every time|each time|from)(?: [\w']+){0,3}? "
+    r"(?:touch\w*|grabb?\w*|held|hold\w*)\b|\b(?:touch\w*|grabb?\w*|held|hold\w*)" + _HZ_GAP + r"{0,5}? (?:went|goes|go|"
+    r"going|felt|feels?|got|was|is) numb\b|"
+    r"\b(?:metal|railings?|rails?|taps?|sinks?|handles?|frames?|pipes?|baths?|gutters?|roofs?|appliances?|fridges?|ovens?|"
+    r"washing machines?|washers?|dryers?|casings?|chassis|showers?|mixers?|kettles?|heaters?|stoves?|cooktops?|"
+    r"letterbox\w*|poles?)" + _HZ_GAP + r"{0,2}? (?:is|are|was|were|feels?|seems?|has gone|have gone) (?:still |now |"
+    r"totally |completely )?(?:live|electrified|energi[sz]ed)\b|"
     r"\b(?:got|get|gets|getting|keeps? getting) (?:a )?(?:bit |little |slightly |badly )?shocked\b|"
     r"\b(?:was|were|been|being) shocked (?:by|from|when|while|touching|through) (?:the |a |my |our )?(?:\w+ )?(?:switch\w*|"
     r"outlets?|sockets?|power ?points?|taps?|ovens?|stoves?|fridges?|washing machines?|washers?|dryers?|appliances?|wires?|"
     r"cables?|plugs?|lights?|heaters?|kettles?|showers?|metal|doors?|handles?|cords?|leads?|toasters?|microwaves?|"
     r"dishwashers?|sinks?)\b|\bzapp(?:ed|ing)\b|"
     r"\bzaps? (?:me|him|her|us|them)\b|\btingl(?:e|es|ed|ing|y)\b|điện giật|giật điện|giật tê|tê tay|tê người|tê chân|"
+    r"chích điện|điện (?:bị )?chích|bị điện (?:chích|cắn)|điện cắn|"
     r"shock điện|sốc điện|rò điện|rò rỉ điện|dò điện|hở điện|lọt điện|điện (?:bị )?rò|(?:vỏ|thân) (?:máy|tủ|bình)(?: \w+){0,2} "
     r"(?:có|bị) (?:điện|giật)|có điện ở vỏ|(?:chạm|sờ|đụng|cầm|rờ)(?: vào| vô| phải)?(?: \w+){0,3}(?: là| thì| bị| thấy|"
     r" hơi| cảm thấy| cũng)* (?:giật|tê)\b(?! (?:mình|liệt|giác|buốt))|"
@@ -393,7 +529,8 @@ _HZ = re.compile(
     r"tem|giải|lùi|lấy|đồ|túi|ví|dây chuyền|tóc|điện thoại|mất|giật|cục))|"
     r"(?<!tivi )(?<!tv )(?<!mang )(?<!wifi )(?<!hinh )(?<!camera )(?<!video )(?<!game )(?<!loa )(?<!phim )(?<!den )"
     r"\bbi giat\b(?! (?:minh|nuoc|hinh|lag|lac|tem|giai|lui|do|tui|vi|day chuyen|dien thoai|mat|giat))|"
-    r"\b(?:dien giat|giat dien|ro dien|ro ri dien|ho dien)\b)"
+    r"\b(?:dien giat|giat dien|ro dien|ro ri dien|(?<!dong )ho dien|chich dien|dien chich|dien can)\b|"
+    r"bị chích(?: \S+){0,2}? (?:khi|lúc|mỗi khi|mỗi lần) (?:\S+ )?(?:chạm|sờ|đụng|cầm|rờ|tắm|bật|mở))"
     r"|(?P<water>\bflood(?:s|ed|ing)?\b|\bburst (?:hot )?(?:water )?(?:pipes?|mains?|tanks?|cylinders?)\b|"
     r"\b(?:pipes?|(?:hot )?water (?:tanks?|cylinders?|heaters?|systems?|mains?)|tanks?|cylinders?|hws) (?:has |have |just )?"
     r"burst\b|\bwater everywhere\b|\bwater (?:is |was )?(?:pouring|gushing|spraying|flooding)\b|"
@@ -438,10 +575,22 @@ _HZ = re.compile(
     r"aptomat)" + _HZ_GAP + r"{0,3}? (?:bị |đang |đã )?cháy\b|cháy (?:ổ cắm|ổ điện|tủ điện|dây điện|công tắc|bảng điện|phích cắm|nhà|bếp)|"
     r"(?:ổ cắm|ổ điện|tủ điện|dây điện|công tắc|bảng điện|cầu dao|phích cắm|aptomat|bình nóng lạnh|máy nước nóng|bình gas|"
     r"bình ga)(?: \S+)? (?:bị )?nổ\b|"
-    r"(?:nhà|phòng) (?:bị |đang )?cháy|\bbếp (?:bị |đang )cháy\b|(?:ổ cắm|ổ điện|tủ điện|dây điện|công tắc|cầu dao|phích cắm|aptomat|máy) (?:có|bốc|"
-    r"phát|phụt) lửa|"
+    r"(?:nhà|phòng) (?:bị |đang )?cháy|\bbếp (?:bị |đang )cháy\b|(?:ổ cắm|ổ điện|tủ điện|dây điện|công tắc|cầu dao|phích cắm|aptomat|máy|bếp từ|bếp điện|quạt|"
+    r"nồi cơm điện|ấm siêu tốc|lò vi sóng)(?: (?!(?:không|ko|chưa|chẳng|chả|hết|hông|k|nước|gas|ga|nóng)\b)\S+){0,3}? "
+    r"(?:có|bốc|phát|phụt|tóe|toé|xẹt|xì|nháy) lửa|lửa (?:ở|từ|trong|chỗ|tại|sau|phía sau|dưới|gần|quanh|bên trong) "
+    r"(?:cái |các |chỗ )?(?:ổ cắm|ổ điện|tủ điện|dây điện|công tắc|bảng điện|cầu dao|phích cắm|aptomat|bếp từ|bếp điện|máy|"
+    r"quạt|tường|trần)|"
     r"\b(?:boc chay|phat no|hoa hoan|chay no)\b|\b(?:day dien|o cam|o dien|tu dien|cong tac|bang dien|cau dao|phich cam|"
-    r"aptomat)" + _HZ_GAP + r"{0,3}? bi chay\b(?! (?:nuoc|ri|ra))|\b(?:nha|phong|bep) bi chay\b(?! (?:nuoc|ri|ra)))")
+    r"aptomat)" + _HZ_GAP + r"{0,3}? bi chay\b(?! (?:nuoc|ri|ra))|\b(?:nha|phong|bep) bi chay\b(?! (?:nuoc|ri|ra))|"
+    r"\bchay (?:o cam|o dien|tu dien|day dien|cong tac|bang dien|phich cam|cau dao|aptomat)\b|"
+    r"\b(?:day dien|o cam|o dien|tu dien|cong tac|bang dien|cau dao|phich cam|aptomat)"
+    r"(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k)\b)\S+){0,2}? (?:dang |da )?chay\b(?! (?:nuoc|ri|ra|am|doc|ngam|qua|"
+    r"theo|tren|duoi|xuyen|vao|toi|tu|len|xuong|ngoai|trong|quanh|ve|sang|thang|noi|khap|may|bao|dai|ngang|vong|lung|tot|"
+    r"on|binh|duoc|ok|lai|ngon|het|di|em|that|rat|nhu|cho|bang)\b)|"
+    r"\b(?:o cam|o dien|tu dien|day dien|cong tac|cau dao|phich cam|aptomat|may)"
+    r"(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k|nuoc|gas|ga|nong)\b)\S+){0,3}? (?:co|boc|phat|phut|toe|xet|nhay) lua\b"
+    r"(?! chon)|\blua (?:o|tu|trong|cho|tai|sau|duoi|gan|quanh) (?:cai |cac |cho )?(?:o cam|o dien|tu dien|day dien|"
+    r"cong tac|bang dien|cau dao|phich cam|aptomat)\b)")
 # Mùi gas bị TÁCH qua dấu phẩy / gạch ngang ("smells weird, like gas", "the smell is back - definitely gas") được nối lại,
 # và "smell it / that" ngay sau khi vừa nhắc gas ("I turned the gas off at the meter but I can still smell it") = ngửi
 # thấy GAS — làm TRƯỚC khi tách câu (hazard_check).
@@ -460,6 +609,15 @@ _HZ_BATTERY = re.compile(
     r"(?:the\s+|a\s+|its\s+|new\s+)?batter(?:y|ies)\b|\bbatter(?:y|ies)\s+(?:is\s+|are\s+|'s\s+)?(?:low|flat|dead|weak|"
     r"dying|needs?|warning|chirp\w*|beep\w*|running (?:out|low)|going)\b|\blow[- ]batter(?:y|ies)\b"
     r"|hết pin|yếu pin|pin yếu|thay pin|đổi pin|pin (?:sắp |đã |bị )?hết|\b(?:het pin|yeu pin|pin yeu|thay pin|doi pin)\b")
+# Tên 1 loại báo trong câu có nói PIN (_hz_battery_kinds): pin của báo khói KHÔNG che báo CO / báo gas đang kêu.
+_HZ_ALARM_NAME = re.compile(
+    r"\b(?:co2?|carbon monoxide|gas|lpg|propane|smoke|fire|heat)(?:[- ]?(?:and|&|/)[- ]?(?:co2?|carbon monoxide|heat|smoke))?"
+    r"[- ]?(?:alarms?|detectors?|sensors?|monitors?)\b|(?:báo|cảm biến|đầu báo|chuông báo)(?: khí)? (?:co|gas|ga|khói|cháy)\b"
+    r"|\b(?:bao|cam bien|dau bao|chuong bao) (?:khi )?(?:co|gas|ga|khoi|chay)\b")
+_HZ_ALARM_KIND_WORDS = (('co', re.compile(r"\bco2?\b|carbon monoxide|\bkhi co\b")),
+                        ('gas', re.compile(r"\b(?:gas|ga|lpg|propane)\b")),
+                        ('smoke', re.compile(r"\bsmok|khói|\bkhoi\b")), ('fire', re.compile(r"\bfire|cháy|\bchay\b")),
+                        ('heat', re.compile(r"\bheat")))
 # Tách câu: dấu câu + liên từ đổi ý; trước "không biết / not sure" (câu lấp lửng đứng riêng).
 _HZ_BREAK = re.compile(
     r"([.!?;,:|\n()\[\]]|\s[-–—]+\s|\s[-–—]+$|^[-–—]+\s)"
@@ -529,7 +687,8 @@ _HZ_JOIN = frozenset(("or", "nor", "hay", "hoặc", "hoac", "\x01"))
 # 'không để ý mùi khét cho đến giờ'. "before or after" / "khi bật máy" / "when I checked" / "từ trước đến giờ không có"
 # (= chưa bao giờ có) thì vẫn là phủ định.
 _HZ_IMPLY = re.compile(
-    r"\b(?:until|till|til|at first|at the start|in the beginning|initially|before|earlier|previously|unless|except|"
+    r"\b(?:until|till|til|at first|at the start|in the beginning|initially|before(?!,? (?:during,? )?(?:or|and) after\b)|"
+    r"earlier|previously|unless|except|"
     r"(?<!anything )(?<!nothing )(?<!something )like (?:this|that)|this (?:bad|much|often|strong)|"
     r"that (?:bad|much|often|strong))\b"
     r"|\bwhen (?:it'?s |it is |its |they'?re |they are |the \w+ is |it was |i )?(?:turned |switched )?(?:off|unplugged|"
@@ -648,7 +807,13 @@ _HZ_BACK = re.compile(
     r"|(?:co lai|bi lai|lai co|lai bi|lai thay|thay lai|van con|van bi|van co)(?:\s+(?:roi|nua|a|luon|lam|nhieu))*)$")
 _HZ_REPORT = (r"(?:(?:the )?(?:customer|client|caller|tenant|owner|they|he|she|khách(?: hàng)?|anh ấy|chị ấy)\s+"
               r"(?:says?|said|confirms?|confirmed|answered|reports?|reported|nói|bảo|trả lời|xác nhận)\s+(?:là\s+)?)?")
-_HZ_YES = re.compile(r"^" + _HZ_REPORT + r"(?:yes|yeah|yep|yup|có|có ạ|dạ có|vâng có|có á|có luôn|đúng rồi|still)$")
+_HZ_YES = re.compile(r"^" + _HZ_REPORT + r"(?:yes|yeah|yep|yup|có|có ạ|dạ có|vâng có|có á|có luôn|đúng rồi|still)"
+                     r"(?:,?\s+(?:very |really |quite |so |rất )?(?:strong(?:ly)?|bad|a lot|definitely|it is|it does|i do|"
+                     r"we do|i can|we can|now|right now|still|nồng|nhiều|lắm|rõ|luôn|ạ|có|nặng))*$")
+# Nhãn câu trả lời ("Q: is there any smell of gas? A: yes strong", "Hỏi: ...? Đáp: có"): không cắt câu hỏi sàng lọc khỏi câu
+# trả lời ngay sau (_hz_scan).
+_HZ_QA_LABEL = frozenset(('a', 'ans', 'answer', 'reply', 'response', 'r', 'đáp', 'trả lời', 'tl', 'tra loi', 'dap',
+                          'customer', 'client', 'caller', 'khách', 'khách hàng', 'kh', 'khach'))
 _HZ_NO = re.compile(r"^" + _HZ_REPORT + r"(?:no|nope|none|nil|n/a|nothing|không|ko|k|hông|không có|ko có|không ạ|"
                     r"dạ không|not that (?:i|we)(?:'m|'re|'ve| am| are| have)? (?:know|knew|aware|seen|noticed|can tell|"
                     r"could tell|remember)(?: of)?|(?:not|none|nothing) (?:seen|noticed|detected|observed|found|present)|"
@@ -680,10 +845,11 @@ _HZ_AGAIN = re.compile(
     r"|vẫn (?:còn|bị|có|thấy|chưa (?:hết|tan|ngừng|dứt)|không (?:hết|tan|ngừng|dứt)|ngửi|nghe|nồng|nặng|chập|xì|bốc|khét)"
     r"|\blại (?:bị|có|thấy|chập|xì|rò|bốc|nổ|khét|ngửi|nghe|xuất hiện|nặng|nồng)|(?:bị|có|thấy|chập|xì|bốc|khét|nổ) lại\b"
     r"|càng|nặng hơn|nồng hơn|mạnh hơn|tái lại|(?:không|chưa|ko) (?:hết|tan|ngừng|dứt)|(?:không|ko|chả|chẳng) (?:tắt|dập|"
-    r"ngắt|làm) (?:\S+ )?(?:được|nổi)"
+    r"ngắt|làm) (?:\S+ )?(?:được|nổi)|cũng (?:bị|có|thấy)(?: \S+){0,2}? (?:nữa|luôn|y vậy|như vậy|như thế)\b|\bbị (?:nữa|luôn)\b"
     r"|\bvan (?:con|bi|co|thay|chua (?:het|tan|ngung|dut)|khong (?:het|tan|ngung|dut)|ngui|nong|nang|chap|xi|boc|khet)\b"
     r"|\blai (?:bi|co|thay|chap|xi|ro|boc|no|khet|ngui|nghe|xuat hien|nang|nong)\b|\b(?:bi|co|thay|chap|xi|boc|khet|no) lai\b"
-    r"|\bcang\b|\b(?:nang|nong|manh) hon\b|\btai lai\b|\b(?:khong|chua|ko) (?:het|tan|ngung|dut)\b")
+    r"|\bcang\b|\b(?:nang|nong|manh) hon\b|\btai lai\b|\b(?:khong|chua|ko) (?:het|tan|ngung|dut)\b"
+    r"|\bcung (?:bi|co|thay)(?: \S+){0,2}? (?:nua|luon)\b|\bbi nua\b")
 _HZ_AGAIN_SOFT = re.compile(r"\b(?:still|again|keeps|kept|constantly)\b|vẫn|\blại\s*$|\blại (?:rồi|nữa)|\blai\s*$|"
                             r"\blai (?:roi|nua)\b|\bvan\s*$")
 _HZ_LATER = re.compile(r"\b(?:now|today|tonight|this (?:morning|afternoon|evening)|right now)\b|bây giờ|^giờ\b|"
@@ -745,19 +911,42 @@ _HZ_NOUNS = (('gas', re.compile(r"\bgas|\bmùi|\bsmell|\bodou?r")), ('burning', 
 # Từ thuộc HỌ nguy hiểm (tên nhóm = họ). 'water' chỉ tính khi tin nhắn có đồ điện (_HZ_NET_ELEC); 'alarm' bỏ qua khi báo
 # kêu vì pin / vì nấu ăn (như bước chính xác).
 _HZ_NET = re.compile(
-    r"(?P<gas>\b(?:gas{1,2}|gaz|propane|lpg|butane)\b|khí đốt|\bkhi dot\b|\b(?:bình|khí|hơi|binh) ga\b|\bga (?:bị|đang|vẫn|cứ)\b)"
+    r"(?P<gas>\b(?:gas{1,2}|gaz|propane|lpg|butane)\b|khí đốt|\bkhi dot\b|\b(?:bình|khí|hơi|binh) ga\b|\bga (?:bị|đang|vẫn|cứ)\b"
+    r"|(?<!nhà )(?<!chân )(?<!tăng )(?<!nhấn )(?<!đạp )(?<!bóp )(?<!sân )(?<!bến )(?<!nha )(?<!chan )\bga\b"
+    r"(?! (?:giường|trải|gối|nệm|lăng|ra|tàu|xe lửa|metro|quốc tế|nội địa|giuong|trai|goi|nem|lang|tau)\b))"
     r"|(?P<smell>\b(?:sme+l+(?:s|t|ed|led|ing|y|ie)?|odou?rs?|reek\w*|whiff\w*|stink\w*|stank|stench|fumes?)\b|mùi|"
-    r"(?<!mồ )\bhôi\b|khét|\b(?:mui|khet)\b)"
+    r"(?<!ping )(?<!beer )\bpong(?:s|y|ing)?\b|"
+    r"(?<!mồ )\bhôi\b|khét|\bmui\b(?! (?:khoan|ten|xe|giay|dao|nhon|kim|vit|tau|thuyen)\b)|\bkhet\b)"
     r"|(?P<sparks>\bspark(?:s|ed|ing|in)?\b(?![- ](?:plugs?|arrest\w*|gaps?))|\barc(?:s|ed|ing)?\b|\bcrackl\w*|"
     r"\bbuzz(?:es|ed|ing|y)?\b|\bhiss\w*|\bflash(?:es|ed|ing)?\b|\bbang(?:s|ed)?\b|\bsizzl\w*|xẹt|lách tách|"
-    r"\blach tach\b|\brè\b|\bxì\b|\b(?:tieng xi|keu re|re re|xi xi)\b)"
+    r"\blach tach\b|\brè\b|\bxì\b(?! (?:gà|dầu|trum|tin|căng|ke|po|xào)\b)|\b(?:tieng xi|keu re|re re|xi xi)\b)"
     r"|(?P<smoke>\bsmok(?:e|es|ed|ing|y|ey)\b|khói|\b(?:boc|co|xi|toa|nhieu|day) khoi\b(?! (?:dong|dau|nghia|phat|tao|"
     r"xuong|cong)))"
     r"|(?P<burning>\bburn(?:s|t|ed|ing)?\b|\bscorch\w*|\bmelt(?:s|ed|ing)?\b|\bchar(?:red|ring)\b|\bsinge[ds]?\b|cháy|"
     r"(?<!nước )chảy\b(?! (?:nước|ra nước|rỉ|róc|dầu|máu|mủ|xuống|tràn|ra|hoài|liên tục|nhỏ giọt|thành|ròng|tong))|"
-    r"\b(?:bi|boc) chay\b(?! (?:nuoc|ri|ra))|\bnong chay\b|\bchay (?:khet|den|xem)\b)"
+    r"\b(?:bi|boc) chay\b(?! (?:nuoc|ri|ra))|\bnong chay\b|\bchay (?:khet|den|xem)\b|\boverheat\w*|"
+    r"\b(?:insulation|cables?|wires?|wiring|cords?|leads?|plugs?|outlets?|sockets?|sheath\w*|casing|coating)" + _HZ_GAP
+    + r"{0,3}? (?:is |are |was |were |has |have |got |looks? |started |starting |keeps? )*(?:bubbl\w*|blister\w*|deform\w*|"
+    r"warp\w*|discolou?r\w*|swell\w*|swollen)\b|\b(?:bubbl\w*|blister\w*|discolou?r\w*|warped|deformed|swollen) "
+    r"(?:insulation|cables?|wires?|wiring|cords?|plugs?|outlets?|sockets?|switch\w*|power ?points?)\b|"
+    r"\b(?:outlets?|sockets?|plugs?|power ?points?|gpos?|switch(?:es|board|boards)?|fuse ?box(?:es)?|breakers?|wires?|"
+    r"wiring|cables?|cords?|leads?|power ?boards?|chargers?|adapt[eo]rs?|batter(?:y|ies)|meter ?box(?:es)?|panels?)"
+    + _HZ_GAP + r"{0,4}? (?:hot|warm|warmer|heating up|heats up)\b(?! (?:water|tub|plate|shower|tap|side|spot)\b)|"
+    r"(?:ổ cắm|ổ điện|phích cắm|phích|công tắc|dây điện|dây sạc|dây nguồn|tủ điện|cầu dao|aptomat|bảng điện|cục sạc)"
+    r"(?: (?!(?:không|ko|chưa|chẳng|chả|hết|hông|k|bình|máy|nước|lò|bếp|dây)\b)\S+){0,3}? (?:bị |rất |hơi |quá |cứ |"
+    r"đang |nghe |thấy |sờ |sờ vào |sờ vô )*(?:nóng|ấm)\b(?! (?:lạnh|nước)\b)|"
+    r"(?:vỏ |lớp )?(?:dây điện|dây|cáp|ổ cắm|phích cắm|công tắc)(?: (?!(?:không|ko|chưa|chẳng|chả|hết|hông|k)\b)\S+){0,2}? (?:bị )?(?:phồng(?: rộp)?|rộp|sủi bọt|"
+    r"biến dạng|đổi màu|biến màu)\b)"
     r"|(?P<shock>\bshock(?:s|ed|ing)?\b|\bzap(?:s|ped|ping)?\b|\btingl\w*|\belectrocut\w*|giật|\btê\b|rò điện|"
-    r"\b(?:bi giat|dien giat|giat dien|ro dien|bi te|te tay|te nguoi|te chan|te te)\b)"
+    r"\b(?:bi giat|dien giat|giat dien|ro dien|bi te|te tay|te nguoi|te chan|te te|chich dien|dien chich|dien can)\b|"
+    r"chích điện|điện (?:bị )?chích|điện cắn|tê rần|giật tê|\bbị chích\b(?! (?:ngừa|thuốc|vắc|vacxin|vaccine|máu)\b)|"
+    r"\bjolt(?:s|ed|ing)?\b|\bnumb(?:ness)?\b|"
+    r"\b(?:bites?|biting) (?:me|you|him|her|us|them|my \w+)\b(?=(?: [\w']+){0,3}? (?:when|whenever|if|every time|each "
+    r"time)\b)|\b(?:metal|railings?|rails?|taps?|sinks?|handles?|frames?|pipes?|baths?|gutters?|roofs?|appliances?|"
+    r"fridges?|ovens?|washing machines?|washers?|dryers?|casings?|chassis|showers?|mixers?|kettles?|heaters?|stoves?|"
+    r"cooktops?|letterbox\w*|poles?|switch\w*|outlets?|sockets?|wires?|wiring|cables?|cords?)" + _HZ_GAP + r"{0,2}? "
+    r"(?:is|are|was|were|feels?|seems?|has gone|have gone) (?:still |now |totally |completely )?(?:live|electrified|"
+    r"energi[sz]ed)\b|\belectrified\b)"
     r"|(?P<water>\bwater\b|\bflood(?:s|ed|ing)?\b|\bwet\b|\bsoak(?:ed|ing)\b|\bleak(?:s|ed|ing|y)?\b|"
     r"\bdrip(?:s|ped|ping)?\b|nước|ngập|ướt|dột|\b(?:nuoc|ngap|uot)\b)"
     r"|(?P<alarm>\b(?:alarms?|detectors?|sirens?)\b(?=(?: [\w']+){0,4}? (?:going off|went off|goes off|gone off|go off|"
@@ -765,7 +954,7 @@ _HZ_NET = re.compile(
     r"activated)\b)|(?:báo động|thiết bị báo|đầu báo|cảm biến|máy báo|chuông báo|còi báo)(?=(?: \S+){0,3}? "
     r"(?:kêu|hú|reo|réo|báo động)\b)|\b(?:bao dong|dau bao|cam bien|chuong bao|coi bao)\b(?=(?: \S+){0,3}? "
     r"(?:keu|hu|reo)\b))"
-    r"|(?P<fire>\bfires?\b|lửa|\b(?:boc|co|toe|phut|ngon|tia|bat|lan|chay) lua\b)")
+    r"|(?P<fire>\bfires?\b|\bflam(?:e|es|ing)\b|lửa|\b(?:boc|co|toe|phut|ngon|tia|bat|lan|chay) lua\b)")
 # Đồ điện cho họ 'water' (nước / ngập / leak + đồ điện trong CÙNG tin nhắn).
 _HZ_NET_ELEC = re.compile(
     r"\b(?:outlets?|sockets?|power ?points?|gpos?|plugs?|switch(?:es|board|boards)?|fuse ?box(?:es)?|breakers?|panels?|"
@@ -796,6 +985,7 @@ _HZ_NET_SAFE = re.compile(
     r"|\b(?:gas|electric|electricity|lpg|propane|natural gas|induction|solar|heat pump)(?: or | and |/| vs | versus )"
     r"(?:gas|electric|electricity|lpg|propane|natural gas|induction|solar|heat pump)\b"
     r"|\b(?:convert\w*|conversion)(?: [\w']+){0,4}? (?:to|from) (?:natural gas|lpg|propane|gas)\b"
+    r"(?: (?:to|from|and|or) (?:natural gas|lpg|propane|gas)\b)?"
     r"|(?:bếp|lò|máy nước nóng|bình nóng lạnh|máy sấy|đầu đốt|họng|bếp nướng) (?:gas|ga)\b(?!(?: bị)? (?:xì|rò|hở))"
     r"|(?:đổi|thay|giao|gọi|mua|đặt|nạp|sang|chiết|lắp|bán|ship|hết|thiếu|bơm|châm|sạc|thêm|hụt|xả|kiểm tra)"
     r"(?: \S+){0,2}? (?:bình )?(?:gas|ga)\b(?!(?: bị)? (?:xì|rò|hở))"
@@ -805,7 +995,8 @@ _HZ_NET_SAFE = re.compile(
     # mùi KHÔNG nguy hiểm: ẩm mốc / cống / rác / thức ăn / sơn, "smells fine", máy lạnh có mùi hôi (vệ sinh máy)
     r"|\bsme+l+(?:s|y)? (?:fine|ok|okay|normal|good|nice|great|clean|fresh|lovely|better|amazing)\b"
     r"|\b(?:musty|mouldy|moldy|mildew\w*|damp|sewer|sewage|drain|drains|toilet|rubbish|garbage|bin|food|cooking|paint|"
-    r"perfume|pet|dog|cat|wet dog|sweaty?|socks?|new car)(?: [\w']+)?? (?:sme+l+\w*|odou?rs?|stink|stench|whiff)\b"
+    r"perfume|pet|dog|cat|wet dog|sweaty?|socks?|new car|cigarettes?|cigars?|tobacco)(?: [\w']+)?? (?:sme+l+\w*|odou?rs?|"
+    r"stink\w*|stench|whiff)\b"
     r"|\b(?:sme+l+\w*|odou?rs?|stinks?|stinky|stench|reeks?) (?:a bit |kind of |kinda |really |very |so |quite |"
     r"a little |slightly )?(?:musty|mouldy|moldy|mildew\w*|damp|stale|of (?:sewage|sewer|drains?|damp|mould|mold|mildew|"
     r"rubbish|garbage|food|paint|cooking|dog|cat|wet dog)|like (?:sewage|a sewer|drains?|damp|mould|mold|mildew|rubbish|"
@@ -830,6 +1021,7 @@ _HZ_NET_SAFE = re.compile(
     r"|\b(?:kettle|radiator|steam|tyres?|tires?|cat|snake|pressure cooker|espresso|coffee machine|coffee maker|soda|"
     r"fizzy drink)(?: [\w']+){0,3}? (?:hiss\w*|fizz\w*)"
     r"|\b(?:lights?|leds?|lamps?|bulbs?|indicators?|displays?|screens?|icons?|symbols?|codes?|errors?|clocks?|numbers?|"
+    r"thermostats?|"
     r"digits?|buttons?)(?: [\w']+){0,3}? (?:flash\w*|blink\w*)"
     r"|\bflash\w* (?:an? )?(?:error|code|e\d+|f\d+|red|green|orange|amber|yellow|blue|white|lights?|leds?|numbers?|"
     r"on and off)\b|\bflash ?(?:lights?|drives?|sale|card)\b|\bcamera flash\b|\bflash flood\w*"
@@ -850,7 +1042,8 @@ _HZ_NET_SAFE = re.compile(
     r"cake|meal|candles?|incense|wood|logs?|firewood|calories|fat|cds?|dvds?|discs?|rubbish|leaves|myself|"
     r"my (?:hand|finger|arm|tongue))\b"
     r"|\b(?:ice|ice cream|snow|frost|chocolate|butter|cheese|wax|candle wax|food|frozen food|frozen goods|"
-    r"everything in the freezer)(?: [\w']+){0,3}? melt\w*|\bmelt\w* (?:ice|snow|frost|chocolate|butter|cheese)\b"
+    r"everything in the freezer)(?: [\w']+){0,4}? melt\w*|\bmelt\w* (?:ice|snow|frost|chocolate|butter|cheese)\b"
+    r"|đá(?: \S+){0,2}? (?:bị |đã |đang )?(?:chảy|tan)\b"
     r"|cơm cháy|cháy (?:hàng|vé|lịch|túi|nắng)|(?:nắng|nóng)(?: như)? cháy (?:da|người|mặt|đầu|cả người)|cháy sém da"
     r"|(?:máy lạnh|máy điều hòa|máy điều hoà|điều hòa|điều hoà|tủ lạnh|máy giặt|máy rửa chén|máy rửa bát|bình nóng lạnh|"
     r"máy nước nóng|vòi|vòi nước|ống|ống nước|bồn|bồn cầu|cống|mái|trần|tường|máng xối|nước)(?: \S+){0,2}? "
@@ -895,6 +1088,51 @@ _HZ_NET_SAFE = re.compile(
     r"(?! (?:in|inside|at|from|behind|under|on|near|everywhere))"
     r"|(?:không|ko|chưa|chẳng|hông|k) (?:\S+ )?(?:lên|bắt|đánh|ra|mồi|bật) lửa|lửa (?:yếu|nhỏ|đỏ|vàng|xanh|riu|lúc|"
     r"không|bị tắt|tắt|chập chờn)|(?:đánh|mồi|lên|bật) lửa|bộ đánh lửa|lửa trại|bật lửa")
+# ---------------------------------------------------------------- SÀN THÔ (bước 0, xem LUẬT AN TOÀN THEO CẤU TRÚC ở đầu)
+# Từ thuộc họ nguy hiểm gõ KHÔNG DẤU, tìm trên bản BỎ DẤU (_hz_fold) của văn bản gốc — cụm 2-3 chữ để không nhầm ("chay o
+# cam", "day dien chay", "xet lua", "o cam nong qua", "chich dien", "ong ga ... ro ri"). 'wet' = nước / ngập / ướt thường
+# (chỉ tính khi tin nhắn có đồ điện, như 'water' của lưới); 'water' = ngập nhà / vỡ ống (luôn tính).
+_HZ_FOLD = re.compile(
+    r"(?P<gas>\bkhi dot\b|\b(?:binh|bep|van|ong|day|bon|khi|hoi|mui|ro ri|ro|xi|ho|nap|doi|het|thay|thieu|bom) ga(?:s|z)?\b"
+    r"(?! (?:giuong|trai|goi|nem|lang|ra|tau)\b)|\bga(?:s|z)? (?:bi|dang|van|cu|ro|xi|ho|keu)\b)"
+    r"|(?P<smell>\bmui\b(?! (?:khoan|ten|xe|giay|dao|nhon|kim|vit|tau|thuyen)\b)|\bkhet\b|\bhoi thoi\b|\bboc mui\b)"
+    r"|(?P<sparks>\b(?:tia|xet|toe|nhay) (?:lua|dien)\b|\bchap (?:dien|mach|chay)\b|\bbi chap\b(?! chon)|\bdoan mach\b|"
+    r"\blach tach\b|\b(?:keu|bi) re\b|\btieng xi\b|\bxi xi\b|(?<!xem )\bxet\b(?! (?:nghiem|duyet|xu|tuyen|thay|lai|hoc)\b)|"
+    r"\b(?:o cam|o dien|phich cam|cong tac|day dien|tu dien|cau dao|aptomat|bang dien)(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k)\b)\S+){0,2}? (?:bi |dang )?"
+    r"(?:chap|no|xet)\b)"
+    r"|(?P<smoke>\b(?:bao|ong|bam|am) khoi\b|\bkhoi (?:bep|thuoc|nhang|huong|xe|bui|nuong|dau|nau)\b|"
+    r"\b(?:boc|xi|toa|co|nhieu|day|phun|bay|tran|tat|bi|ra|thay|ngui thay) khoi\b(?! (?:dong|dau|nghia|phat|tao|"
+    r"xuong|cong|nghiep|su|diem|hanh|lap|nha|phong|cua|benh|ham|cho)\b)|\bkhoi (?:den|trang|xam|mu|nghi ngut|bay|tran|tat|"
+    r"boc|xong|cuon|um|tu|o)\b)"
+    r"|(?P<burning>\b(?:bao|chong|phong) chay\b|"
+    r"\bchay (?:o cam|o dien|day dien|tu dien|cong tac|bang dien|phich cam|cau dao|aptomat|nha|bep|khet|den|"
+    r"xem|nhua)\b|\b(?:o cam|o dien|day dien|day sac|day nguon|tu dien|cong tac|bang dien|phich cam|phich|cau dao|aptomat|"
+    r"bong den)(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k)\b)\S+){0,2}? (?:bi |dang |da )?chay\b(?! (?:nuoc|ri|ra|am|doc|ngam|qua|theo|tren|duoi|xuyen|vao|toi|tu|len|"
+    r"xuong|ngoai|trong|quanh|ve|sang|thang|noi|khap|may|bao|dai|ngang|vong|lung|tot|on|binh|duoc|ok|lai|ngon|het|di|em|"
+    r"that|rat|nhu|cho|bang)\b)|\b(?:bi|boc) chay\b(?! (?:nuoc|ri|ra)\b)|\bnong chay\b|\bchay nhua\b|\bmui (?:chay|khet)\b|"
+    r"\b(?:o cam|o dien|phich cam|phich|cong tac|day dien|day sac|day nguon|tu dien|cau dao|aptomat|bang dien|cuc sac)"
+    r"(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k|binh|may|nuoc|lo|bep|day)\b)\S+){0,3}? (?:bi |rat |hoi |qua |cu |dang |"
+    r"nghe |thay )*nong\b(?! (?:lanh|nuoc)\b)|\b(?:day dien|vo day|cap|o cam|phich cam)(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k)\b)\S+){0,2}? (?:bi )?(?:phong rop|"
+    r"rop|sui bot|bien dang)\b)"
+    r"|(?P<shock>\b(?:dien giat|giat dien|bi giat|giat te|ro dien|ro ri dien|(?<!dong )ho dien|lot dien|dien ro|chich dien|"
+    r"dien chich|"
+    r"dien can|bi te|te tay|te nguoi|te chan|te te|te ran)\b|\bbi chich\b(?! (?:ngua|thuoc|vac|vacxin|vaccine|mau)\b))"
+    r"|(?P<water>\bngap (?:nuoc|nha|san|bep|phong|tang|ham|het)\b|\bnuoc ngap\b|\b(?:bi|dang) ngap\b|"
+    r"\b(?:vo|be|buc|no) ong nuoc\b|\bong nuoc (?:bi )?(?:vo|be|buc)\b)"
+    r"|(?P<wet>\b(?:nuoc|ngap|uot|dot|ri nuoc|tham nuoc|ngam nuoc)\b)"
+    r"|(?P<alarm>\b(?:bao dong|dau bao|cam bien|chuong bao|coi bao|bao khoi|bao chay|bao co|bao gas|bao ga|may bao)"
+    r"(?: (?!(?:khong|ko|chua|chang|cha|het|hong|k)\b)\S+){0,3}? (?:keu|hu|reo|bip|bao dong)\b)"
+    r"|(?P<fire>\b(?:boc|co|toe|phut|ngon|tia|bat|xet|nhay|ben|thay) lua\b(?! chon)|\blua (?:boc|bung|lan|phut|toe|xet|"
+    r"ngun ngut)\b|\blua (?:o|tu|trong|cho|tai|sau|duoi|gan|quanh) (?:cai |cac |cho )?(?:o cam|o dien|tu dien|day dien|"
+    r"cong tac|bang dien|cau dao|phich cam|aptomat|may|bep|tuong|tran)\b|\b(?:hoa hoan|phat hoa|boc chay|bung chay|chay no|"
+    r"phat no|chay lan)\b)")
+# Chữ CÓ DẤU mà bản bỏ dấu trùng 1 từ thuộc họ nhưng nghĩa KHÁC ("chạy" ≠ cháy, "máy giặt", "mũi khoan", "ra khỏi nhà",
+# "xem xét", "lúa", "gà", "rõ ràng", "đốt / đột" ≠ dột): khớp _HZ_FOLD chứa chữ này thì bỏ (bản có dấu đã tự quyết).
+_HZ_HOMOGRAPH = frozenset((
+    'mũi', 'chạy', 'chày', 'giặt', 'khỏi', 'khởi', 'khôi', 'xét', 'lúa', 'lừa', 'lựa', 'lụa', 'tệ', 'té', 'tế', 'tè', 'gà',
+    'gã', 'gạ', 'gá', 'rõ', 'rổ', 'rỗ', 'nông', 'đốt', 'đột', 'dốt', 'ngáp', 'rẻ', 'rể', 'rễ', 'rẽ', 'vô', 'bé', 'bế', 'nở',
+    'nợ', 'chấp', 'chắp', 'âm', 'hỏi', 'hội'))
+_HZ_FOLD_CHAR = {}
 
 
 def _fn(name, desc, props, required=()):
@@ -946,7 +1184,8 @@ PROMPT_RULES = {
            "emergency number. If they ruled a danger out and then say 'now', 'still', 'again', 'worse' or 'came back', "
            "treat it as not ruled out. A range hood that doesn't clear cooking smoke, a chimney or smoke alarm battery job, "
            "a toilet / sink / appliance leak with no power nearby, hot weather ('burning hot', 'scorching'), or a danger "
-           "the customer clearly rules out, is a normal job."),
+           "the customer clearly rules out, is not an emergency (never tell them to evacuate): create it as a normal "
+           "request — if it still names a hazard word the system flags it for a team check, so pass on what it returns."),
     'vi': ("LUẬT DỊCH VỤ KỸ THUẬT: Em chỉ NHẬN yêu cầu; đội kỹ thuật quyết định ai đi và lúc nào. Trước khi gọi "
            "technical_request_job cần: tên + SĐT khách, địa chỉ đầy đủ (số nhà, đường, phường/quận, thành phố), hỏng gì, ngày "
            "+ buổi mong muốn, mức độ gấp. Không hứa giờ tới, giá sửa, người làm hay \"đã đặt lịch\" — nói đội sẽ gọi xác nhận. "
@@ -958,8 +1197,9 @@ PROMPT_RULES = {
            "urgency 'urgent' (nhân viên gọi kiểm tra) và dặn: nếu ngay lúc này ngửi thấy gas, thấy tia lửa hay khói thì ra "
            "chỗ an toàn và gọi số khẩn cấp. Khách nói đã hết / không có rồi lại nói \"giờ\", \"vẫn\", \"lại\", \"nặng hơn\" "
            "thì coi như CHƯA loại trừ. Máy hút mùi không hút hết khói bếp, ống khói, pin báo khói, bồn cầu / máy giặt tràn "
-           "nước không gần điện, trời nóng (\"nóng như đốt\", \"burning hot\") hay nguy hiểm khách nói rõ là KHÔNG có là "
-           "việc thường."),
+           "nước không gần điện, trời nóng (\"nóng như đốt\", \"burning hot\") hay nguy hiểm khách nói rõ là KHÔNG có thì "
+           "KHÔNG phải khẩn cấp (không bảo sơ tán): tạo như việc thường — nếu mô tả vẫn có từ nguy hiểm, hệ thống tự đánh "
+           "dấu để đội gọi kiểm tra, cứ chuyển lời công cụ trả về."),
 }
 
 
@@ -969,6 +1209,19 @@ def _err(msg):
 
 def _hz_norm(text):
     return unicodedata.normalize('NFC', str(text or '')).replace('\u2019', "'").replace('\u2018', "'").lower()
+
+
+def _hz_fold(s):
+    """Bản BỎ DẤU CÙNG ĐỘ DÀI (mỗi ký tự -> đúng 1 ký tự, vị trí giữ nguyên): 'cháy ổ cắm' -> 'chay o cam', 'đ' -> 'd'."""
+    out = []
+    for ch in s:
+        f = _HZ_FOLD_CHAR.get(ch)
+        if f is None:
+            base = ''.join(c for c in unicodedata.normalize('NFD', ch) if not unicodedata.combining(c))
+            f = 'd' if ch in 'đĐ' else (base if len(base) == 1 else ch)
+            _HZ_FOLD_CHAR[ch] = f
+        out.append(f)
+    return ''.join(out)
 
 
 def _hz_statements(t):
@@ -1152,6 +1405,8 @@ def _hz_scan(t, find):
         if not last:
             continue
         bare = st.strip(" .!?'\"")
+        if delim == ':' and bare in _HZ_QA_LABEL:
+            continue   # "Q: is there any smell of gas? A: yes strong": nhãn "A:" không cắt câu hỏi khỏi câu trả lời
         # trả lời 1 chữ chỉ cho câu hỏi sàng lọc NGAY trước: "Gas smell? No"; "Sparks: yes | gas: no" thì "no" là của "gas"
         asked, adjacent = adjacent and last_delim[:1] in ('?', ':', '-', '–', '—'), False
         if _HZ_GONE.match(bare) or (asked and _HZ_NO.match(bare)):
@@ -1171,31 +1426,143 @@ def _hz_scan(t, find):
     return states
 
 
-def hazard_check(text):
-    """(kết luận, {loại nguy hiểm: trạng thái câu cuối}) — xem classify_hazard (bước 1-4 chính xác, bước 5 LƯỚI AN TOÀN:
-    khoá 'possible_<họ>')."""
-    t = _hz_norm(text)
-    battery = bool(_HZ_BATTERY.search(t))
-    nuisance = bool(_HZ_ALARM_NUISANCE.search(t))   # lưới: báo kêu vì nấu ăn / hơi nước ở BẤT KỲ câu nào của tin nhắn
-    # nước tràn chỉ do bồn cầu / máy giặt / máy rửa chén... mà không nhắc đồ điện: việc ống nước thường
-    plumbing_only = bool(_HZ_PLUMB_SRC.search(t)) and not _HZ_PLUMB_ELEC.search(_HZ_PLUMB_OUTLET.sub(' ', t))
-    vent = bool(_HZ_VENT_CTX.search(t))
-    t = _HZ_SMELL_IT.sub(r'\1gas', _HZ_SMELL_JOIN.sub(r'\1 ', t))
-    t = _HZ_PERSON_SMOKE.sub(' zzx ', _HZ_EXCLUDE.sub(' zzx ', t))
-    t = _HZ_COOK_SMOKE.sub(' zzx ', _hz_mask_heat(t))
-    if vent:
-        t = _HZ_VENT_SMOKE.sub(' zzx ', t)
-    # danh sách chỉ gồm từ khoá — kể cả từ của LƯỚI AN TOÀN ("No gas smell, buzzing or crackling") — giữ trong 1 câu
-    for run in reversed(list(_HZ_KW_LIST.finditer(_hz_mark(t)))):   # cùng độ dài: vị trí giữ nguyên
+def _hz_ctx_live(t, rx, idle=True):
+    """rx (ngữ cảnh CẢ tin nhắn: ống khói / lò sưởi, máy hút mùi yếu, nguồn nước) có ÍT NHẤT 1 lần nhắc KHẲNG ĐỊNH: không bị
+    phủ định ngay trước ("we don't have a fireplace", "no fireplace here", "haven't used the fireplace", "không có lò
+    sưởi") và — khi idle — không nói là đang tắt / không dùng ngay sau ("wood heater but its off", "ống khói nhưng không
+    dùng"). Luật 3: lớp che chỉ được dựa vào ngữ cảnh mà cách đọc có-phủ-định cho thấy là THẬT."""
+    for m in rx.finditer(t):
+        if _HZ_CTX_NEG_BEFORE.search(t[max(0, m.start() - 60):m.start()]):
+            continue
+        if idle and _HZ_CTX_IDLE_AFTER.match(t[m.end():m.end() + 80]):
+            continue
+        return True
+    return False
+
+
+def _hz_alarm_kinds(s):
+    """Loại báo được nhắc trong s: {'co', 'gas', 'smoke', 'fire', 'heat'} (rỗng = không rõ loại: "the alarm is beeping")."""
+    return {k for k, rx in _HZ_ALARM_KIND_WORDS if rx.search(s)}
+
+
+def _hz_battery_kinds(t):
+    """Loại báo được nói là HẾT / YẾU PIN, theo TỪNG câu có nói pin ('*' = câu nói pin mà không nêu loại báo): "low
+    battery on the smoke alarm in the hall, but the CO alarm in the bedroom is beeping" -> {'smoke'} (báo CO vẫn kêu)."""
+    out = set()
+    for st, _ in _hz_statements(t):
+        if _HZ_BATTERY.search(st):
+            kinds = set()
+            for m in _HZ_ALARM_NAME.finditer(st):
+                kinds |= _hz_alarm_kinds(m.group())
+            out |= kinds or {'*'}
+    return out
+
+
+def _hz_battery_covers(bkinds, s):
+    """Báo trong s kêu bíp là do PIN đã được nói tới: cùng loại báo, hay báo không rõ loại."""
+    if not bkinds:
+        return False
+    kinds = _hz_alarm_kinds(s)
+    return '*' in bkinds or not kinds or kinds <= bkinds
+
+
+def _hz_mask(t, rx, guard=True):
+    """Thay cụm KHÔNG nguy hiểm rx bằng ' zzx ' — trừ khi (guard) cụm có từ phủ định BÊN TRONG ("smoke not from cooking",
+    "the fireplace never smokes") hay ngay TRƯỚC ("không nấu ăn mà khói tràn vào", "isn't from the fireplace"): cách đọc
+    có phủ định có thể cho thấy nguy hiểm ĐANG có, nên để luật câu (bước 2-4) tự xét (luật 3)."""
+    def sub(m):
+        if guard and (_HZ_ANY_NEG.search(m.group()) or _HZ_MASK_NEG_BEFORE.search(t[max(0, m.start() - 40):m.start()])):
+            return m.group()
+        return ' zzx '
+    return rx.sub(sub, t)
+
+
+def _hz_join_lists(t, mark):
+    """Danh sách chỉ gồm từ khoá (mark(t): từ khoá = NUL cùng độ dài) giữ trong 1 câu: dấu phẩy / and -> '\x01' (= or)."""
+    for run in reversed(list(_HZ_KW_LIST.finditer(mark(t)))):
         seg = re.sub(r"\b(?:and|và|va)\b", '\x01', t[run.start():run.end()].replace(',', ' \x01 '))
         t = t[:run.start()] + seg + t[run.end():]
+    return t
+
+
+def _hz_raw_scan(t):
+    """BƯỚC 0 — SÀN THÔ: {họ: trạng thái câu cuối} của MỌI từ thuộc họ nguy hiểm trong văn bản GỐC (đã chuẩn hoá, CHƯA che
+    cụm nào, chưa nối mùi gas), cùng cấu trúc 2 lớp như bước 1-5 nhưng KHÔNG có lớp che nào: lớp 1 = từ khoá chính xác _HZ;
+    lớp 2 = từ thuộc họ ngoài chúng — _HZ_NET trên bản có dấu rồi _HZ_FOLD trên bản bỏ dấu (bỏ khớp chứa chữ có dấu mang
+    nghĩa khác, _HZ_HOMOGRAPH; từ chồng lên từ đã lấy thì bỏ). Nước / ướt / leak thường chỉ tính khi tin nhắn có đồ điện
+    (như 'water' của lưới); ngập / vỡ ống của _HZ luôn tính. Mỗi họ lấy trạng thái NẶNG nhất của 2 lớp."""
+    plain = _HZ_PLUMB_OUTLET.sub(' ', t)
+    elec = bool(_HZ_NET_ELEC.search(plain) or _HZ_NET_ELEC.search(_hz_fold(plain)))
+
+    def family(st):
+        spans = [(m.start(), m.end()) for m in _HZ.finditer(st)]
+        found = []
+
+        def take(m, cat):
+            if all(m.end() <= a or m.start() >= b for a, b in spans):
+                found.append((m, cat))
+                spans.append((m.start(), m.end()))
+
+        for m in _HZ_NET.finditer(_hz_blank(st, _HZ)):
+            if m.lastgroup != 'water' or elec:
+                take(m, m.lastgroup)
+        for m in _HZ_FOLD.finditer(_hz_fold(st)):
+            cat = m.lastgroup
+            if (cat == 'wet' and not elec) or _HZ_HOMOGRAPH.intersection(re.findall(r"[^\W_]+", st[m.start():m.end()])):
+                continue
+            take(m, 'water' if cat == 'wet' else cat)
+        marked = list(st)
+        for a, b in spans:
+            marked[a:b] = '\x00' * (b - a)
+        return found, ''.join(marked)
+
+    def precise(st):
+        found = [(m, m.lastgroup) for m in _HZ.finditer(st)]
+        return (found[0][0].start() if found else None), found, None
+
+    def net(st):
+        found, marked = family(st)
+        return (min(m.start() for m, _ in found) if found else None), found, marked if found else None
+
+    t = _hz_join_lists(t, lambda s: family(s)[1])
+    out = _hz_scan(t, precise)
+    for c, v in _hz_scan(t, net).items():
+        if _HZ_RANK[v] > _HZ_RANK.get(out.get(c), 0):
+            out[c] = v
+    return out
+
+
+def hazard_check(text):
+    """(kết luận, {loại nguy hiểm: trạng thái câu cuối}) — xem classify_hazard và LUẬT AN TOÀN THEO CẤU TRÚC ở đầu bộ phân
+    loại: bước 0 SÀN THÔ, bước 1-4 chính xác, bước 5 LƯỚI AN TOÀN (khoá 'possible_<họ>'), bước 6 max với sàn thô."""
+    t = _hz_norm(text)
+    raw = _hz_raw_scan(t)   # bước 0: họ nguy hiểm trên văn bản GỐC — TRƯỚC mọi lớp che bên dưới
+    bkinds = _hz_battery_kinds(t)   # loại báo được nói là hết pin (theo câu, không còn theo cả tin nhắn)
+    nuisance = bool(_HZ_ALARM_NUISANCE.search(t))   # lưới: báo kêu vì nấu ăn / hơi nước ở BẤT KỲ câu nào của tin nhắn
+    # nước tràn chỉ do bồn cầu / máy giặt / máy rửa chén... (nhắc KHẲNG ĐỊNH) hay nước mưa ngoài sân (không nhắc chỗ trong
+    # nhà) mà không nhắc đồ điện: việc ống nước — chỉ chặn 'danger', sàn thô vẫn giữ 'uncertain'
+    plumbing_only = (not _HZ_PLUMB_ELEC.search(_HZ_PLUMB_OUTLET.sub(' ', t))
+                     and (_hz_ctx_live(t, _HZ_PLUMB_SRC, idle=False)
+                          or (_hz_ctx_live(t, _HZ_OUTDOOR_SRC, idle=False) and not _HZ_INDOOR.search(t))))
+    # khói lò sưởi / ống khói tạt vào: chỉ khi lò sưởi / ống khói được nhắc KHẲNG ĐỊNH, đang dùng, không "no fire going",
+    # và khói không phải "từ đâu không biết" (luật 3)
+    vent = (((_hz_ctx_live(t, _HZ_VENT_CTX) and not _HZ_NO_FIRE.search(t)) or _hz_ctx_live(t, _HZ_HOOD_CTX))
+            and not _HZ_UNKNOWN_SRC.search(t))
+    t = _HZ_SMELL_IT.sub(r'\1gas', _HZ_SMELL_JOIN.sub(r'\1 ', t))
+    t = _hz_mask(_hz_mask(t, _HZ_EXCLUDE), _HZ_PERSON_SMOKE)
+    t = _hz_mask(_hz_mask(_hz_mask(_hz_mask_heat(t), _HZ_COOK_SMOKE), _HZ_HOOD_WEAK, guard=False), _HZ_FOOD_BURNT)
+    if vent:
+        t = _hz_mask(t, _HZ_VENT_SMOKE)
+    # danh sách chỉ gồm từ khoá — kể cả từ của LƯỚI AN TOÀN ("No gas smell, buzzing or crackling") — giữ trong 1 câu
+    t = _hz_join_lists(t, _hz_mark)
 
     def precise(st):
         found = []
         for m in _HZ.finditer(st):
             cat = m.lastgroup
-            if cat in ('co', 'alarm') and battery and re.search(r"beep|chirp|kêu|keu|bíp|\bbip", m.group()):
-                continue   # báo CO / báo khói kêu bíp vì hết pin
+            if (cat in ('co', 'alarm') and re.search(r"beep|chirp|kêu|keu|bíp|\bbip", m.group())
+                    and _hz_battery_covers(bkinds, m.group())):
+                continue   # báo CO / báo khói kêu bíp vì hết pin — chỉ đúng LOẠI báo được nói là hết pin
             if cat == 'alarm' and _HZ_ALARM_NUISANCE.search(st):
                 continue   # báo khói kêu mỗi khi nấu ăn / tắm (hơi nước): đã rõ nguyên nhân
             if cat == 'water' and plumbing_only and not _HZ_WATER_HARD.search(m.group()):
@@ -1211,7 +1578,7 @@ def hazard_check(text):
         found = []
         for m in _HZ_NET.finditer(_hz_blank(st, _HZ, _HZ_NET_SAFE)):   # từ khoá chính xác đã do bước 1-4 xét
             cat = m.lastgroup
-            if cat == 'alarm' and (battery or nuisance):
+            if cat == 'alarm' and (nuisance or _hz_battery_covers(bkinds, st[max(0, m.start() - 30):m.end()])):
                 continue
             if cat == 'water' and (plumbing_only or not elec):
                 continue
@@ -1223,6 +1590,15 @@ def hazard_check(text):
         return 'danger', states
     for c, v in _hz_scan(t, net).items():   # lưới không bao giờ tự lên 'danger': 'present' -> 'uncertain'
         states['possible_' + c] = 'uncertain' if v == 'present' else v
+    # bước 6 — SÀN THÔ: cụm không-nguy-hiểm chỉ chặn 'danger'; họ có trong văn bản gốc mà bước 1-5 không còn thấy (hay chỉ
+    # thấy là 'negated') giữ trạng thái thô ('present' -> 'uncertain'), nên kết luận không bao giờ thấp hơn sàn thô
+    for c, v in raw.items():
+        v, key = ('uncertain' if v == 'present' else v), 'possible_' + c
+        have = [states[k] for k in (c, key) if k in states]
+        if v != 'negated' and all(h == 'negated' for h in have):
+            states[key] = v
+        elif not have:
+            states[key] = v
     vals = set(states.values())
     if not vals:
         return 'none', states

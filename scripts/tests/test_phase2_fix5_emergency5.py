@@ -13,6 +13,8 @@ Hợp đồng được kiểm:
   - thiết bị TỰ bốc khói / tóe lửa = 'danger' kể cả máy hút mùi / quạt hút / lò nướng / nồi chiên;
   - chuông / đầu báo khói, gas, CO ĐANG kêu (không phải pin yếu, không phải do nấu ăn) = 'danger';
   - nước tràn chỉ do bồn cầu / máy giặt / máy rửa chén / ống thoát = 'none'; nước gần / chảy vào đồ điện = 'danger'.
+  (phase2-fix8, raw-floor rule: thành ngữ nóng / nước tràn do ống nước / cụm trong danh sách mà CÓ từ thuộc họ nguy hiểm
+  nay là 'uncertain' — cụm chỉ chặn 'danger' — xem FIX8_RAW_FLOOR.)
 Bảng: mọi câu trong báo cáo review (8 mục) + >= 150 câu MỚI (EN + VI, gõ sai, không dấu, trộn ngôn ngữ) + câu sinh tổ hợp.
 
 Dùng lại DB giả + stub của test_phase2_request_packs.py (nạp TRƯỚC mọi gói): không import app.py thật, không MongoDB thật,
@@ -286,6 +288,54 @@ NEW = ([(t, 'danger') for t in PAST_AGAIN_DANGER] + [(t, 'uncertain') for t in P
        + [(t, 'none') for t in PLUMBING_NONE] + [(t, 'danger') for t in WET_ELECTRICS_DANGER]
        + [(t, 'uncertain') for t in QUESTION_UNCERTAIN] + [(t, 'danger') for t in DANGER_NEW]
        + [(t, 'none') for t in LISTED_NONE] + [(t, 'none') for t in ORDINARY_NONE])
+# phase2-fix8 — raw-floor rule (LUẬT AN TOÀN THEO CẤU TRÚC ở đầu bộ phân loại technical.py): 'none' CHỈ khi văn bản GỐC không
+# có từ nào thuộc họ nguy hiểm. Các dòng dưới đây vòng 5 ghi 'none' (thành ngữ nóng burning / scorching / smoking hot, khói
+# nấu ăn / máy hút mùi, báo khói kêu vì pin / nấu ăn, nước tràn chỉ do ống nước, tên thiết bị / dịch vụ) nhưng có từ thuộc
+# họ nguy hiểm: cụm chỉ chặn 'danger', nay là 'uncertain' (GẤP + người thật kiểm tra, KHÔNG bao giờ khẩn cấp / bảo sơ tán).
+# Riêng 'gas smell ruled out by the gas company' (vòng 5: 'negated'): "gas company" là tên dịch vụ, KHÔNG phải phủ định ->
+# không phải MỌI lần nhắc đều bị phủ định -> 'uncertain'. Các phủ định rõ khác giữ nguyên 'negated'.
+FIX8_RAW_FLOOR = (
+    "It's burning hot in here and the aircon is broken", "It's burning up in the house, aircon not working",
+    "It's burning hot", 'Hot water is scorching, thermostat broken', 'the water is scorching hot',
+    'scorching weather, need aircon fixed asap', 'Smoking hot day today and the aircon died',
+    'The toilet overflowed and flooded the bathroom floor', 'Dishwasher flooded the kitchen floor, need a plumber',
+    'Washing machine hose burst and flooded the laundry', 'bồn cầu bị tắc, nước tràn ngập nhà vệ sinh',
+    'máy giặt rò nước ngập sàn nhà tắm', 'burning hot outside, aircon not cooling',
+    "It's scorching today and the AC stopped", 'Scorcher of a day, aircon died', 'the shower water is burning hot',
+    'Water coming out of the tap is scorching', "it's smoking hot in here, need AC",
+    'the aircon is blowing burning hot air', "It's burning hot outside and the AC won't cool",
+    'its scorching in the bedroom', 'burning hot tap water',
+    'The hot water is way too hot, burning hot from the tap', 'The heater is smoking hot',
+    'trời nắng cháy da, máy lạnh không mát', 'trời nóng cháy người, cần sửa máy lạnh gấp',
+    'range hood not clearing smoke', "Rangehood doesn't suck out the cooking smoke",
+    'Kitchen gets smoky when we fry, need a better hood', 'Need a new range hood, too much smoke when cooking',
+    'Smoke from cooking lingers in the kitchen', 'khói bếp không thoát được, cần lắp máy hút mùi',
+    'Bếp nhiều khói khi chiên, máy hút mùi yếu', 'Smoke alarm battery low, keeps beeping',
+    'smoke alarm beeps every 30 seconds, need new battery', 'CO alarm chirping, low battery',
+    'Smoke alarm goes off whenever I cook', 'Smoke alarm goes off every time someone showers',
+    'Install a gas detector', 'smoke detector chirps, battery needs replacing',
+    'CO detector beeping, needs a new battery', 'Smoke alarm went off when I was cooking',
+    "smoke alarm goes off when we're cooking", 'Smoke alarm chirping, needs a new battery',
+    'báo khói kêu do hết pin', 'báo khói kêu mỗi khi nấu ăn', 'lắp đầu báo gas', 'báo khói kêu bíp bíp do hết pin',
+    'Toilet overflowing, bathroom floor flooded', 'Kitchen sink overflowed and flooded the floor',
+    'The bath overflowed, bathroom is flooded', 'shower drain blocked, bathroom flooding',
+    'Dishwasher leaking and flooding the kitchen', 'Washing machine overflowed and the laundry is flooded',
+    'Toilet cistern overflowing, floor is flooded, need plumber today', 'water coming out of the shower outlet',
+    'Floor waste outlet blocked, bathroom flooded', 'Need a power point installed near the water heater',
+    'Aircon outlet dripping water', 'bồn rửa chén bị nghẹt, nước tràn ngập bếp', 'bon cau bi tac, nuoc ngap san',
+    'may giat ro nuoc ngap nha tam', 'may rua chen ro nuoc ngap bep', 'smoke alarm install', 'Gas fitter needed',
+    'gas bottle swap', 'Gas hot water not heating', 'Fire extinguisher service', 'flood lights install',
+    'Smoke detector test', 'Smoke alarm compliance check for rental', 'smoked glass shower screen',
+    'BBQ gas bottle refill', 'Burnt out light bulb', "the fire in the fireplace won't stay lit",
+    "gas log fire won't ignite", 'khói nhang làm đen trần', 'dịch vụ phun khói diệt muỗi',
+    'báo giá lắp đặt hệ thống báo cháy', 'sửa bếp gas không lên lửa', 'bếp gas lửa yếu',
+    'Water stains on the ceiling near the light', 'Install a water heater and a new power point',
+    'need gas hot water fixed today', 'gas smell ruled out by the gas company',
+    # bản BỎ DẤU của 'báo khói' cũng là từ thuộc họ (sàn thô tính trên bản có dấu VÀ bản bỏ dấu)
+    'thay pin bao khoi',
+)
+BRIEF = tuple((t, 'uncertain' if t in FIX8_RAW_FLOOR else w) for t, w in BRIEF)
+NEW = [(t, 'uncertain' if t in FIX8_RAW_FLOOR else w) for t, w in NEW]
 _VI_CHARS = 'ăâđêôơưáàảãạéèẻẽẹíìỉĩịóòỏõọúùủũụýỳỷỹỵ'
 _NO_DIACRITIC_VI = re.compile(r"\b(?:mui|khet|khoi|chap|dien|nuoc|ngap|tia lua|o cam|o dien|bao|ko|khong|het|hom qua|"
                               r"giat|gio|van|lai|cang|nang hon|binh ga|bep ga|tu dien|cong tac|may|nha)\b")
@@ -408,7 +458,13 @@ class HazardContractComboTests(unittest.TestCase):
             for rest in (' and the aircon is broken', ', need the AC fixed', ', split system not cooling',
                          ', hot water thermostat broken'):
                 with self.subTest(txt=idiom + rest):
-                    self.assertEqual(technical.hazard_check(idiom + rest), ('none', {}))
+                    verdict, states = technical.hazard_check(idiom + rest)
+                    if re.search(r"burn|scorch|smok", idiom.lower()):
+                        # phase2-fix8 (raw-floor rule): thành ngữ có từ thuộc họ nguy hiểm chỉ chặn 'danger' -> 'uncertain'
+                        self.assertEqual(verdict, 'uncertain', states)
+                        self.assertTrue(all(k.startswith('possible_') for k in states), states)
+                    else:   # boiling / baking hot: không có từ nào thuộc họ -> vẫn việc thường
+                        self.assertEqual((verdict, states), ('none', {}))
         for txt in ('The plug is burning hot', 'the outlet is scorching', 'The power board is smoking hot',
                     'the switch is burning hot', 'The charger is burning hot', 'The extension cord is scorching hot'):
             with self.subTest(txt=txt):
@@ -471,7 +527,7 @@ class HazardJobToolTests(unittest.TestCase):
         t = DB.tasks.find_one({'id': out['job_id']})
         self.assertIn('Mức độ: GẤP', t['noi_dung'])
 
-    def test_brief_dangers_are_emergencies_and_brief_false_alarms_are_normal_jobs(self):
+    def test_brief_dangers_are_emergencies_and_brief_false_alarms_are_not(self):
         dangers = [t for t, w in BRIEF if w == 'danger']
         for i, problem in enumerate(dangers[:12] + dangers[-6:]):
             with self.subTest(problem=problem):
@@ -481,10 +537,24 @@ class HazardJobToolTests(unittest.TestCase):
                 self.assertIn('000', out['tell_customer'])
                 self.assertEqual([a[4] for a in alerts()], ['technical_emergency'])
                 self.assertTrue(DB.bot_customers.find_one({'id': self.cid})['needs_human'])
-        nones = [t for t, w in BRIEF if w == 'none'] + list(PLUMBING_NONE[:3]) + list(HEAT_NONE[:3])
-        for i, problem in enumerate(nones):
+        # phase2-fix8 (raw-floor rule): báo nhầm trong báo cáo (thành ngữ nóng, nước tràn chỉ do ống nước) KHÔNG bao giờ
+        # khẩn cấp; có từ thuộc họ nguy hiểm nên là việc GẤP + người thật kiểm tra + câu dặn CÓ ĐIỀU KIỆN (trước: việc thường)
+        more = PLUMBING_NONE[:3] + HEAT_NONE[:3]
+        false_alarms = [t for t, _ in BRIEF if t in FIX8_RAW_FLOOR] + [t for t in more if t in FIX8_RAW_FLOOR]
+        self.assertGreaterEqual(len(false_alarms), 15)
+        for i, problem in enumerate(false_alarms):
             with self.subTest(problem=problem):
                 out = self.run_job(problem, 100 + i)
+                self.assertEqual(out['urgency'], 'urgent')
+                self.assertIn('right now, leave the area and call 000', out['tell_customer'])
+                for evacuate in ('somewhere safe', 'get everyone', 'If anyone is in danger'):
+                    self.assertNotIn(evacuate, out['tell_customer'])
+                self.assertEqual([a[4] for a in alerts()], ['technical_hazard_check'])
+        plain = [t for t in more if t not in FIX8_RAW_FLOOR]   # không có từ nào thuộc họ ("boiling hot"): việc thường
+        self.assertTrue(plain)
+        for i, problem in enumerate(plain):
+            with self.subTest(problem=problem):
+                out = self.run_job(problem, 200 + i)
                 self.assertEqual(out['urgency'], 'normal')
                 self.assertNotIn('000', out['tell_customer'])
                 self.assertNotIn('safety_tip', out)

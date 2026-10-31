@@ -196,6 +196,36 @@ FIX4_CHANGED = {
     'Đầu báo khói kêu liên tục': 'danger',
 }
 TABLE = [(t, FIX4_CHANGED.get(t, w)) for t, w in TABLE]
+# phase2-fix8 — raw-floor rule (LUẬT AN TOÀN THEO CẤU TRÚC ở đầu bộ phân loại technical.py): 'none' CHỈ khi văn bản GỐC không
+# có từ nào thuộc họ nguy hiểm. Các dòng dưới đây vòng 3 ghi 'none' nhưng có từ thuộc họ (khói / gas / mùi / cháy / spark /
+# flood / alarm / fire...) nằm trong cụm KHÔNG nguy hiểm có trong danh sách: cụm chỉ chặn 'danger', nay là 'uncertain' (GẤP +
+# người thật gọi kiểm tra + câu dặn có điều kiện, KHÔNG bao giờ khẩn cấp / bảo sơ tán). Phủ định rõ giữ nguyên 'negated'.
+FIX8_RAW_FLOOR = (
+    'Máy hút mùi yếu, bếp nhiều khói', 'hood không hút hết khói', 'máy hút mùi không hút được khói',
+    'thông ống khói bếp', 'vệ sinh ống khói', 'khói bếp bám tường, cần vệ sinh', 'lắp cảm biến khói',
+    'khói thuốc lá bay vào phòng, lắp quạt hút', 'range hood not pulling smoke out',
+    "exhaust fan doesn't clear the smoke when cooking", 'BBQ smoke goes into the house, need exhaust fan',
+    'Plumbing smoke test needed', 'Install smoke seals on doors', 'smoke damper service', 'replace smoke sensor',
+    'Smoke-free area sign install', 'Gas bill question', 'Quote to install a gas stove', 'báo giá lắp bếp gas',
+    'Smoke alarm battery keeps chirping', 'Install smoke detectors in 3 bedrooms', 'lắp báo khói cho phòng ngủ',
+    'thay pin báo khói', 'vệ sinh máy hút mùi', 'khói bếp nhiều quá, cần lắp máy hút khói',
+    'flood light not working', 'fire alarm beeping, battery low', 'bóng đèn bị cháy', 'máy hút khói không hút được',
+    'Smoke alarm keeps beeping, battery low', 'Smoke detector chirping every minute, needs new battery',
+    'CO alarm beeping, needs a new battery', 'Need a gas leak test for the compliance certificate',
+    'Flood damage repair quote', 'đèn bị chập chờn', 'cầu chì bị cháy, cần thay',
+    'Spark broadband modem not working', 'Gas heater not lighting, pilot flame keeps going out',
+    'cooking smoke sets off the alarm, need a better range hood', 'khói nướng bay vào nhà, cần lắp quạt hút',
+    'need a new gas hot water system', 'Gas fitter needed for cooktop install', 'Smoke alarm replacement x5',
+    'Interconnected smoke alarms', 'replace smoke alarms and test RCDs', 'fire alarm panel fault', 'TV burnt out',
+    'Gas cooktop flame is yellow', 'Annual gas safety check', 'Lắp máy hút mùi', 'máy lạnh có mùi hôi', 'sửa bếp ga',
+    'đổi bình gas', 'Có cần lắp báo khói không?', 'Kitchen is smoky when we cook, need a bigger range hood',
+    'Smoke from the BBQ comes in through the window', 'Our fireplace chimney needs cleaning, smoke comes back in',
+    'The burnt toast set off the smoke alarm', 'bếp nhiều khói quá khi nấu, cần thay máy hút mùi',
+    'Install smoke and heat detectors', 'replace smoke/CO alarms', 'dịch vụ diệt côn trùng phun khói',
+    'smoke bomb for pest control', 'Gas leak detector install', 'bếp gas không lên lửa', 'electric fire not heating',
+    'lắp bình chữa cháy', 'kiểm tra hệ thống báo cháy',
+)
+TABLE = [(t, 'uncertain' if t in FIX8_RAW_FLOOR else w) for t, w in TABLE]
 _VI_CHARS = 'ăâđêôơưáàảãạéèẻẽẹíìỉĩịóòỏõọúùủũụýỳỷỹỵ'
 
 
@@ -215,8 +245,10 @@ class HazardClassifierTableTests(unittest.TestCase):
         vi = [t for t, _ in TABLE if any(ch in t.lower() for ch in _VI_CHARS)]
         self.assertGreaterEqual(len(vi), 60)
         self.assertGreaterEqual(len(TABLE) - len(vi), 60)
-        for want in ('danger', 'negated', 'none'):
+        for want in ('danger', 'negated', 'uncertain'):
             self.assertGreaterEqual(sum(w == want for _, w in TABLE), 30, want)
+        # phase2-fix8 (raw-floor rule): chỉ câu KHÔNG có từ nào thuộc họ nguy hiểm còn là 'none'
+        self.assertGreaterEqual(sum(w == 'none' for _, w in TABLE), 10)
         rows = dict(TABLE)
         for t in ITEM1_NONE + ITEM2_NEGATED + ITEM3_DANGER:   # mọi câu trong báo cáo review đều có trong bảng
             self.assertIn(t, rows)
@@ -256,10 +288,17 @@ class HazardClassifierTableTests(unittest.TestCase):
                 self.assertEqual(verdict, 'uncertain')   # phase2-fix4: không khẩn cấp nhưng KHÔNG phải việc thường
                 self.assertTrue(st and set(st.values()) <= {'question', 'hypothetical'}, st)
 
-    def test_exclusions_are_not_hazard_mentions_at_all(self):
-        for txt in ITEM1_NONE + ('Smoke alarm battery keeps chirping', 'Gas bill question', 'no power'):
+    def test_exclusions_only_cap_at_uncertain(self):
+        # phase2-fix8 (raw-floor rule): cụm KHÔNG nguy hiểm trong danh sách chỉ chặn 'danger' — có từ thuộc họ nguy hiểm thì
+        # là 'uncertain' (chỉ khoá 'possible_<họ>' của sàn thô / lưới, không 'present'); không có từ nào ("no power") vẫn
+        # ('none', {}). Trước fix8 cả nhóm là ('none', {}).
+        for txt in ITEM1_NONE + ('Smoke alarm battery keeps chirping', 'Gas bill question'):
             with self.subTest(txt=txt):
-                self.assertEqual(technical.hazard_check(txt), ('none', {}))
+                verdict, states = technical.hazard_check(txt)
+                self.assertEqual(verdict, 'uncertain', states)
+                self.assertTrue(states and all(k.startswith('possible_') for k in states), states)
+                self.assertNotIn('present', states.values())
+        self.assertEqual(technical.hazard_check('no power'), ('none', {}))
 
     def test_case_curly_apostrophe_empty_and_long_input(self):
         self.assertEqual(technical.classify_hazard('I DON’T SMELL GAS'), 'negated')
@@ -292,12 +331,21 @@ class HazardJobToolTests(unittest.TestCase):
         else:
             self.assertNotIn('safety_tip', out)
 
-    def test_review_false_alarms_are_normal_jobs_without_a_safety_line(self):
+    def test_review_false_alarms_are_not_emergencies(self):
+        # phase2-fix8 (raw-floor rule): trước là việc thường; nay câu có từ thuộc họ nguy hiểm trong cụm không-nguy-hiểm ->
+        # việc GẤP + người thật gọi kiểm tra + câu dặn CÓ ĐIỀU KIỆN — KHÔNG bao giờ khẩn cấp hay bảo sơ tán
         for i, problem in enumerate(ITEM1_NONE[:6] + ITEM1_NONE[-6:]):
             with self.subTest(problem=problem):
+                DB.bot_customers.update_one({'id': self.cid}, {'$set': {'needs_human': None, 'ai_paused': None,
+                                                                         'handoff_urgent': None}})
                 CALLS.clear()
                 out = job(customer_id=self.cid, args={'problem': problem, 'address': f'{i + 1} King St, Newtown NSW'})
-                self.assert_normal(out, tip=False)
+                self.assertEqual(out['urgency'], 'urgent')
+                self.assertTrue(out['possible_hazard'])
+                self.assertIn('right now, leave the area and call 000', out['tell_customer'])
+                self.assertNotIn('somewhere safe', out['tell_customer'])
+                self.assertEqual([a[4] for a in alerts()], ['technical_hazard_check'])
+                self.assertEqual(DB.tasks.find_one({'id': out['job_id']})['urgency'], 'urgent')
 
     def test_screening_answers_are_normal_jobs_with_a_safety_line(self):
         for i, problem in enumerate(ITEM2_NEGATED + ("smelled gas earlier, it's gone now",)):
