@@ -12,7 +12,8 @@
   G) /api/public/storage/file/<id>: portal_chat needs the HMAC signature (old unsigned links only until the migration
      date), private files answer 404 like missing ones (no existence oracle).
   H) inbox_channels.link_customer / capture_phone: a phone typed in Messenger/Zalo never re-points an existing customer's
-     channel id; it becomes a pending link the owner confirms (POST /api/bot/customer_link).
+     channel id; it becomes a pending link the owner confirms (POST /api/bot/customer_link). (h4b: a customer that is the
+     ONLY match and has no id for that platform is linked automatically — see test_security_h4b-auth-inbox.py.)
   I) /api/ai/studio/generate anonymous sales chat: global daily call cap (no DeepSeek call once over it), prompt cut,
      extra per-IP daily limit only for anonymous non-booking chats.
 
@@ -718,10 +719,11 @@ class InboxPhoneLinkTests(unittest.TestCase):
         pending = conv.get('pending_customer_link') or {}
         self.assertEqual((pending.get('customer_id'), pending.get('field'), pending.get('user_id')), (7, 'fb_psid', 'ATTACKER_PSID'))
 
-    def test_typed_phone_does_not_auto_link_a_customer_without_channel(self):
+    def test_typed_phone_links_a_unique_customer_without_channel(self):
+        # h4b: hồ sơ DUY NHẤT có SĐT này và chưa có id Messenger -> tự gắn (không ghi đè ai); không cần chủ tiệm duyệt
         self._event('PSID_K', 'call me 0412999111', 'm2')
-        self.assertNotIn('fb_psid', DB.customers.find_one({'id': 8}))
-        self.assertEqual(DB.bot_customers.find_one({'id': 'shopA:messenger:PSID_K'})['pending_customer_link']['customer_id'], 8)
+        self.assertEqual(DB.customers.find_one({'id': 8})['fb_psid'], 'PSID_K')
+        self.assertNotIn('pending_customer_link', DB.bot_customers.find_one({'id': 'shopA:messenger:PSID_K'}))
 
     def test_second_number_in_same_conversation_links_nothing(self):
         self._event('PSID_Z', 'my number 0412 000 222', 'm3')       # không khớp ai, nhưng hội thoại đã có SĐT
@@ -731,6 +733,8 @@ class InboxPhoneLinkTests(unittest.TestCase):
 
     def test_owner_confirms_or_dismisses_the_pending_link(self):
         _need('api_bot_customer_link')
+        # 2 hồ sơ cùng SĐT -> không tự gắn (h4b), thành liên kết chờ duyệt cho hồ sơ đầu tiên (Kim, id 8)
+        DB.customers.insert_one({'id': 9, 'business_id': 'shopA', 'name': 'Kim (old card)', 'phone': '+61 412 999 111'})
         self._event('PSID_K', 'call me 0412999111', 'm2')
         conv_id = 'shopA:messenger:PSID_K'
         with _ctx('/api/bot/customer_link', method='POST', user='owner-b', role='admin', bid='shopB',
