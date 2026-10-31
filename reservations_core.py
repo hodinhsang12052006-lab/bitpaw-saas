@@ -278,7 +278,7 @@ def load_rules(business_id, kind):
         rules['auto_confirm'] = bool(raw['auto_confirm'])
     else:
         rules['auto_confirm'] = False
-    rules['hours'] = raw['hours'] if isinstance(raw.get('hours'), dict) and raw.get('hours') else None
+    rules['hours'] = saved_week(raw.get('hours'))    # thứ thiếu = nghỉ, chưa lưu = None (cùng luật booking_rules.get_rules)
     rules['min_lead_minutes'] = max(0, _num(raw.get('min_lead_minutes'), 0)) if 'min_lead_minutes' in raw else 0
     rules['max_advance_days'] = max(1, _num(raw.get('max_advance_days'), 366)) if 'max_advance_days' in raw else 366
     rules['info'] = raw.get('info') if isinstance(raw.get('info'), dict) else {}
@@ -309,6 +309,21 @@ def save_reservation_settings(business_id, kind, data):
 
 
 UNKNOWN = 'unknown'
+
+
+def saved_week(value):
+    """Giờ mở cửa ĐÃ LƯU (booking_settings.hours) -> đủ 7 thứ {'mon': ['HH:MM', 'HH:MM'] | None, ...}; None = CHƯA lưu gì
+    (không có, rỗng, không phải dict). LUẬT DUY NHẤT cho thứ THIẾU khoá trong bản đã lưu: thứ đó NGHỈ, như None — đúng điều
+    booking_rules.save_rules luôn ghi (đủ 7 thứ, thứ chủ không nhập = None). booking_rules.get_rules (Nails / Spa, RIGHT NOW,
+    open_status -> reply_expectation, trang Cài đặt, gói văn phòng / bán lẻ / khách sạn) và load_rules (F&B / karaoke: dòng
+    OPENING HOURS, check_window, giờ trống) đều đọc tuần qua đây nên dòng tuần, RIGHT NOW và kiểm giờ nói cùng 1 điều.
+    DEFAULT_HOURS (9-19) chỉ thay khi CHƯA lưu: get_rules dùng cho lịch hẹn Nails / Spa như cũ, load_rules coi là chưa công bố.
+    Trước: get_rules lấp thứ thiếu bằng DEFAULT_HOURS còn load_rules đọc thiếu = nghỉ -> bản ghi cũ / sửa tay {'mon', 'fri'}:
+    prompt F&B nói 'Tue closed' cạnh RIGHT NOW coi thứ Ba mở 9:00 am – 7:00 pm. Giá trị từng thứ giữ nguyên (giờ hư vẫn để
+    hours_on / day_value_text xử lý như trước)."""
+    if not isinstance(value, dict) or not value:
+        return None
+    return {d: value.get(d) or None for d in DAY_KEYS}
 
 
 def hours_on(rules, day):
@@ -405,7 +420,7 @@ def day_value_text(day_key, v, lang='en'):
 
 def week_hours_text(hours, lang='en'):
     """Cả tuần thứ Hai -> Chủ nhật theo kiểu chung: 'Mon 11:00 am – 10:00 pm, Tue closed, ..., Fri 6:00 pm – 2:00 am (Sat)'.
-    Thứ không có trong `hours` = nghỉ (như hours_on / booking_rules.hours_on)."""
+    Thứ không có trong `hours` = nghỉ (1 luật: saved_week — như hours_on / booking_rules.hours_on / get_rules)."""
     hours = hours if isinstance(hours, dict) else {}
     return ', '.join(day_value_text(d, hours.get(d), lang) for d in DAY_KEYS)
 

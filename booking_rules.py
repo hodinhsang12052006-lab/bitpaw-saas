@@ -107,15 +107,24 @@ def _hm(s):
 
 
 def get_rules(business_id):
+    """Luật đặt lịch hiện hành = DEFAULTS + giá trị đã lưu. Giờ mở cửa theo 1 luật chung (reservations_core.saved_week):
+    đã lưu = cả tuần, thứ THIẾU khoá = nghỉ (không lấp bằng DEFAULT_HOURS — trước: thứ thiếu thành 9-19 ở đây nhưng nghỉ ở
+    gói F&B / karaoke); chưa lưu (không có / rỗng / không phải dict) = DEFAULT_HOURS, configured=False — Nails / Spa như cũ."""
+    import reservations_core
     row = _cached(('rules', business_id), lambda: db.booking_settings.find_one({'business_id': business_id}, {'_id': 0}) or {})
     rules = {k: (dict(v) if isinstance(v, dict) else v) for k, v in DEFAULTS.items()}
     for k in DEFAULTS:
+        if k == 'hours':
+            continue
         if k in row and row[k] is not None:
             if isinstance(DEFAULTS[k], dict) and isinstance(row[k], dict):
                 rules[k].update(row[k])
             else:
                 rules[k] = row[k]
-    rules['configured'] = bool(row.get('hours'))
+    week = reservations_core.saved_week(row.get('hours'))
+    if week:
+        rules['hours'] = week
+    rules['configured'] = week is not None
     return rules
 
 
