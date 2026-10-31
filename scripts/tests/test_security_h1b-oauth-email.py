@@ -170,6 +170,15 @@ def index():
 _fake_app = types.ModuleType('app')
 _fake_app.__dict__.update(os=os, session=session, jsonify=jsonify, flash=flash, redirect=redirect, url_for=url_for, wraps=wraps,
                           _wants_json=lambda: True, _vi_en=lambda vi, en: en)
+# Sau bản vá h1a-auth, _is_superadmin() gọi _superadmin_session_ok() (cần hash God Mode + phiên bản phiên trong DB).
+# Ở đây dựng bản rút gọn đúng điều kiện cốt lõi: uid God Mode + role super_admin + email trong danh sách cho phép.
+def _superadmin_session_ok():
+    from flask import session as _s
+    return (_s.get('user_id') == 'superadmin-fallback' and _s.get('role') == 'super_admin'
+            and _fake_app._is_authorized_superadmin_email(_s.get('user_email')))
+
+
+_fake_app._superadmin_session_ok = _superadmin_session_ok
 for _name in ('_is_authorized_superadmin_email', '_is_superadmin', 'login_required'):
     exec(_segment(lambda n, nm=_name: isinstance(n, ast.FunctionDef) and n.name == nm), _fake_app.__dict__)
 exec(_segment(lambda n: isinstance(n, ast.Assign) and any(getattr(t, 'id', None) == 'SUPERADMIN_ROOT_EMAIL' for t in n.targets)),
@@ -444,7 +453,7 @@ ATTACK = {'nguoi_nhan': 'victim-owner@shop.com', 'tieu_de': 'BitPaw: verify your
 class TestEmailEndpointTests(_Base):
     def login_as(self, email, uid='u-1'):
         with self.c.session_transaction() as s:
-            s['user_id'], s['user_email'], s['business_id'], s['role'] = uid, email, uid, 'admin'
+            s['user_id'], s['user_email'], s['business_id'], s['role'] = uid, email, uid, ('super_admin' if uid == 'superadmin-fallback' else 'admin')
 
     def test_anonymous_cannot_send(self):
         r = self.c.post('/api/test-email', json=ATTACK)
@@ -473,7 +482,7 @@ class TestEmailEndpointTests(_Base):
                 self.assertNotIn('evil.example', html)
 
     def test_smtp_error_text_is_not_returned(self):
-        self.login_as(ENV_ADMIN)
+        self.login_as(ENV_ADMIN, uid='superadmin-fallback')
         SEND.return_value = (False, 'Gửi email thất bại: (535, b"5.7.8 Username and Password not accepted SECRETDETAIL")')
         r = self.c.post('/api/test-email', json={})
         self.assertEqual(r.status_code, 500)
@@ -482,7 +491,7 @@ class TestEmailEndpointTests(_Base):
         self.assertNotIn('535', body)
 
     def test_rate_limited_to_three_per_hour(self):
-        self.login_as(ENV_ADMIN)
+        self.login_as(ENV_ADMIN, uid='superadmin-fallback')
         codes = [self.c.post('/api/test-email', json={}).status_code for _ in range(4)]
         self.assertEqual(codes, [200, 200, 200, 429])
         self.assertEqual(SEND.call_count, 3)

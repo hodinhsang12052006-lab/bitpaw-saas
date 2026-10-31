@@ -724,9 +724,11 @@ class BirthdayLoyaltyTests(unittest.TestCase):
         self.assertEqual(us['send_after'], datetime(2026, 10, 27, 13, 0, tzinfo=timezone.utc).isoformat())
 
     def test_birthday_via_shop_zalo_when_customer_chatted_recently(self):
-        now = datetime(2026, 10, 27, 3, 0, tzinfo=timezone.utc)                       # 10:00 ở Việt Nam
+        # 10:00 ở Việt Nam HÔM NAY: khung 48 giờ của Zalo tính theo giờ thật (queue_customer_message không nhận now)
+        now = datetime.now(timezone.utc).replace(hour=3, minute=0, second=0, microsecond=0)
         _connect(VN, 'zalo', 'VN-SHOP-OA-TOKEN')
-        DB.customers.insert_one({'id': 31, 'business_id': VN, 'name': 'Hà', 'zalo_user_id': 'zu-31', 'dob': '2000-10-27'})
+        DB.customers.insert_one({'id': 31, 'business_id': VN, 'name': 'Hà', 'zalo_user_id': 'zu-31',
+                                 'dob': '2000-' + now.astimezone(ZoneInfo('Asia/Ho_Chi_Minh')).strftime('%m-%d')})
         _customer_said(VN, 'zalo', 'zu-31', now - timedelta(hours=5))
         NS['_run_birthday_check_for_business'](VN, now)
         row = DB.outbound_messages.find_one({'business_id': VN, 'kind': 'birthday'})
@@ -752,7 +754,7 @@ class BirthdayLoyaltyTests(unittest.TestCase):
         self.assertFalse(any('GLOBAL-SERVER' in str(c) for c in CALLS))
 
     def test_vn_legacy_reminder_uses_shop_zalo_only_and_cron_uses_shop_local_time(self):
-        now = datetime(2026, 10, 27, 3, 0, tzinfo=timezone.utc)                       # 10:00 ở Việt Nam
+        now = datetime.now(timezone.utc).replace(hour=3, minute=0, second=0, microsecond=0)   # 10:00 ở Việt Nam hôm nay
         local = now.astimezone(ZoneInfo('Asia/Ho_Chi_Minh')).replace(tzinfo=None)
         _connect(VN, 'zalo', 'VN-SHOP-OA-TOKEN')
         DB.customers.insert_one({'id': 51, 'business_id': VN, 'name': 'Lê Mai', 'phone': '0901000051', 'zalo_user_id': 'zu-51'})
