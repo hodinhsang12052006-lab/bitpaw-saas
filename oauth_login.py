@@ -87,10 +87,33 @@ def _redirect_uri(provider):
     return f'{base}/auth/{provider}/callback'
 
 
+# Đúng 1 dấu '/' ở đầu, ký tự kế tiếp không phải '/' hay '\'; cấm ký tự điều khiển / khoảng trắng / '\' ở BẤT KỲ đâu.
+# Trình duyệt bỏ tab + xuống dòng và coi '\' như '/', nên '/<TAB>/evil.com' hay '/\\evil.com' thành //evil.com (trang khác).
+_SAFE_NEXT_RE = re.compile(r'/(?![/\\])[^\x00-\x20\x7f-\x9f\\]*\Z')
+
+
 def _safe_next(nxt):
-    """Chỉ cho quay về đường dẫn nội bộ (chặn open-redirect kiểu //evil.com hoặc https://evil.com)."""
+    """Chỉ cho quay về đường dẫn nội bộ (chặn open-redirect kiểu //evil.com, https://evil.com, /<TAB>/evil.com, /\\evil.com)."""
     nxt = str(nxt or '')
-    return nxt if nxt.startswith('/') and not nxt.startswith('//') and '\\' not in nxt else None
+    return nxt if _SAFE_NEXT_RE.match(nxt) else None
+
+
+def _email_exact(email):
+    """Khớp email NGUYÊN CHUỖI, không phân biệt hoa/thường. re.escape toàn bộ: trước đây chỉ thoát '.', nên '+', '|', '*'...
+    trong email nhà cung cấp thành ký tự regex ('johns+mith@x.com' khớp 'johnsmith@x.com') -> liên kết nhầm tài khoản người khác."""
+    return {'$regex': '^' + re.escape(email) + '$', '$options': 'i'}
+
+
+def _account_blocked(user):
+    """Tài khoản đã xoá (is_deleted) / bị khoá (is_active=False) hoặc tiệm đã xoá: Google/Facebook KHÔNG được liên kết,
+    mở lại hay đăng nhập vào tài khoản đó. Lỗi DB -> coi như bị chặn (không mở phiên khi chưa kiểm được)."""
+    if user.get('is_deleted') or user.get('is_active', True) in (False, 0):
+        return True
+    try:
+        biz = db.businesses.find_one({'id': user.get('business_id') or user.get('id')}, {'_id': 0, 'is_deleted': 1})
+    except Exception:
+        return True
+    return bool(biz and biz.get('is_deleted'))
 
 
 def _security_log(event, detail):
@@ -167,23 +190,31 @@ def oauth_callback(provider):
     if not sub:
         return _fail('Sign-in failed — please try again.', f'{provider} no subject')
 
-    user = db.users.find_one({f'oauth.{provider}': str(sub)})
+    user = db.users.find_one({f'oauth.{provider}': str(sub), 'is_deleted': {'$ne': True}})
     if not user and email:
         if not verified:
             return _fail(f'Your {provider.title()} email is not verified. Verify it with {provider.title()} or sign in with your password.')
-        user = db.users.find_one({'email': {'$regex': f'^{email.replace(".", "[.]")}$', '$options': 'i'}})
-        if user:  # liên kết tài khoản sẵn có (email đã được nhà cung cấp xác minh)
+        user = db.users.find_one({'email': _email_exact(email), 'is_deleted': {'$ne': True}})
+        if user and not _account_blocked(user):  # liên kết tài khoản sẵn có (email đã được nhà cung cấp xác minh, tài khoản còn hoạt động)
             db.users.update_one({'id': user['id']}, {'$set': {f'oauth.{provider}': str(sub), f'oauth_linked_at.{provider}': datetime.now().isoformat()}})
     if user:
         return _login(user, provider, pending.get('next'))
     if not email:
         return _fail('Facebook did not share an email address — please sign up with email instead.')
+    from app import _is_authorized_superadmin_email
+    if _is_authorized_superadmin_email(email):  # email quản trị BitPaw: không tạo tài khoản qua Google/Facebook
+        return _fail(_SIGNUP_REFUSED_MSG, f'{provider} signup refused: admin email')
     session['oauth_signup'] = {'provider': provider, 'sub': str(sub), 'email': email, 'name': name[:100], 'ts': int(time.time())}
     return redirect(url_for('oauth.oauth_complete'))
 
 
+_SIGNUP_REFUSED_MSG = 'This email cannot be used to sign up with Google or Facebook — sign in with your password instead.'
+
+
 def _login(user, provider, nxt=None):
     from app import _ensure_primary_membership, _get_real_client_ip
+    if _account_blocked(user):  # tài khoản đã xoá / bị khoá (hoặc tiệm đã xoá): không mở lại bằng Google/Facebook
+        return _fail('This account has been closed or disabled — contact BitPaw support.', f"{provider} login refused: closed/disabled account {user.get('id')}")
     session.clear()
     session.clear()
     session['user_id'] = user['id']
@@ -201,18 +232,21 @@ def _login(user, provider, nxt=None):
                                  'created_at': datetime.now().isoformat()})
     except Exception:
         pass
-    return redirect(nxt or url_for('index'))
+    return redirect(_safe_next(nxt) or url_for('index'))  # kiểm lại: giá trị 'next' cũ trong session có thể có trước bản vá
 
 
 @oauth_bp.route('/auth/complete', methods=['GET', 'POST'])
 def oauth_complete():
     """Người mới đăng nhập Google/Facebook lần đầu: cần mã kích hoạt (BitPaw gửi sau khi mua gói) + tên tiệm."""
-    from app import INDUSTRY_CONFIG, _send_welcome_email, csrf
+    from app import INDUSTRY_CONFIG, _send_welcome_email, csrf, _is_authorized_superadmin_email
     pend = session.get('oauth_signup')
     if not pend or time.time() - int(pend.get('ts') or 0) > 1800:
         session.pop('oauth_signup', None)
         flash('Please start again with Google or Facebook.', 'danger')
         return redirect(url_for('login'))
+    if _is_authorized_superadmin_email(pend.get('email')):  # email quản trị BitPaw: không bao giờ tạo tài khoản tiệm qua OAuth
+        session.pop('oauth_signup', None)
+        return _fail(_SIGNUP_REFUSED_MSG, f"{pend.get('provider')} signup refused: admin email")
     if request.method == 'GET':
         return render_template('oauth_complete.html', pend=pend, industry_en=INDUSTRY_EN, industries=INDUSTRY_CONFIG)
     csrf.protect()
