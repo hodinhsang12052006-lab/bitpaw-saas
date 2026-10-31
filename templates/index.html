@@ -1556,10 +1556,10 @@ window.__escJsAttr = function (v) { return window.__escHtml(String(v == null ? '
                 const originalText = btn.innerHTML;
                 btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${currentLang === 'en' ? 'CONNECTING...' : 'KẾT NỐI...'}`; btn.disabled = true;
                 try {
-                    // Trang này render TRƯỚC KHI đăng nhập (app.py: route /index render
-                    // index.html khi chưa có session) nên KHÔNG thể gọi /api/hr/employees/<ma_nv>
-                    // (yêu cầu @login_required) — dùng route public riêng, chỉ trả về
-                    // ho_ten/ma_nv, không có business_id/lương.
+                    // Nút Fast Check-in chỉ hiện khi máy ĐÃ đăng nhập tài khoản tiệm (nằm trong khối
+                    // "session có user_id" của trang này). Route tra mã bên dưới chỉ tìm trong ĐÚNG tiệm
+                    // của phiên đăng nhập (không có phiên -> 401) và chỉ trả ho_ten/ma_nv, không có
+                    // business_id/lương.
                     const body = await hrApi(`/api/public/hr/employees/lookup?ma_nv=${encodeURIComponent(code)}`);
                     const data = body.data;
                     sessionStorage.setItem('bp_emp_code', code);

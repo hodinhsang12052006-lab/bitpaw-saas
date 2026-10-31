@@ -34,11 +34,19 @@ from pymongo.errors import DuplicateKeyError
 from mongo_client import db, next_mongo_id
 from email_service import EmailService
 import nurture_channel_tokens
+import plans
 
 TWILIO_API_BASE = os.environ.get('TWILIO_API_BASE', 'https://api.twilio.com').rstrip('/')
 DEFAULT_TZ = {'US': 'America/New_York', 'AU': 'Australia/Sydney', 'VN': 'Asia/Ho_Chi_Minh', 'CA': 'America/Toronto',
               'NZ': 'Pacific/Auckland', 'GB': 'Europe/London'}
 MARKETING_KINDS = {'review_request', 'nurture', 'promo', 'winback', 'birthday', 'loyalty'}
+# Tin TỰ ĐỘNG = tính năng 'messaging' của gói ("SMS & email tự động", Pro trở lên — plans.FEATURE_MIN_PLAN). Bảo mật (h4a):
+# /settings/messaging đã khoá theo gói, nhưng tiệm Essential đã bật qua lỗ hổng cũ / tiệm vừa hạ gói vẫn còn cấu hình và tin
+# trong hàng đợi -> kiểm tra gói lúc TẠO tin và lúc GỬI (pump, deliver). Tin giao dịch (báo chủ tiệm, "thợ đang tới", tin
+# thử, lịch ca, phiếu lương) thuộc tính năng khác, không chặn ở đây.
+AUTOMATED_KINDS = frozenset({'appointment_reminder', 'review_request', 'nurture', 'owner_report', 'missed_call', 'birthday',
+                             'loyalty', 'promo', 'winback'})
+PLAN_BLOCKED_ERROR = 'plan: SMS & email automation is not included in this plan'
 # Bộ kênh DUY NHẤT (chữ thường) cho tin gửi khách — chiến dịch, luật tự động, sinh nhật, tích điểm đều dùng
 CHANNELS = ('sms', 'email', 'zalo', 'messenger')
 SOCIAL_CHANNELS = ('zalo', 'messenger')
@@ -88,6 +96,17 @@ DEFAULT_SETTINGS = {
     'review_cooldown_days': 60, 'birthday_enabled': True, 'birthday_days_before': 0,
     'loyalty_messages_enabled': True, 'loyalty_sms_enabled': False,
 }
+
+
+def automation_allowed(business_id):
+    """Gói HIỆN TẠI của tiệm có tin tự động không (plans.business_allows: cache 60 giây; chi nhánh theo gói tiệm chính)."""
+    return plans.business_allows(db, business_id, 'messaging')
+
+
+def _cancel_plan_blocked(m):
+    db.outbound_messages.update_one({'id': m['id'], 'status': 'queued'},
+                                    {'$set': {'status': 'cancelled', 'error': PLAN_BLOCKED_ERROR}})
+    _sync_campaign(m, {'delivery_status': 'cancelled', 'delivery_error': PLAN_BLOCKED_ERROR})
 
 
 def normalize_channel(value, default=None):
@@ -384,6 +403,9 @@ def deliver(msg_id, base_url=''):
     (tới 40 tin + tạo tin tự động) — gọi trong lúc khách đang chờ AI trả lời làm chậm 1-2 giây. Lỗi -> để pump/cron thử lại."""
     m = db.outbound_messages.find_one({'id': msg_id, 'status': 'queued'}, {'_id': 0})
     if not m:
+        return False
+    if m.get('kind') in AUTOMATED_KINDS and not automation_allowed(m['business_id']):   # h4a: gói không có tin tự động
+        _cancel_plan_blocked(m)
         return False
     lock = db.outbound_messages.update_one({'id': msg_id, 'status': 'queued'}, {'$set': {'status': 'sending'}, '$inc': {'attempts': 1}})
     if lock.modified_count != 1:
@@ -770,7 +792,10 @@ def pump(business_id, base_url='', now_utc=None, produce=True, limit=40):
     now_utc = now_utc or datetime.now(timezone.utc)
     settings = get_settings(business_id)
     stats = {'produced': 0, 'sent': 0, 'failed': 0, 'deferred': 0, 'skipped': 0}
-    if produce:
+    # h4a: gói không có tin tự động (Essential / vừa hạ gói) -> không tạo tin tự động, và tin tự động đã xếp hàng bị huỷ
+    # lúc tới hạn gửi (cron /api/cron/messages + /api/cron/daily_tasks, /api/messages/pump đều đi qua đây)
+    automation_ok = automation_allowed(business_id)
+    if produce and automation_ok:
         for fn in (produce_appointment_reminders, produce_review_requests, produce_nurture, produce_owner_report):
             try:
                 stats['produced'] += fn(business_id, settings, now_utc)
@@ -781,6 +806,10 @@ def pump(business_id, base_url='', now_utc=None, produce=True, limit=40):
     due = list(db.outbound_messages.find({'business_id': business_id, 'status': 'queued', 'send_after': {'$lte': cutoff.isoformat()}},
                                          {'_id': 0}).sort('send_after', 1).limit(limit))
     for m in due:
+        if m['kind'] in AUTOMATED_KINDS and not automation_ok:
+            _cancel_plan_blocked(m)
+            stats['skipped'] += 1
+            continue
         transactional = m['kind'] in ('owner_report', 'missed_call', 'test', 'on_my_way', 'staff_alert')
         if not transactional and not in_send_window(settings, now_utc):
             db.outbound_messages.update_one({'id': m['id']}, {'$set': {'send_after': next_window_start_utc(settings, now_utc).isoformat()}})
