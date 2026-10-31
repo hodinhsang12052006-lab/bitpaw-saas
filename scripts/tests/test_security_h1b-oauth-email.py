@@ -169,7 +169,7 @@ def index():
 
 _fake_app = types.ModuleType('app')
 _fake_app.__dict__.update(os=os, session=session, jsonify=jsonify, flash=flash, redirect=redirect, url_for=url_for, wraps=wraps,
-                          _wants_json=lambda: True, _vi_en=lambda vi, en: en)
+                          _wants_json=lambda: True, _vi_en=lambda vi, en: en, request=request)
 # Sau bản vá h1a-auth, _is_superadmin() gọi _superadmin_session_ok() (cần hash God Mode + phiên bản phiên trong DB).
 # Ở đây dựng bản rút gọn đúng điều kiện cốt lõi: uid God Mode + role super_admin + email trong danh sách cho phép.
 def _superadmin_session_ok():
@@ -179,7 +179,8 @@ def _superadmin_session_ok():
 
 
 _fake_app._superadmin_session_ok = _superadmin_session_ok
-for _name in ('_is_authorized_superadmin_email', '_is_superadmin', 'login_required'):
+# _signup_region: Phase 2 985ab470 (merge 9a8fa3a8) — oauth_complete stores the shop's country / currency
+for _name in ('_is_authorized_superadmin_email', '_is_superadmin', 'login_required', '_signup_region'):
     exec(_segment(lambda n, nm=_name: isinstance(n, ast.FunctionDef) and n.name == nm), _fake_app.__dict__)
 exec(_segment(lambda n: isinstance(n, ast.Assign) and any(getattr(t, 'id', None) == 'SUPERADMIN_ROOT_EMAIL' for t in n.targets)),
      _fake_app.__dict__)

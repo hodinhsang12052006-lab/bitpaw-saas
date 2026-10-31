@@ -32,6 +32,7 @@ import tempfile
 import time
 import types
 import unittest
+from datetime import timezone
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, quote, urlparse
 
@@ -64,8 +65,12 @@ if not hasattr(core.FakeCollection, 'distinct'):
 _FUNCS = ('_portal_chat_token', '_resolve_portal_customer', '_portal_conversation', '_portal_stream_sig', '_portal_stream_key',
           '_portal_stream_owner', 'api_portal_messages_list', 'api_portal_messages_create', 'api_portal_upload',
           'api_portal_stream', 'api_cskh_chat_send', '_assert_owns_bot_customer', 'api_bot_messages_create',
-          '_web_device_labels', '_web_reply_stamp')   # identity4: đích trả lời + nhãn thiết bị (api_bot_messages_create gọi)
-_ASSIGNS = ('_PORTAL_STREAM_KEY_TTL',)
+          '_web_device_labels', '_web_reply_stamp',   # identity4: đích trả lời + nhãn thiết bị (api_bot_messages_create gọi)
+          # security hotfix ec14e667 (h3) + 7cb00bea (h4a), merge 9a8fa3a8: api_portal_upload checks magic bytes, size / daily
+          # caps, the per-shop chat-photo quota and returns a signed link
+          '_sniff_image_type', '_legacy_media_usage_bytes', '_portal_chat_sig')
+_ASSIGNS = ('_PORTAL_STREAM_KEY_TTL', '_PORTAL_UPLOAD_MAX_BYTES', '_PORTAL_UPLOADS_PER_CONVERSATION_DAY',
+            '_PORTAL_UPLOADS_PER_SHOP_DAY')
 SSE, UPLOADS = [], []
 
 
@@ -86,7 +91,7 @@ NS.update({'_public_shop_context': lambda bid: {'shop_name': 'Rose Nails'}, '_ss
            'media_fs': _FakeFS(), 'secure_filename': lambda f: f, '_allowed_media_file': lambda f: True,
            '_safe_image_content_type': lambda f: 'image/gif', 'Response': Response,
            'url_for': lambda name, **kw: '/api/public/storage/file/' + str(kw.get('file_id')),
-           'BITPAW_LEADS_BUSINESS_ID': 'bitpaw_leads', 'app': APP, 'hmac': hmac, 'hashlib': hashlib})
+           'BITPAW_LEADS_BUSINESS_ID': 'bitpaw_leads', 'app': APP, 'hmac': hmac, 'hashlib': hashlib, 'timezone': timezone})
 for _node in core._TREE.body:
     if isinstance(_node, ast.Assign) and any(isinstance(t, ast.Name) and t.id in _ASSIGNS for t in _node.targets):
         exec(compile(ast.fix_missing_locations(ast.Module(body=[_node], type_ignores=[])), 'app.py', 'exec'), NS)

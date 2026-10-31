@@ -249,7 +249,10 @@ _FUNCS = ('_employee_projection', 'api_hr_employees_list', 'api_hr_employees_get
           'api_public_employee_lookup', '_assert_owns_bot_customer', 'api_bot_messages_create', 'api_bot_customer_link',
           '_allowed_media_file', '_safe_image_content_type', '_sniff_image_type', '_legacy_media_usage_bytes',
           '_portal_chat_sig', '_portal_chat_link_ok', 'api_storage_upload', 'api_portal_upload', 'api_public_storage_file',
-          '_resolve_portal_customer', '_inbox_handle_event', 'secure_ai_generate', '_anon_sales_chat_request')
+          '_resolve_portal_customer', '_inbox_handle_event', 'secure_ai_generate', '_anon_sales_chat_request',
+          # Phase 2 (merge 9a8fa3a8): portal routes prove the browser token via _portal_conversation (d1591cad); staff
+          # replies on web threads are device-addressed via _web_reply_stamp (5372b170)
+          '_portal_chat_token', '_portal_conversation', '_web_reply_stamp', '_web_device_labels')
 
 SSE_CALLS = []
 DEEPSEEK_CALLS = []
@@ -281,6 +284,7 @@ NS = {
     '_paused_holding_reply': lambda *a, **k: 'paused',
     # _inbox_handle_event
     '_inbox_after_customer_message': lambda *a, **k: None, '_inbox_walkin': lambda bid: 'Client',
+    '_vi_en': lambda vi, en: en,   # _web_reply_stamp error messages (Phase 2, 5372b170)
 }
 MISSING = []
 for node in TREE.body:
@@ -303,13 +307,22 @@ _gw.unavailable_reply = lambda bid, msg=None: {'ai_unavailable': True}
 _gw.tag_request = lambda feature, bid=None: None
 sys.modules['ai_gateway'] = _gw
 _ft = types.ModuleType('ai_function_tools')
-_ft.chat_token_hash = lambda tok: None
+# same contract as the real chat_token_hash (sha256 of a 16-64 char token, else None): the portal routes need the browser-token
+# proof since Phase 2 d1591cad
+_ft.chat_token_hash = lambda tok: (hashlib.sha256(tok.encode('ascii')).hexdigest()
+                                   if isinstance(tok, str) and re.fullmatch(r'[\x21-\x7e]{16,64}', tok) else None)
 _ft.has_booking_pack = lambda bid: False
 _ft.QA_TOOLS = []
+# Phase 2 80c29a3b (merge 9a8fa3a8): secure_ai_generate picks the industry pack / customer tools and opens chat_scope with the
+# customer's language, channel and network key — stubbed: no pack (= the old has_booking_pack False path), no tools
+_ft.business_industry = lambda bid: None
+_ft.can_verify = lambda *a, **k: False
+_ft.customer_tools = lambda *a, **k: []
+_ft.request_client_key = lambda: None
 
 
 @contextmanager
-def _chat_scope(tok):
+def _chat_scope(tok=None, lang=None, channel=None, client=None):
     yield
 
 
@@ -617,13 +630,24 @@ class StorageUploadTests(unittest.TestCase):
 # ================================================================ F + G. ảnh chat CSKH: tải lên + link công khai
 class PortalMediaTests(unittest.TestCase):
     CID = 'shopA:+15550001'
+    TOKEN = 'browser-token-h3-portal-0001'
 
     def setUp(self):
         DB.reset()
-        DB.bot_customers.insert_one({'id': self.CID, 'business_id': 'shopA', 'channel': 'web'})
+        self._seed_thread()
 
-    def _up(self, data, name='p.jpg', cid=None):
-        with _ctx('/api/portal/upload', method='POST', **_upload_kw(data, name, customer_id=cid or self.CID)):
+    def _seed_thread(self):
+        DB.bot_customers.insert_one({'id': self.CID, 'business_id': 'shopA', 'channel': 'web'})
+        # Phase 2 d1591cad (merge 9a8fa3a8): /api/portal/* only opens a web thread for the browser whose chat-token hash is on
+        # one of its messages — this browser has chatted here
+        DB.bot_messages.insert_one({'customer_id': self.CID, 'sender_type': 'customer', 'content': 'hi',
+                                    'chat_token_hash': _ft.chat_token_hash(self.TOKEN)})
+
+    def _up(self, data, name='p.jpg', cid=None, token=TOKEN):
+        fields = {'customer_id': cid or self.CID}
+        if token:
+            fields['chat_token'] = token
+        with _ctx('/api/portal/upload', method='POST', **_upload_kw(data, name, **fields)):
             return _call('api_portal_upload')
 
     def _get(self, url):
@@ -633,6 +657,11 @@ class PortalMediaTests(unittest.TestCase):
             return _call('api_public_storage_file', fid)
 
     def test_non_image_rejected_and_real_image_gets_signed_link(self):
+        # merge 9a8fa3a8: both invariants hold together — a browser that never chatted here (no / wrong chat token) is refused
+        # before any byte check (Phase 2 d1591cad), and the browser that did gets the h3 checks + signed link below
+        self.assertEqual(self._up(JPEG, token=None)[0], 404)
+        self.assertEqual(self._up(JPEG, token='some-other-browser-token-01')[0], 404)
+        self.assertEqual(DB['media.files'].count_documents({}), 0)
         self.assertEqual(self._up(HTML, name='x.png')[0], 400)
         status, body = self._up(JPEG)
         self.assertEqual(status, 200, body)
@@ -654,7 +683,7 @@ class PortalMediaTests(unittest.TestCase):
                                           'uploaded_at': now, 'length': 10})
         self.assertEqual(self._up(JPEG)[0], 429)
         DB.reset()
-        DB.bot_customers.insert_one({'id': self.CID, 'business_id': 'shopA', 'channel': 'web'})
+        self._seed_thread()
         for i in range(NS['_PORTAL_UPLOADS_PER_SHOP_DAY']):
             DB['media.files'].insert_one({'business_id': 'shopA', 'kind': 'portal_chat', 'customer_id': f'shopA:+1{i}',
                                           'uploaded_at': now, 'length': 10})

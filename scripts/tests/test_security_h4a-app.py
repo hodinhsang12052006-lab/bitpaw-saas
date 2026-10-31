@@ -307,13 +307,22 @@ import messaging  # noqa: E402
 
 # module con mà secure_ai_generate import bên trong hàm (stub: không gọi DeepSeek/DB thật)
 _ft = types.ModuleType('ai_function_tools')
-_ft.chat_token_hash = lambda tok: None
+# same contract as the real chat_token_hash (sha256 of a 16-64 char token, else None): the portal routes need the browser-token
+# proof since Phase 2 d1591cad
+_ft.chat_token_hash = lambda tok: (hashlib.sha256(tok.encode('ascii')).hexdigest()
+                                   if isinstance(tok, str) and re.fullmatch(r'[\x21-\x7e]{16,64}', tok) else None)
 _ft.has_booking_pack = lambda bid: False
 _ft.QA_TOOLS = []
+# Phase 2 80c29a3b (merge 9a8fa3a8): secure_ai_generate picks the industry pack / customer tools and opens chat_scope with the
+# customer's language, channel and network key — stubbed: no pack (= the old has_booking_pack False path), no tools
+_ft.business_industry = lambda bid: None
+_ft.can_verify = lambda *a, **k: False
+_ft.customer_tools = lambda *a, **k: []
+_ft.request_client_key = lambda: None
 
 
 @contextmanager
-def _chat_scope(tok):
+def _chat_scope(tok=None, lang=None, channel=None, client=None):
     yield
 
 
@@ -350,12 +359,14 @@ _FUNCS = (
     # 3. ảnh chat khách / ảnh của tiệm
     '_allowed_media_file', '_sniff_image_type', '_legacy_media_usage_bytes', '_portal_chat_sig', '_resolve_portal_customer',
     'api_storage_upload', 'api_portal_upload',
+    '_portal_chat_token', '_portal_conversation',   # Phase 2 d1591cad (merge 9a8fa3a8): browser-token proof on /api/portal/*
     # 4. khôi phục bản sao lưu
     'restore_backup', '_license_locked_industry', '_session_business_id', 'setup',
     # 5. tin tự động
     '_queue_loyalty_notification',
     # 6. đăng ký
     'register', '_email_query', '_is_authorized_superadmin_email',
+    '_signup_region',   # Phase 2 985ab470 (merge 9a8fa3a8): register() stores the shop's country / currency
     # 7. chi nhánh chính
     '_ensure_primary_membership', '_get_owned_business_ids', 'api_switch_branch', '_multi_location_denied',
 )
@@ -734,11 +745,18 @@ class HrOwnRecordsTests(unittest.TestCase):
 class PortalUploadQuotaTests(unittest.TestCase):
     CID = 'shopA:+15550001'
 
+    TOKEN = 'browser-token-h4a-portal-001'
+
     def setUp(self):
         _reset()
         os.environ.pop('PORTAL_CHAT_SHOP_CAP_BYTES', None)
         DB.bot_customers.insert_one({'id': self.CID, 'business_id': 'shopA', 'channel': 'web'})
         DB.bot_customers.insert_one({'id': 'shopB:+15550002', 'business_id': 'shopB', 'channel': 'web'})
+        # Phase 2 d1591cad (merge 9a8fa3a8): /api/portal/* only opens a web thread for the browser whose chat-token hash is on
+        # one of its messages — this browser has chatted in both threads
+        for cid in (self.CID, 'shopB:+15550002'):
+            DB.bot_messages.insert_one({'customer_id': cid, 'sender_type': 'customer', 'content': 'hi',
+                                        'chat_token_hash': _ft.chat_token_hash(self.TOKEN)})
         self.cap = NS['_LEGACY_MEDIA_SHOP_CAP_BYTES']
         self.old = datetime.now(timezone.utc) - timedelta(days=3)    # ngoài trần số ảnh/ngày
 
@@ -752,7 +770,7 @@ class PortalUploadQuotaTests(unittest.TestCase):
             return _call('api_storage_upload')
 
     def _portal_upload(self, cid=None):
-        form = {'customer_id': cid or self.CID, 'file': (io.BytesIO(JPEG), 'p.jpg')}
+        form = {'customer_id': cid or self.CID, 'chat_token': self.TOKEN, 'file': (io.BytesIO(JPEG), 'p.jpg')}
         with _ctx('/api/portal/upload', method='POST', data=form, content_type='multipart/form-data'):
             return _call('api_portal_upload')
 

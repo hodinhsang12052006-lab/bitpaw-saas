@@ -58,6 +58,7 @@ _FUNCS = {
     'api_delete_account', 'logout', '_is_superadmin', '_superadmin_session_ok', '_superadmin_fallback_hash',
     '_superadmin_key_fingerprint', '_superadmin_session_ver', '_known_device_token', '_is_known_login_device',
     '_remember_login_device',
+    '_signup_region',   # Phase 2 985ab470 (merge 9a8fa3a8): register() stores the shop's country / currency
 }
 _ASSIGNS = {
     'SUPERADMIN_ROOT_EMAIL', '_LOGIN_FAIL_WINDOW_SECONDS', '_LOGIN_FAIL_MAX_PER_IP', '_LOGIN_FAIL_MAX_PER_EMAIL',

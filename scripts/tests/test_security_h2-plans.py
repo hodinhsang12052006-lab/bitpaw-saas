@@ -183,7 +183,8 @@ import uuid  # noqa: E402
 with io.open(os.path.join(ROOT, 'app.py'), encoding='utf-8') as f:
     _TREE = ast.parse(f.read())
 _FUNCS = ('_session_business_id', '_get_owned_business_ids', '_multi_location_denied', 'api_switch_branch', 'add_branch',
-          '_license_locked_industry', 'setup', '_plan_gate')
+          '_license_locked_industry', 'setup', '_plan_gate',
+          'is_store_app')   # Phase 2 15601e65 (merge 9a8fa3a8): _plan_gate words the refusal neutrally inside the mobile app
 INDUSTRIES = ('retail', 'fnb', 'spa', 'nail', 'karaoke', 'hotel', 'production', 'technical', 'office')
 NS = {
     'db': DB, 'session': session, 'request': request, 'jsonify': jsonify, 'redirect': redirect, 'url_for': url_for,

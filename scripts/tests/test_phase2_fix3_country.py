@@ -76,8 +76,24 @@ APP_NS = {
     'security_shield': types.SimpleNamespace(code_attempts_blocked=lambda ip: False, record_code_failure=lambda ip, k='': None),
     '_get_real_client_ip': lambda: '203.0.113.7', 'generate_password_hash': lambda p: 'hash:' + str(len(p)),
     '_send_welcome_email': WELCOME,
+    # security hotfix (6e37a3e9 h1a-auth / 7cb00bea h4a-app, merge 9a8fa3a8): register() refuses Super Admin emails and checks
+    # the dropdown industry against INDUSTRY_CONFIG -> the real _is_authorized_superadmin_email + SUPERADMIN_ROOT_EMAIL below
+    'os': os, 'INDUSTRY_CONFIG': {'nail': {'name': 'Nails'}, 'fnb': {'name': 'Nhà hàng'}, 'retail': {'name': 'Bán lẻ'},
+                                  'hotel': {'name': 'Khách sạn'}},
 }
-_source_funcs('app.py', ['_email_query', '_signup_region', 'register'], APP_NS)
+
+
+def _source_assigns(rel, names, ns):
+    """Hằng số module-level (Assign) lấy nguyên mã nguồn qua ast — cùng cách với _source_funcs."""
+    tree = ast.parse(_read(rel))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, 'id', None) in names for t in node.targets):
+            exec(compile(ast.fix_missing_locations(ast.Module(body=[node], type_ignores=[])), f'{rel}::assign', 'exec'), ns)
+    return ns
+
+
+_source_assigns('app.py', ('SUPERADMIN_ROOT_EMAIL',), APP_NS)
+_source_funcs('app.py', ['_email_query', '_signup_region', '_is_authorized_superadmin_email', 'register'], APP_NS)
 
 REG = Flask('fix3_register')
 REG.secret_key = 'test'
@@ -88,6 +104,7 @@ _fake_app = types.ModuleType('app')
 _fake_app.INDUSTRY_CONFIG = {'nail': {'name': 'Nails'}, 'fnb': {'name': 'Nhà hàng'}, 'retail': {'name': 'Bán lẻ'}}
 _fake_app._send_welcome_email = MagicMock()
 _fake_app._signup_region = APP_NS.get('_signup_region')
+_fake_app._is_authorized_superadmin_email = APP_NS.get('_is_authorized_superadmin_email')   # oauth_login (7573ba4e / c3a0a3e4)
 _fake_app.csrf = types.SimpleNamespace(protect=lambda: None)
 _fake_app._ensure_primary_membership = lambda *a, **k: None
 _fake_app._get_real_client_ip = lambda: '203.0.113.7'
