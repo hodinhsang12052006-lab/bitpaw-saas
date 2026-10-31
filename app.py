@@ -239,10 +239,12 @@ def tenant_day_bounds(business_id, day=None):
 
 
 def _tenant_currency(business_id):
+    """Tiền tệ của tiệm = TenantEngine.get_region_config (currency_utils.shop_currency: đã lưu -> theo nước -> USD).
+    Lỗi / không có -> USD, không bao giờ mặc định VND cho tiệm không ở Việt Nam."""
     try:
-        return (TenantEngine.get_region_config(business_id) or {}).get('currency') or 'VND'
+        return (TenantEngine.get_region_config(business_id) or {}).get('currency') or 'USD'
     except Exception:
-        return 'VND'
+        return 'USD'
 
 
 def _payment_method(value, default='cash'):
@@ -1577,16 +1579,20 @@ def _signup_region(form):
     """{'country': 'AU', 'currency': 'AUD'} / {'country': 'CA'} cho tiệm MỚI tự đăng ký (/register và Google/Facebook
     /auth/complete), hoặc {}.
     Nước: ô "Quốc gia của tiệm" trên form (chọn sẵn theo header X-Vercel-IP-Country của Vercel); form cũ / gọi thẳng không có
-    ô đó -> theo header; 'Nước khác', nước BitPaw chưa có luật, hoặc không có gì -> không lưu (ai_packs.shop_country = None:
-    số nội địa không bị đoán là số Mỹ / số Việt; TenantEngine: USD, không nước).
-    Tiền tệ CHỈ lưu khi app định dạng được nó (currency_utils.format_money + static/js/bp-currency.js: VND/USD/AUD): US -> USD,
-    AU -> AUD, VN -> VND. CA/NZ/GB: không lưu tiền tệ — từng module tự theo nước (hotel._currency, nail_turns.shop_currency,
-    retail: CAD/NZD/GBP; màn hình quản lý qua TenantEngine: '$' USD), không gắn cứng 'USD' cho tiệm không dùng USD.
+    ô đó -> theo header. Chủ tiệm chọn 'Nước khác' trên form -> lưu {'country': 'OTHER'} — ĐÚNG dấu mà mục "Quốc gia & tiền
+    tệ" (/api/business_region) lưu: ai_packs.shop_country = None nên múi giờ mặc định America/New_York mà trang Nhắn tin gửi
+    lại KHÔNG biến tiệm thành tiệm Mỹ (SĐT theo luật NANP, Square mở). Nước BitPaw chưa có luật / chuỗi lạ / không có gì ->
+    không lưu (không bịa nước; TenantEngine: USD, không nước).
+    Tiền tệ: US -> USD, AU -> AUD, VN -> VND. CA/NZ/GB: không lưu = 'Theo quốc gia (tự động)' — currency_utils.shop_currency
+    cho CAD/NZD/GBP ở mọi nơi (TenantEngine, lễ tân AI, format_money: 'CA$45.00'), và vẫn theo đúng nước nếu chủ tiệm sửa nước.
     Chọn nhầm lúc đăng ký: chủ tiệm sửa nước + tiền tệ ở Cài đặt thương hiệu (/api/business_region). Lỗi -> {}: không bao
     giờ chặn việc đăng ký."""
     try:
         import ai_packs
-        raw = form.get('country') if 'country' in form else request.headers.get('X-Vercel-IP-Country')
+        explicit = 'country' in form
+        raw = form.get('country') if explicit else request.headers.get('X-Vercel-IP-Country')
+        if explicit and str(raw or '').strip().lower() == 'other':
+            return {'country': 'OTHER'}
         country = ai_packs.country_code(raw)
     except Exception as e:
         print(f"[signup] country: {e}")
@@ -9233,8 +9239,10 @@ def api_business_region_get():
 def api_business_region_save():
     """JSON {country: 'US'|'AU'|'VN'|'CA'|'NZ'|'GB'|'other', currency: 'USD'|'AUD'|'VND'|'CAD'|'NZD'|'GBP'|'auto'} cho ĐÚNG
     tiệm trong phiên (không nhận business_id từ client). 'other' lưu 'OTHER' (ai_packs.shop_country -> None: số nội địa không
-    bị đoán theo múi giờ / tiền tệ); 'auto' xoá tiền tệ đã lưu (mỗi module tự theo nước — như đăng ký mới CA/NZ/GB). Không quy
-    đổi số tiền đã ghi. Có thay đổi -> audit_logs 'business_region_update' (cũ -> mới, ai đổi)."""
+    bị đoán theo múi giờ / tiền tệ); 'auto' xoá tiền tệ đã lưu (currency_utils.shop_currency theo nước — như đăng ký mới
+    CA/NZ/GB). KHÔNG gửi currency (thiếu / null / rỗng) -> GIỮ tiền tệ đang lưu (không âm thầm xoá). Tiền tệ cũ ngoài danh sách
+    (vd 'EUR' của tiệm cũ) được giữ nếu gửi lại đúng nó -> chủ tiệm sửa được nước mà không bị buộc đổi tiền. Không quy đổi số
+    tiền đã ghi. Có thay đổi -> audit_logs 'business_region_update' (cũ -> mới, ai đổi)."""
     import ai_packs
     business_id = session.get('business_id') or session['user_id']
     data = request.get_json(silent=True)
@@ -9243,16 +9251,27 @@ def api_business_region_save():
     country = 'OTHER' if raw_country.lower() == 'other' else ai_packs.country_code(raw_country)
     if not country:
         return jsonify({'success': False, 'message': _vi_en('Hãy chọn quốc gia của tiệm.', 'Please choose your shop country.')}), 400
-    currency = str(data.get('currency') or '').strip().upper()
-    if currency in ('', 'AUTO'):
+    raw_currency = data.get('currency')
+    keep_currency = raw_currency is None or not str(raw_currency).strip()   # không gửi tiền tệ: giữ nguyên, không xoá
+    currency = None if keep_currency else str(raw_currency).strip().upper()
+    if currency == 'AUTO':
         currency = None
-    elif currency not in _REGION_CURRENCIES:
-        return jsonify({'success': False, 'message': _vi_en('Tiền tệ không hợp lệ (USD, AUD, VND, CAD, NZD, GBP).',
-                                                            'Unsupported currency (USD, AUD, VND, CAD, NZD, GBP).')}), 400
+
+    def bad_currency():
+        return jsonify({'success': False, 'message': _vi_en(
+            'Tiền tệ không hợp lệ: hãy chọn USD, AUD, VND, CAD, NZD, GBP hoặc "Theo quốc gia (tự động)".',
+            'Unsupported currency: choose USD, AUD, VND, CAD, NZD, GBP or "Match the country (automatic)".')}), 400
+    if currency and currency not in _REGION_CURRENCIES and not re.fullmatch(r'[A-Z]{3}', currency):
+        return bad_currency()
     try:
         old = db.businesses.find_one({'id': business_id}, {'_id': 0, 'country': 1, 'currency': 1})
         if old is None:
             return jsonify({'success': False, 'message': _vi_en('Không tìm thấy hồ sơ tiệm.', 'Business profile not found.')}), 404
+        old_currency = str(old.get('currency') or '').strip().upper()
+        if keep_currency or (currency and currency not in _REGION_CURRENCIES and currency == old_currency):
+            currency = old.get('currency') or None   # giữ đúng giá trị đang lưu (kể cả tiền tệ cũ ngoài danh sách)
+        elif currency and currency not in _REGION_CURRENCIES:
+            return bad_currency()
         before = {'country': old.get('country') or None, 'currency': old.get('currency') or None}
         after = {'country': country, 'currency': currency}
         if before != after:
@@ -10102,19 +10121,23 @@ def api_payment_local_checkout():
 # @login_required vì Vercel Cron không mang session cookie.
 def _shop_lang_currency(business_id):
     """(ngôn ngữ 'vi'|'en', tiền tệ) của tiệm cho câu chữ gửi CHỦ TIỆM (đề xuất nhập hàng, cảnh báo đối soát).
-    Tiền tệ: businesses.currency, chưa có thì theo quốc gia (VN -> VND, AU -> AUD, nước khác -> USD) — không còn mặc
-    định VND cho tiệm Mỹ/Úc. Tiệm cũ không có dòng businesses (đăng ký đời đầu) giữ VN/VND như _tenant_currency.
+    Nước + tiền tệ: CÙNG quy tắc với TenantEngine.get_region_config / lễ tân AI (nước: ai_packs.shop_country = hồ sơ -> múi
+    giờ trang Nhắn tin -> tiền tệ; tiền: currency_utils.shop_currency = đã lưu -> theo nước, CA -> CAD... -> USD). Tiệm chưa
+    rõ nước (kể cả tiệm cũ không có dòng businesses) -> 'en' + USD, không còn mặc định VN/VND.
     Ngôn ngữ: ngôn ngữ tiệm chọn ở trang Nhắn tin (db.messaging_settings.language — trường messaging.get_settings đọc),
-    chưa chọn thì theo quốc gia."""
+    chưa chọn thì tiếng Việt chỉ cho tiệm ở Việt Nam."""
     row = {}
     try:
         row = db.businesses.find_one({'id': business_id}, {'_id': 0, 'country': 1, 'currency': 1}) or {}
     except Exception:
         pass
-    country = str(row.get('country') or '').upper()
-    currency = str(row.get('currency') or {'VN': 'VND', 'AU': 'AUD', '': 'VND'}.get(country, 'USD')).upper()
-    if not country:
-        country = {'VND': 'VN', 'AUD': 'AU'}.get(currency, 'US')
+    try:
+        import ai_packs
+        from currency_utils import shop_currency
+        country = ai_packs.shop_country(dict(row, id=business_id))
+        currency = shop_currency(row.get('currency'), country)
+    except Exception:
+        country, currency = None, str(row.get('currency') or 'USD').strip().upper()
     lang = 'vi' if country == 'VN' else 'en'
     try:
         chosen = (db.messaging_settings.find_one({'business_id': business_id}, {'_id': 0, 'language': 1}) or {}).get('language')

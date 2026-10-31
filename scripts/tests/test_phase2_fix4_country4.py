@@ -221,7 +221,8 @@ class RegionRouteTests(core._Base):
         self.assertEqual(self._post({'country': 'CA', 'currency': 'auto'}).status_code, 200)
         self.assertNotIn('currency', _row('ca1'))
         self.assertEqual(hotel._currency(_row('ca1')), 'CAD')                            # module tự theo nước
-        self.assertEqual(TenantEngine.get_region_config('ca1'), {'country': 'CA', 'currency': 'USD'})   # màn hình quản lý: '$'
+        # fix5: 'Theo quốc gia' = CAD ở mọi nơi (currency_utils.shop_currency; format_money: 'CA$45.00')
+        self.assertEqual(TenantEngine.get_region_config('ca1'), {'country': 'CA', 'currency': 'CAD'})
 
     def test_bad_input_is_refused_in_the_viewer_language(self):
         _biz('b1', country='AU', currency='AUD')
@@ -540,8 +541,8 @@ class RegionConfigTests(core._Base):
             ({'country': 'OTHER'}, 'Asia/Ho_Chi_Minh', {'country': '', 'currency': 'USD'}),
             ({'country': 'SG', 'currency': 'USD'}, None, {'country': '', 'currency': 'USD'}),
             ({'country': 'VN'}, None, {'country': 'VN', 'currency': 'VND'}), ({'country': 'AU'}, None, {'country': 'AU', 'currency': 'AUD'}),
-            ({'country': 'US'}, None, {'country': 'US', 'currency': 'USD'}), ({'country': 'CA'}, None, {'country': 'CA', 'currency': 'USD'}),
-            ({'country': 'NZ'}, None, {'country': 'NZ', 'currency': 'USD'}), ({'country': 'gb'}, None, {'country': 'GB', 'currency': 'USD'}),
+            ({'country': 'US'}, None, {'country': 'US', 'currency': 'USD'}), ({'country': 'CA'}, None, {'country': 'CA', 'currency': 'CAD'}),
+            ({'country': 'NZ'}, None, {'country': 'NZ', 'currency': 'NZD'}), ({'country': 'gb'}, None, {'country': 'GB', 'currency': 'GBP'}),
             ({'currency': 'VND'}, None, {'country': 'VN', 'currency': 'VND'}), ({'currency': 'aud'}, None, {'country': 'AU', 'currency': 'AUD'}),
             ({}, 'Australia/Perth', {'country': 'AU', 'currency': 'AUD'}), ({}, 'Asia/Ho_Chi_Minh', {'country': 'VN', 'currency': 'VND'}),
             ({'country': 'CA', 'currency': 'CAD'}, None, {'country': 'CA', 'currency': 'CAD'}),
@@ -612,7 +613,8 @@ class SignupCurrencyTests(core._Base):
         for n, country in ((3, 'CA'), (4, 'NZ'), (5, 'GB')):
             biz = DB.businesses.find_one({'name': f'Hotel {n}'})
             self.assertEqual(hotel._currency(biz), {'CA': 'CAD', 'NZ': 'NZD', 'GB': 'GBP'}[country])
-            self.assertEqual(TenantEngine.get_region_config(biz['id']), {'country': country, 'currency': 'USD'})   # '$' trên màn hình quản lý
+            self.assertEqual(TenantEngine.get_region_config(biz['id']),   # fix5: theo nước, không gắn cứng USD
+                             {'country': country, 'currency': {'CA': 'CAD', 'NZ': 'NZD', 'GB': 'GBP'}[country]})
             self.assertEqual(ai_packs.shop_country(biz['id']), country)
 
     def test_signup_region_only_stores_formattable_currencies(self):
@@ -620,7 +622,8 @@ class SignupCurrencyTests(core._Base):
         app = Flask('fix4_signup')
         for raw, want in (('US', {'country': 'US', 'currency': 'USD'}), ('au', {'country': 'AU', 'currency': 'AUD'}),
                           ('VN', {'country': 'VN', 'currency': 'VND'}), ('CA', {'country': 'CA'}), ('nz', {'country': 'NZ'}),
-                          ('UK', {'country': 'GB'}), ('GB', {'country': 'GB'}), ('other', {}), ('', {}), ('SG', {})):
+                          ('UK', {'country': 'GB'}), ('GB', {'country': 'GB'}), ('other', {'country': 'OTHER'}), ('', {}),
+                          ('SG', {})):   # fix5: 'Nước khác' = dấu 'OTHER' như /api/business_region
             with app.test_request_context('/register', method='POST', data={'country': raw}):
                 self.assertEqual(fn(request.form), want, raw)
         with app.test_request_context('/register', method='POST', data={}, headers={'X-Vercel-IP-Country': 'NZ'}):

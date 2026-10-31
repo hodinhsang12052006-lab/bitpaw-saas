@@ -135,6 +135,17 @@ def _shop(business_id):
         return {}
 
 
+def _shop_country(business_id, biz):
+    """ai_packs.shop_country của tiệm (1 nguồn với mọi module). Không có hồ sơ (DB tắt / chưa có dòng) -> None, không mở DB."""
+    if not biz:
+        return None
+    try:
+        import ai_packs
+        return ai_packs.shop_country(dict(biz, id=business_id))
+    except Exception:
+        return None
+
+
 def unavailable_reply(business_id, message=None):
     """Trả lời KHÔNG dùng AI cho chat trang đặt lịch khi gói của tiệm chưa có trợ lý AI (Essential / vừa hạ gói).
     Giữ đúng khuôn {"choices": [...]} để widget cũ vẫn hiện được câu này; widget mới đọc ai_unavailable + contact."""
@@ -151,8 +162,8 @@ def unavailable_reply(business_id, message=None):
     msg = message.strip() if isinstance(message, str) else ''
     if msg:
         vi = bool(_VI_RE.search(msg))
-    else:
-        vi = (biz.get('country') or '').upper() == 'VN' or (biz.get('currency') or '').upper() == 'VND'
+    else:   # theo nước của tiệm (ai_packs.shop_country: hồ sơ -> múi giờ trang Nhắn tin -> tiền tệ), không đọc thô 2 trường
+        vi = _shop_country(business_id, biz) == 'VN'
     if vi:
         text = (f"{name or 'Tiệm'} chưa bật trợ lý chat trực tuyến. Bạn vẫn đặt lịch được bằng form trên trang này"
                 + (f", hoặc gọi / nhắn tin cho tiệm: {phone}." if phone else ", hoặc liên hệ trực tiếp với tiệm."))

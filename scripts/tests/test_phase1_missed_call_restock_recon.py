@@ -593,7 +593,8 @@ class ReconciliationTests(_Base):
     def test_us_shop_without_currency_field_is_not_vnd(self):
         _shop('us-nocur', 'US', 'retail', 'No Currency Store')
         self.assertEqual(NS['_shop_lang_currency']('us-nocur'), ('en', 'USD'))
-        self.assertEqual(NS['_shop_lang_currency']('legacy-no-row'), ('vi', 'VND'))
+        # fix5 (country5): tiệm không có dòng businesses không còn mặc định VN/VND
+        self.assertEqual(NS['_shop_lang_currency']('legacy-no-row'), ('en', 'USD'))
         self.assertEqual(NS['_reconciliation_threshold']('USD'), 1.0)
         self.assertEqual(NS['_reconciliation_threshold']('VND'), 1000.0)
 
