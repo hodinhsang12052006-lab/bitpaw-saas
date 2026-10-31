@@ -271,8 +271,9 @@ for _node in _TREE.body:   # hằng số / cache ở cấp module
                                                                          '_SUPERADMIN_VER_CACHE') for t in _node.targets):
         exec(compile(ast.Module(body=[_node], type_ignores=[]), 'app.py', 'exec'), APP.__dict__)
 # thứ tự: decorator trước, route sau (route giữ NGUYÊN decorator @app.route/@login_required/@role_required của app.py)
+# _signup_region: Phase 2 985ab470 (merge 9a8fa3a8) — oauth_complete stores the shop's country / currency
 for _name in ('_is_authorized_superadmin_email', 'bump_session_version', '_email_query', '_wants_json', 'login_required',
-              'role_required', '_assert_owns_bot_customer', '_inbox_handle_event', 'api_bot_customer_link'):
+              'role_required', '_assert_owns_bot_customer', '_inbox_handle_event', 'api_bot_customer_link', '_signup_region'):
     exec(compile(ast.Module(body=[_FN[_name]], type_ignores=[]), f'app.py::{_name}', 'exec'), APP.__dict__)
 sys.modules['app'] = APP
 ROOT_ADMIN = APP.SUPERADMIN_ROOT_EMAIL
