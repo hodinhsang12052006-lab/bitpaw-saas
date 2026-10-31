@@ -582,46 +582,103 @@ def _web_cap_error():
                              'minh những ngày này — chưa giữ phòng nào; nhân viên khách sạn sẽ nhận yêu cầu này.')
 
 
-def create_staff_request(business_id, *, checkin, checkout, guests, room_type, guest_name, guest_phone, extra=None):
+def _party(value):
+    try:
+        return max(1, int(value or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def create_staff_request(business_id, *, checkin, checkout, guests, room_type, guest_name, guest_phone, extra=None,
+                         another_room=False):
     """Yêu cầu đặt phòng mà AI KHÔNG giữ phòng (chat web chưa xác minh vượt trần — web_holds_full): ghi 1 dòng
     db.hotel_reservations trạng thái STAFF_REQUEST, chưa xếp phòng, để nhân viên thấy trên /hotel/reservations (Duyệt = kiểm
     lại phòng trống rồi thành đặt phòng thật; Từ chối = huỷ) — không chỉ là 1 dòng trong hộp thư AI + email chủ (email gộp theo
     giờ, bỏ qua nếu chủ chưa có email). STAFF_REQUEST không thuộc LIVE_STATUSES nên KHÔNG chiếm phòng trong bảng phòng trống
-    và không tính vào trần. Cùng hội thoại + ngày + loại phòng + tên đã có 1 yêu cầu đang chờ -> trả lại yêu cầu đó, không
-    ghi thêm. Trả (doc, created)."""
+    và không tính vào trần. Cùng hội thoại + ngày + loại phòng + tên đã có yêu cầu đang chờ:
+    - cùng số khách -> trả lại yêu cầu đó, không ghi thêm ('duplicate');
+    - khác số khách (khách sửa 2 -> 4) -> cập nhật party_size của yêu cầu đó (party_size_was = số cũ) ('updated'), chỉ khi
+      dòng VẪN đang chờ (nhân viên vừa Duyệt / Từ chối thì không sửa dòng đã xử lý mà ghi yêu cầu mới) VÀ do CHÍNH chat này
+      ghi (cùng mã trình duyệt chat_token_hash — hội thoại web '<khách sạn>:<SĐT tự gõ>' trùng nhau khi 2 trình duyệt gõ cùng
+      SĐT: trình duyệt khác không sửa được yêu cầu của người khác, mà ghi yêu cầu mới);
+    - another_room=True (khách xin THÊM 1 phòng — như _create_booking giữ thêm phòng thật) -> luôn ghi dòng mới.
+    Trả (doc, 'created' | 'updated' | 'duplicate')."""
     _require_db()
     ci, co = parse_day(checkin), parse_day(checkout)
     extra = dict(extra or {})
+    party = _party(guests)
     conv = extra.get('ai_conversation_id')
-    if conv:
-        for r in db.hotel_reservations.find({'business_id': business_id, 'status': STAFF_REQUEST, 'ai_conversation_id': conv,
-                                             'checkin_date': ci.isoformat(), 'checkout_date': co.isoformat()},
-                                            {'_id': 0}).limit(50):
-            if type_key(r.get('room_type')) == type_key(room_type) and \
-                    clean_name(r.get('guest_name')).casefold() == clean_name(guest_name).casefold():
-                return r, False
+    if conv and not another_room:
+        same = [r for r in db.hotel_reservations.find({'business_id': business_id, 'status': STAFF_REQUEST,
+                                                       'ai_conversation_id': conv, 'checkin_date': ci.isoformat(),
+                                                       'checkout_date': co.isoformat()}, {'_id': 0}).limit(50)
+                if type_key(r.get('room_type')) == type_key(room_type)
+                and clean_name(r.get('guest_name')).casefold() == clean_name(guest_name).casefold()]
+        for r in same:
+            if _party(r.get('party_size')) == party:
+                return r, 'duplicate'
+        token = extra.get('chat_token_hash') or None
+        for r in sorted(same, key=lambda x: str(x.get('created_at') or ''), reverse=True):
+            if (r.get('chat_token_hash') or None) != token:
+                continue
+            upd = {'party_size': party, 'party_size_was': _party(r.get('party_size')),
+                   'updated_at': datetime.now().isoformat()}
+            if db.hotel_reservations.update_one({'id': r['id'], 'business_id': business_id, 'status': STAFF_REQUEST},
+                                                {'$set': upd}).matched_count:
+                return {**r, **upd}, 'updated'
     doc = {'id': next_mongo_id('hotel_reservations'), 'business_id': business_id, 'guest_name': guest_name,
-           'guest_phone': guest_phone, 'party_size': max(1, int(guests or 1)), 'checkin_date': ci.isoformat(),
+           'guest_phone': guest_phone, 'party_size': party, 'checkin_date': ci.isoformat(),
            'checkout_date': co.isoformat(), 'room_type': room_type, 'nights': (co - ci).days,
            'created_at': datetime.now().isoformat()}
     doc.update(extra)
     doc.update({'status': STAFF_REQUEST, 'room_id': None})
     db.hotel_reservations.insert_one(doc)
     doc.pop('_id', None)
-    return doc, True
+    return doc, 'created'
 
 
-def mark_checked_in(business_id, room_id, today, now=None):
-    """Nhân viên vừa nhận khách vào phòng room_id tại quầy (/api/hotel/rooms/<id>/checkin): đặt phòng còn hiệu lực của CHÍNH
-    phòng đó phủ đêm nay (nhận phòng <= hôm nay < trả phòng, theo giờ khách sạn) = người thật đã tới -> checked_in_at +
-    staff_reviewed_at, không còn tính vào trần giữ phòng của chat web chưa xác minh. Trả số đặt phòng được đánh dấu."""
+def _name_key(value):
+    return ' '.join(clean_name(value).split()).casefold()
+
+
+def same_guest(res, guest_name=None, guest_phone=None, country=None):
+    """Khách vừa tới quầy có phải khách của đặt phòng `res`: SĐT trùng NGUYÊN số (reservations_core.same_phone, chuẩn hoá
+    theo nước của khách sạn), hoặc họ tên trùng (bỏ hoa/thường, khoảng trắng thừa) mà quầy KHÔNG ghi 1 SĐT đầy đủ khác hẳn
+    SĐT của đặt phòng. Không có tên / SĐT nào để so -> False."""
+    import reservations_core
+    phone = str(guest_phone or '').strip()
+    booked_phone = str(res.get('guest_phone') or '').strip()
+    if phone and booked_phone and reservations_core.same_phone(booked_phone, phone, country):
+        return True
+    name = _name_key(guest_name)
+    if not name or name != _name_key(res.get('guest_name')):
+        return False
+    return not (len(re.sub(r'\D', '', phone)) >= 8 and len(re.sub(r'\D', '', booked_phone)) >= 8)
+
+
+def mark_checked_in(business_id, room_id, today, now=None, guest_name=None, guest_phone=None):
+    """Nhân viên vừa nhận khách vào phòng room_id tại quầy (/api/hotel/rooms/<id>/checkin, tên + SĐT khách nhập ở quầy):
+    đặt phòng còn hiệu lực của CHÍNH phòng đó phủ đêm nay (nhận phòng <= hôm nay < trả phòng, theo giờ khách sạn) VÀ là của
+    ĐÚNG khách vừa tới (same_guest) = người thật của đặt phòng đó đã tới -> checked_in_at + staff_reviewed_at, không còn tính
+    vào trần giữ phòng của chat web chưa xác minh. Khách vãng lai / người khác nhận vào phòng đang có đặt phòng AI chưa xác
+    minh (khách đó không tới, đặt giả, hay lượt giữ nhiều đêm bắt đầu từ hôm trước) -> đặt phòng đó VẪN tính vào trần (đúng
+    là khách đó thì nhân viên bấm "Đã xem" trên /hotel/reservations). Trả số đặt phòng được đánh dấu."""
     _require_db()
     t = today.isoformat()
     stamp = (now or _utcnow()).isoformat()
-    return db.hotel_reservations.update_many(
-        {'business_id': business_id, 'room_id': room_id, 'status': {'$in': list(LIVE_STATUSES)},
-         'checkin_date': {'$lte': t}, 'checkout_date': {'$gt': t}},
-        {'$set': {'checked_in_at': stamp, 'staff_reviewed_at': stamp}}).modified_count
+    country = None
+    if str(guest_phone or '').strip():
+        import reservations_core
+        country = reservations_core.country_of(business_id)
+    live = {'business_id': business_id, 'room_id': room_id, 'status': {'$in': list(LIVE_STATUSES)},
+            'checkin_date': {'$lte': t}, 'checkout_date': {'$gt': t}}
+    marked = 0
+    for res in db.hotel_reservations.find(live, {'_id': 0, 'id': 1, 'guest_name': 1, 'guest_phone': 1}).limit(50):
+        if not same_guest(res, guest_name, guest_phone, country):
+            continue
+        marked += db.hotel_reservations.update_one(
+            dict(live, id=res['id']), {'$set': {'checked_in_at': stamp, 'staff_reviewed_at': stamp}}).modified_count
+    return marked
 
 
 # ---------------------------------------------------------------- giữ phòng + tạo / đổi / huỷ đặt phòng
@@ -775,10 +832,11 @@ def change_dates(business_id, res, checkin, checkout, guests=None, today=None, m
         upd['status'] = new_status
     if res.get('status') == 'confirmed' or res.get('was_confirmed'):
         upd['was_confirmed'] = True   # hạn huỷ của đặt phòng đã xác nhận vẫn áp dụng khi chờ khách sạn xác nhận lại
-    if res.get('staff_confirmed_at'):
-        upd['staff_confirmed_at'] = None   # nhân viên duyệt NGÀY CŨ; ngày mới chưa ai duyệt (trần chat web chưa xác minh)
-    if res.get('staff_reviewed_at'):
-        upd['staff_reviewed_at'] = None    # nhân viên xem NGÀY CŨ (Đã xem / sửa / xếp phòng)
+    # Nhân viên duyệt / xem (Đã xem / sửa / xếp phòng) NGÀY CŨ; ngày mới chưa ai duyệt / xem (trần chat web chưa xác minh).
+    # LUÔN xoá, không theo bản `res` đã đọc: CAS bên dưới không canh 2 trường này, nhân viên bấm giữa lúc đọc và lúc ghi thì
+    # dấu của ngày cũ cũng không được sống sót trên ngày mới.
+    upd['staff_confirmed_at'] = None
+    upd['staff_reviewed_at'] = None
 
     if res.get('room_id') is None or cur_room is None:
         if not plan['available']:

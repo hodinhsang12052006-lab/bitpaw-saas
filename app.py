@@ -7069,9 +7069,12 @@ def api_hotel_room_checkin(room_id):
         if not result:
             return jsonify({"success": False, "message": "Phòng không tồn tại hoặc đang không trống."}), 409
         try:
-            # Đặt phòng của chính phòng này phủ đêm nay = khách thật đã tới quầy: không còn tính vào trần giữ phòng của chat
-            # web chưa xác minh (reservations_hotel.unverified_web_hold). Không làm hỏng lượt nhận phòng đã ghi.
-            reservations_hotel.mark_checked_in(business_id, room_id, tenant_today(business_id))
+            # Đặt phòng của chính phòng này phủ đêm nay VÀ của đúng khách vừa tới (tên / SĐT nhập ở quầy —
+            # reservations_hotel.same_guest) = khách thật đã tới: không còn tính vào trần giữ phòng của chat web chưa
+            # xác minh (reservations_hotel.unverified_web_hold). Khách vãng lai vào phòng có đặt phòng AI của người khác
+            # không nhả suất đó. Không làm hỏng lượt nhận phòng đã ghi.
+            reservations_hotel.mark_checked_in(business_id, room_id, tenant_today(business_id), guest_name=guest_name,
+                                               guest_phone=guest_phone)
         except Exception as e:
             print(f"[api_hotel_room_checkin] mark_checked_in: {e}")
         return jsonify({"success": True, "data": result})
