@@ -15,14 +15,21 @@ BitPaw gộp sẵn những thứ đối thủ bán thêm (lương/hoa hồng, SM
   Pro Partner— "phổ biến nhất": BitPaw cài đặt + website riêng + máy Square Terminal cài sẵn; mở khoá tự động hoá & AI CSKH.
   Empire     — chuỗi/nhiều chi nhánh: AI Copilot, AI Studio, báo cáo gộp, app thương hiệu riêng, quản lý kỹ thuật riêng.
 Trả theo năm: tặng 2 tháng (trả 10 tháng). AUD ≈ USD × 1,5 (làm tròn giá ...9).
-Tiệm CŨ chưa có trường businesses.plan được coi là Empire (không ai bị mất tính năng đang dùng).
+Tiệm CŨ (có trước GRANDFATHER_BEFORE) chưa có trường businesses.plan được coi là Empire (không ai bị mất tính năng đang dùng);
+tiệm mới thiếu plan = Essential; chi nhánh luôn dùng gói của tiệm chính (billing_business_id).
 """
 import math
+import re
 import time
 
 PLAN_ORDER = ('essential', 'pro', 'empire')
 PLAN_NAMES = {'essential': 'Essential', 'pro': 'Pro Partner', 'empire': 'Empire Scale'}
 DEFAULT_PLAN_FOR_EXISTING = 'empire'
+# Miễn phí Empire CHỈ cho tiệm có TRƯỚC khi ra mắt gói (998e028d, 25/10/2026): hồ sơ businesses thiếu plan mà created_at từ
+# ngày này trở đi (mã kích hoạt cũ không ghi gói...), id rỗng, id của tài khoản không phải chủ -> gói thấp nhất.
+GRANDFATHER_BEFORE = '2026-10-26'
+FAIL_CLOSED_PLAN = 'essential'
+BRANCH_LIMIT = 50   # chi nhánh phụ tối đa / chủ tiệm (gói Empire "nhiều chi nhánh") — chặn tạo hàng loạt
 
 # (giá tháng USD, phí cài đặt một lần USD)
 INDUSTRY_PRICES = {
@@ -91,22 +98,31 @@ FEATURE_LABELS = {
 ROUTE_FEATURES = [
     ('/roster', 'roster'), ('/api/roster', 'roster'),
     ('/leave_requests', 'requests'), ('/expense_requests', 'requests'),
-    ('/settings/messaging', 'messaging'),
-    ('/packages', 'packages'),
-    ('/inventory_alert', 'inventory'),
+    ('/api/leave_requests', 'requests'), ('/api/expense_requests', 'requests'),
+    ('/settings/messaging', 'messaging'), ('/api/messaging', 'messaging'),
+    # /api/packages/customer (POS spa trừ buổi của gói khách ĐÃ mua) và /api/packages/<id> (ngừng bán) để mở
+    ('/packages', 'packages'), ('=/api/packages', 'packages'), ('/api/packages/sell', 'packages'),
+    # /api/inventory, /api/inventory/products, /api/products/<id>/restock là kho cơ bản (Essential) — không khoá
+    ('/inventory_alert', 'inventory'), ('/api/inventory/thresholds', 'inventory'), ('/api/restock_proposals', 'inventory'),
     ('/baocao_loinhuan', 'finance'), ('/quanly_thuchi', 'finance'), ('/quanly_congno', 'finance'), ('/profit_report', 'finance'),
-    ('/kitchen_display', 'kds'),
+    ('/api/transactions', 'finance'), ('/api/report/profit', 'finance'), ('/api/debt_transactions', 'finance'),
+    ('/kitchen_display', 'kds'), ('/api/kitchen', 'kds'), ('/api/stream/kitchen', 'kds'),
     ('=/qr_menu', 'qr_ordering'),   # chỉ trang của chủ quán; /qr_menu/<mã bàn> là trang của KHÁCH
+    ('/api/qr/table', 'qr_ordering'), ('/qr/poster/table', 'qr_ordering'),   # chủ quán tạo/in QR gọi món tại bàn
     ('/reservations', 'reservations'), ('/hotel/reservations', 'reservations'), ('/karaoke/reservations', 'reservations'),
+    ('/api/reservations', 'reservations'), ('/api/hotel_reservations', 'reservations'), ('/api/karaoke_reservations', 'reservations'),
     ('/map_dashboard', 'gps_radar'), ('/technical/parts', 'parts'), ('/production/materials', 'materials'),
+    ('/api/tech_parts', 'parts'), ('/api/production/materials', 'materials'),
     ('/campaign_builder', 'crm_ai'), ('/ai/campaign-builder', 'crm_ai'), ('/customer_nurturing', 'crm_ai'),
     ('/ai/customer-nurturing', 'crm_ai'), ('/crm_automation', 'crm_ai'),
+    ('/api/ai/nurture', 'crm_ai'), ('/api/ai/campaigns', 'crm_ai'),
     ('/ai_bot', 'ai_inbox'), ('/inbox/channels', 'ai_inbox'), ('/api/inbox', 'ai_inbox'), ('/api/bot', 'ai_inbox'),
+    ('/api/stream/bot_chat', 'ai_inbox'),
     ('/api/ai/copilot', 'ai_copilot'),
     ('/ai-studio', 'ai_studio'), ('/ai_studio', 'ai_studio'), ('/api/ai_studio', 'ai_studio'), ('/api/media', 'ai_studio'),
     ('/social', 'marketing_pro'), ('/api/social', 'marketing_pro'),
     ('/ad-assistant', 'marketing_pro'), ('/omnichannel', 'marketing_pro'), ('/omnichannel_connect', 'marketing_pro'), ('/ai/connect-platforms', 'marketing_pro'),
-    ('/ecommerce_sync', 'marketing_pro'),
+    ('/ecommerce_sync', 'marketing_pro'), ('/api/ecommerce', 'marketing_pro'),
     ('/report_consolidated', 'multi_location'),
 ]
 
@@ -125,26 +141,100 @@ def allows(plan, feature):
     need = FEATURE_MIN_PLAN.get(feature)
     if not need:
         return True
-    p = plan if plan in PLAN_ORDER else DEFAULT_PLAN_FOR_EXISTING
+    p = plan if plan in PLAN_ORDER else FAIL_CLOSED_PLAN
     return PLAN_ORDER.index(p) >= PLAN_ORDER.index(need)
 
 
 _PLAN_CACHE = {}
 
 
+def created_before_plans(created_at):
+    """Bản ghi có TRƯỚC khi ra mắt gói? Thiếu created_at = bản ghi cũ: mọi luồng tạo tiệm/tài khoản từ đó đến nay đều ghi
+    created_at dạng ISO (register, oauth_complete, add_branch). Ngày ISO >= GRANDFATHER_BEFORE -> không được miễn."""
+    if not created_at:
+        return True
+    if hasattr(created_at, 'isoformat'):
+        created_at = created_at.isoformat()
+    day = str(created_at).strip()[:10]
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', day):
+        return True   # định dạng lạ chỉ có ở dữ liệu cũ (code hiện tại luôn ghi isoformat)
+    return day < GRANDFATHER_BEFORE
+
+
+def _doc(row):
+    return row if isinstance(row, dict) else None
+
+
+def billing_business_id(db, business_id):
+    """Tiệm TRẢ TIỀN cho business_id: chính nó, hoặc tiệm chính nếu business_id là CHI NHÁNH — hồ sơ businesses có
+    parent_business_id (add_branch), hoặc chi nhánh cũ chỉ có dòng business_memberships is_primary != True (-> tiệm của chủ).
+    Chi nhánh không bao giờ có gói riêng: luôn dùng gói (và hạn mức AI) của tiệm chính."""
+    if not business_id or not isinstance(business_id, str):
+        return business_id
+    try:
+        doc = _doc(db.businesses.find_one({'id': business_id}, {'_id': 0, 'parent_business_id': 1}))
+        if doc is not None:
+            parent = doc.get('parent_business_id')
+            return parent if isinstance(parent, str) and parent and parent != business_id else business_id
+        m = _doc(db.business_memberships.find_one({'business_id': business_id, 'is_primary': {'$ne': True}},
+                                                  {'_id': 0, 'owner_user_id': 1})) or {}
+        owner = m.get('owner_user_id')
+        if isinstance(owner, str) and owner and owner != business_id:
+            home = (_doc(db.users.find_one({'id': owner}, {'_id': 0, 'business_id': 1})) or {}).get('business_id')
+            parent = home if isinstance(home, str) and home else owner
+            if parent != business_id:
+                return parent
+    except Exception:
+        pass
+    return business_id
+
+
+def billing_family(db, root):
+    """business_id của tiệm chính + các chi nhánh của nó (hạn mức AI tính chung cho cả chuỗi)."""
+    ids = [root]
+    try:
+        for d in db.businesses.find({'parent_business_id': root}, {'_id': 0, 'id': 1}):
+            if isinstance(d, dict) and isinstance(d.get('id'), str) and d['id'] not in ids:
+                ids.append(d['id'])
+        for m in db.business_memberships.find({'owner_user_id': root, 'is_primary': {'$ne': True}}, {'_id': 0, 'business_id': 1}):
+            if isinstance(m, dict) and isinstance(m.get('business_id'), str) and m['business_id'] not in ids:
+                ids.append(m['business_id'])
+    except Exception:
+        pass
+    return ids
+
+
+def _resolve_plan(db, business_id):
+    root = billing_business_id(db, business_id)
+    doc = _doc(db.businesses.find_one({'id': root}, {'_id': 0, 'plan': 1, 'created_at': 1}))
+    if doc is not None:
+        if doc.get('plan') in PLAN_ORDER:
+            return doc['plan']
+        return DEFAULT_PLAN_FOR_EXISTING if created_before_plans(doc.get('created_at')) else FAIL_CLOSED_PLAN
+    # Chưa có hồ sơ businesses: tài khoản chủ tiệm đăng ký từ trước khi register tạo hồ sơ -> theo ngày tạo tài khoản
+    user = _doc(db.users.find_one({'id': root}, {'_id': 0, 'business_id': 1, 'created_at': 1}))
+    if user is not None:
+        if (user.get('business_id') or root) != root:
+            return FAIL_CLOSED_PLAN   # tài khoản không phải chủ của id này (vd. nhân viên chuyển sang "chi nhánh chính" = id riêng)
+        return DEFAULT_PLAN_FOR_EXISTING if created_before_plans(user.get('created_at')) else FAIL_CLOSED_PLAN
+    # Không hồ sơ, không tài khoản, không phải chi nhánh: không phiên đăng nhập nào sinh ra id như vậy (đăng nhập / JWT / chuyển
+    # chi nhánh luôn ra id có tài khoản, hồ sơ hoặc dòng chi nhánh) -> giữ mặc định cũ mà các bộ test hiện có dựa vào.
+    return DEFAULT_PLAN_FOR_EXISTING
+
+
 def business_plan(db, business_id, ttl=60):
-    """Gói hiện tại của tiệm (cache 60 giây / tiến trình). Tiệm chưa có trường plan = Empire (tiệm cũ giữ nguyên quyền)."""
-    if not business_id:
-        return DEFAULT_PLAN_FOR_EXISTING
+    """Gói hiện tại của tiệm (cache 60 giây / tiến trình). Chi nhánh = gói của tiệm chính. Thiếu trường plan = Empire CHỈ
+    với tiệm có trước khi ra mắt gói (GRANDFATHER_BEFORE); tiệm mới thiếu plan / id rỗng / id của tài khoản không phải chủ = Essential.
+    Lỗi DB tạm thời giữ như cũ (Empire: không cắt tính năng của tiệm đang trả tiền vì lỗi tạm)."""
+    if not business_id or not isinstance(business_id, str):
+        return FAIL_CLOSED_PLAN
     hit = _PLAN_CACHE.get(business_id)
     now = time.time()
     if hit and now - hit[1] < ttl:
         return hit[0]
     plan = DEFAULT_PLAN_FOR_EXISTING
     try:
-        doc = db.businesses.find_one({'id': business_id}, {'_id': 0, 'plan': 1}) or {}
-        if doc.get('plan') in PLAN_ORDER:
-            plan = doc['plan']
+        plan = _resolve_plan(db, business_id)
     except Exception:
         pass
     _PLAN_CACHE[business_id] = (plan, now)
@@ -157,7 +247,8 @@ def forget(business_id):
 
 def business_allows(db, business_id, feature, ttl=60):
     """Gói HIỆN TẠI của tiệm (cache ttl giây) có tính năng không — cổng lúc chạy của AI trả phí (ai_gateway.allowed).
-    Hạ gói -> tính năng dừng trong tối đa ttl giây (mỗi tiến trình); tiệm cũ chưa có plan = Empire."""
+    Hạ gói -> tính năng dừng trong tối đa ttl giây (mỗi tiến trình); tiệm cũ (trước GRANDFATHER_BEFORE) chưa có plan = Empire,
+    chi nhánh theo gói tiệm chính, tiệm mới thiếu plan = Essential (business_plan)."""
     return allows(business_plan(db, business_id, ttl=ttl), feature)
 
 
