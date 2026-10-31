@@ -135,10 +135,12 @@ def reset_password(token):
 
 @reset_bp.route('/api/account/logout_all', methods=['POST'])
 def logout_all():
-    """Đăng xuất tài khoản này khỏi MỌI thiết bị (nghi bị lộ mật khẩu / mất điện thoại)."""
+    """Đăng xuất tài khoản này khỏi MỌI thiết bị (nghi bị lộ mật khẩu / mất điện thoại).
+    Super Admin (phiên God Mode, uid 'superadmin-fallback' — _session_guard đã kiểm phiên hợp lệ trước route này): tăng
+    system_settings.superadmin_session_ver -> mọi phiên God Mode khác bị đăng xuất (trước đây trả 401, không cắt được phiên nào)."""
     from flask import session
     uid = session.get('user_id')
-    if not uid or uid == 'superadmin-fallback':
+    if not uid:
         return jsonify({'success': False, 'message': 'Not signed in.'}), 401
     bump_session_version(uid)
     security_shield.log_event('logout_all', security_shield.client_ip(request), '', request.path,

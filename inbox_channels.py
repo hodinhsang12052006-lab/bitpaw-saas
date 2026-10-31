@@ -489,6 +489,8 @@ def record(business_id, channel, user_id, text, sender_type, *, name=None, phone
     st = {'last_message': text[:500], 'last_message_time': now, 'business_id': business_id, 'channel': channel,
           'ext_user_id': str(user_id)}
     on_insert = {'created_at': now}
+    if isinstance(name, str):  # h4b: tên do nền tảng / khách gửi -> bỏ '<' '>' (phòng thủ thêm; nơi hiển thị vẫn escape)
+        name = re.sub(r'[<>]', '', name).strip()
     if name:
         st['full_name'] = name
     else:
@@ -552,22 +554,38 @@ def link_customer(business_id, channel, user_id, phone, conversation=None):
 
     Bảo mật (h3): SĐT gõ trong tin nhắn KHÔNG được xác minh (ai cũng gõ được SĐT của người khác). Trước đây id Messenger/
     Zalo của người gõ được gắn thẳng vào hồ sơ có SĐT đó (ghi đè cả id cũ) -> nhắc lịch, ngày sinh, điểm thưởng của khách
-    thật đi sang người lạ. Giờ chỉ ghi 1 LIÊN KẾT CHỜ DUYỆT lên hội thoại (bot_customers.pending_customer_link); chủ tiệm
-    xác nhận ở hộp thư (confirm_customer_link, POST /api/bot/customer_link). True chỉ khi hồ sơ đã gắn đúng id này."""
+    thật đi sang người lạ. h4b: chỉ TỰ gắn khi đúng 1 hồ sơ khách của tiệm có SĐT đó, hồ sơ đó CHƯA có id của nền tảng này
+    và id này chưa gắn hồ sơ khác (không ghi đè, không đoán giữa nhiều người). Còn lại ghi 1 LIÊN KẾT CHỜ DUYỆT lên hội
+    thoại (bot_customers.pending_customer_link); chủ tiệm xác nhận ở hộp thư (thanh trên đầu hội thoại ai_bot.html ->
+    confirm_customer_link, POST /api/bot/customer_link). True chỉ khi hồ sơ đã gắn đúng id này."""
     field = {'zalo': 'zalo_user_id', 'messenger': 'fb_psid'}.get(channel)
     want = re.sub(r'\D', '', phone or '')[-9:]
     if not field or len(want) < 8:
         return False
-    tail = r'\D*'.join(want[-4:]) + r'\D*$'  # SĐT lưu kiểu "0412 345 678" vẫn khớp
-    for c in db.customers.find({'business_id': business_id, 'phone': {'$regex': tail}}, {'_id': 0, 'id': 1, 'phone': 1, field: 1}).limit(50):
-        if re.sub(r'\D', '', str(c.get('phone') or ''))[-9:] == want:
-            if str(c.get(field) or '') == str(user_id):
-                return True
-            if conversation:
-                db.bot_customers.update_one({'id': conversation, 'business_id': business_id}, {'$set': {'pending_customer_link': {
-                    'customer_id': c['id'], 'field': field, 'channel': channel, 'user_id': str(user_id), 'phone': phone,
-                    'replaces': bool(c.get(field)), 'at': datetime.now().isoformat()}}})
-            return False
+    uid = str(user_id)
+    pattern = r'\D*'.join(want) + r'\D*$'  # đủ 9 số cuối, bỏ qua dấu cách/chấm/gạch: SĐT lưu kiểu "0412 345 678" vẫn khớp
+    proj = {'_id': 0, 'id': 1, 'name': 1, 'phone': 1, field: 1}
+    matches = [c for c in db.customers.find({'business_id': business_id, 'phone': {'$regex': pattern}}, proj).limit(50)
+               if re.sub(r'\D', '', str(c.get('phone') or ''))[-9:] == want]
+    if not matches:
+        return False
+    if any(str(c.get(field) or '') == uid for c in matches):
+        return True
+    c = matches[0]
+    if len(matches) == 1 and not str(c.get(field) or '').strip() \
+            and not db.customers.find_one({'business_id': business_id, field: uid}, {'_id': 0, 'id': 1}):
+        # điều kiện "chưa có id" nằm trong chính lệnh ghi: chủ tiệm / tin khác vừa gắn id cùng lúc -> không ghi đè
+        if db.customers.update_one({'id': c['id'], 'business_id': business_id, field: {'$in': [None, '']}},
+                                   {'$set': {field: uid}}).modified_count:
+            return True
+        c = db.customers.find_one({'id': c['id'], 'business_id': business_id}, proj) or c
+        if str(c.get(field) or '') == uid:
+            return True
+    if conversation:
+        db.bot_customers.update_one({'id': conversation, 'business_id': business_id}, {'$set': {'pending_customer_link': {
+            'customer_id': c['id'], 'customer_name': str(c.get('name') or '')[:80], 'field': field, 'channel': channel,
+            'user_id': uid, 'phone': phone, 'replaces': bool(str(c.get(field) or '').strip()), 'matches': len(matches),
+            'at': datetime.now().isoformat()}}})
     return False
 
 

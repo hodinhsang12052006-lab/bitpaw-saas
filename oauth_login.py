@@ -190,31 +190,38 @@ def oauth_callback(provider):
     if not sub:
         return _fail('Sign-in failed — please try again.', f'{provider} no subject')
 
+    from app import _is_authorized_superadmin_email
     user = db.users.find_one({f'oauth.{provider}': str(sub), 'is_deleted': {'$ne': True}})
     if not user and email:
         if not verified:
             return _fail(f'Your {provider.title()} email is not verified. Verify it with {provider.title()} or sign in with your password.')
+        # h4b: email quản trị BitPaw -> Google/Facebook không liên kết, không đăng nhập, không tạo tài khoản (chỉ mật khẩu)
+        if _is_authorized_superadmin_email(email):
+            return _fail(_ADMIN_OAUTH_REFUSED_MSG, f'{provider} refused: admin email')
         user = db.users.find_one({'email': _email_exact(email), 'is_deleted': {'$ne': True}})
+        # '$options: i' của Mongo gộp hoa/thường theo Unicode ('ſ' khớp 's'): chỉ nhận bản ghi có email TRÙNG HẲN sau lower()
+        if user and str(user.get('email') or '').strip().lower() != email:
+            user = None
         if user and not _account_blocked(user):  # liên kết tài khoản sẵn có (email đã được nhà cung cấp xác minh, tài khoản còn hoạt động)
             db.users.update_one({'id': user['id']}, {'$set': {f'oauth.{provider}': str(sub), f'oauth_linked_at.{provider}': datetime.now().isoformat()}})
     if user:
         return _login(user, provider, pending.get('next'))
     if not email:
         return _fail('Facebook did not share an email address — please sign up with email instead.')
-    from app import _is_authorized_superadmin_email
-    if _is_authorized_superadmin_email(email):  # email quản trị BitPaw: không tạo tài khoản qua Google/Facebook
-        return _fail(_SIGNUP_REFUSED_MSG, f'{provider} signup refused: admin email')
     session['oauth_signup'] = {'provider': provider, 'sub': str(sub), 'email': email, 'name': name[:100], 'ts': int(time.time())}
     return redirect(url_for('oauth.oauth_complete'))
 
 
 _SIGNUP_REFUSED_MSG = 'This email cannot be used to sign up with Google or Facebook — sign in with your password instead.'
+_ADMIN_OAUTH_REFUSED_MSG = 'This email cannot be used with Google or Facebook sign-in — sign in with your password instead.'
 
 
 def _login(user, provider, nxt=None):
-    from app import _ensure_primary_membership, _get_real_client_ip
+    from app import _ensure_primary_membership, _get_real_client_ip, _is_authorized_superadmin_email
     if _account_blocked(user):  # tài khoản đã xoá / bị khoá (hoặc tiệm đã xoá): không mở lại bằng Google/Facebook
         return _fail('This account has been closed or disabled — contact BitPaw support.', f"{provider} login refused: closed/disabled account {user.get('id')}")
+    if _is_authorized_superadmin_email(user.get('email')):  # h4b: bản ghi mang email quản trị BitPaw: chỉ đăng nhập bằng mật khẩu
+        return _fail(_ADMIN_OAUTH_REFUSED_MSG, f"{provider} login refused: admin email account {user.get('id')}")
     session.clear()
     session.clear()
     session['user_id'] = user['id']
@@ -282,7 +289,7 @@ def oauth_complete():
     try:
         db.users.insert_one(dict(user))
         biz_doc = {'id': user_id, 'name': business_name, 'owner_name': pend.get('name') or '', 'industry_code': business_type,
-                   'created_at': datetime.now().isoformat()}
+                   'license_industry': lic or 'all', 'created_at': datetime.now().isoformat()}
         if (key or {}).get('plan') in ('essential', 'pro', 'empire'):
             biz_doc['plan'] = key['plan']
         db.businesses.insert_one(biz_doc)

@@ -455,6 +455,13 @@
                     </div>
                 </div>
 
+                {# h4b: liên kết chờ duyệt (khách nhắn SĐT trùng hồ sơ khách mà server không tự gắn) — chỉ chủ tiệm/admin
+                   (POST /api/bot/customer_link cũng chỉ cho admin); nội dung do renderPendingLink() dựng, mọi chữ đã escape #}
+                {% if session.get('role') in ('admin', 'super_admin') %}
+                <div id="pendingLinkBar" role="status" aria-live="polite"
+                    class="bg-amber-500/10 border-b border-amber-500/30 p-3 px-6 text-xs text-white leading-relaxed flex items-center justify-between gap-4 hidden shrink-0 z-10"></div>
+                {% endif %}
+
                 <!-- Copilot soạn sẵn câu trả lời cho tin mới nhất của khách (trước đây là câu "Deal-Closing Tip" viết cứng) -->
                 <div id="aiClosingAlert"
                     class="bg-gradient-to-r from-purple-950/40 to-cyan-950/40 border-b border-purple-500/20 p-3 px-6 text-xs text-white leading-relaxed flex items-center justify-between gap-4 hidden shrink-0 z-10">
@@ -864,6 +871,8 @@
                 }
                 isMockMode = false;
                 applyNurtureFilter();
+                // tin mới (SSE) có thể vừa tạo liên kết chờ duyệt cho hội thoại đang mở
+                renderPendingLink(allCustomers.find(c => c.id === currentCustomerId) || null);
             } catch (err) {
                 console.warn("Could not load customer list (empty or network error).", err);
                 if (isDemoMode) {
@@ -1217,6 +1226,68 @@
             });
         }
 
+        // ====== h4b: liên kết chờ duyệt — khách nhắn SĐT trong Messenger/Zalo trùng hồ sơ khách mà server KHÔNG tự gắn
+        // (hồ sơ đã gắn tài khoản khác / nhiều hồ sơ cùng SĐT / id kênh đã thuộc hồ sơ khác): chủ tiệm Xác nhận hoặc Bỏ qua
+        // -> POST /api/bot/customer_link (chỉ chủ tiệm/admin; hrApi đi qua bootstrap CSRF của trang). Mọi chữ đều escape.
+        const LINK_TEXT = {
+            vi: { title: 'Liên kết hồ sơ khách?', body: 'Khách nhắn SĐT {phone}, trùng hồ sơ {name}.',
+                  replaces: 'Hồ sơ này đã gắn 1 tài khoản {ch} khác — xác nhận sẽ thay thế.',
+                  many: 'Có {n} hồ sơ dùng SĐT này — chỉ xác nhận khi chắc đúng người.',
+                  confirm: 'Xác nhận', dismiss: 'Bỏ qua', done: 'Đã liên kết hồ sơ khách', dismissed: 'Đã bỏ qua liên kết',
+                  failed: 'Chưa lưu được, thử lại sau.' },
+            en: { title: 'Link this chat to a customer profile?', body: 'The customer sent {phone}, which matches {name}.',
+                  replaces: 'That profile is already linked to another {ch} account — confirming replaces it.',
+                  many: '{n} profiles have this number — confirm only if you are sure it is this customer.',
+                  confirm: 'Confirm', dismiss: 'Dismiss', done: 'Customer profile linked', dismissed: 'Link dismissed',
+                  failed: 'Could not save — please try again.' },
+        };
+        const linkT = (k) => (LINK_TEXT[cpLang()] || LINK_TEXT.en)[k];
+        let pendingLinkConv = null;   // hội thoại của thanh đang hiện (nút bấm gửi đúng hội thoại này)
+        let pendingLinkBusy = false;  // bấm 2 lần không gửi 2 lệnh (lệnh thứ 2 sẽ 404 -> báo lỗi sai)
+        function pendingLinkHtml(c) {
+            const p = c && c.pending_customer_link;
+            const cid = String((c && c.id) || '');
+            if (!CP_OWNER || !p || typeof p !== 'object' || cid.startsWith('mock-') || cid.startsWith('live-demo-')) return '';
+            // escape mẫu câu rồi mới chèn giá trị ĐÃ escape (thay bằng hàm: '$&' trong tên khách không bị hiểu là mẫu thay thế)
+            const fill = (tpl, vals) => escapeHtml(tpl).replace(/\{(\w+)\}/g, (m, k) => (k in vals ? vals[k] : m));
+            const ch = (CH[p.channel] || {}).label || String(p.channel || '');
+            const name = p.customer_name || (p.customer_id != null ? '#' + p.customer_id : '');
+            let html = `<p class="font-bold text-amber-200"><i class="fas fa-link mr-1"></i>${escapeHtml(linkT('title'))}</p>`
+                + `<p class="text-gray-200">${fill(linkT('body'), { phone: '<b>' + escapeHtml(p.phone || '') + '</b>', name: '<b>' + escapeHtml(name) + '</b>' })}</p>`;
+            if (p.replaces) html += `<p class="text-rose-300">${fill(linkT('replaces'), { ch: escapeHtml(ch) })}</p>`;
+            if (Number(p.matches) > 1) html += `<p class="text-amber-300">${fill(linkT('many'), { n: escapeHtml(String(Number(p.matches))) })}</p>`;
+            return `<div class="min-w-0">${html}</div><div class="flex gap-2 shrink-0">`
+                + `<button type="button" onclick="resolvePendingLink(true)" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] px-3 py-1 rounded transition whitespace-nowrap">${escapeHtml(linkT('confirm'))}</button>`
+                + `<button type="button" onclick="resolvePendingLink(false)" class="bg-white/10 hover:bg-white/20 text-white font-bold text-[10px] px-2.5 py-1 rounded transition whitespace-nowrap">${escapeHtml(linkT('dismiss'))}</button></div>`;
+        }
+        function renderPendingLink(c) {
+            const bar = document.getElementById('pendingLinkBar');
+            if (!bar) return;   // tài khoản nhân viên: trang không có thanh này
+            const html = pendingLinkHtml(c);
+            pendingLinkConv = html ? c.id : null;
+            bar.innerHTML = html;
+            bar.classList.toggle('hidden', !html);
+        }
+        window.resolvePendingLink = async function (confirm) {
+            const conv = pendingLinkConv;
+            if (!conv || pendingLinkBusy) return;
+            const yes = confirm === true;
+            pendingLinkBusy = true;
+            try {
+                await hrApi('/api/bot/customer_link', { method: 'POST', body: JSON.stringify({ customer_id: conv, confirm: yes }) });
+            } catch (err) {
+                showToast(escapeHtml(linkT('failed')), 'error');   // showToast chèn HTML: không đưa chữ của server vào
+                return;
+            } finally {
+                pendingLinkBusy = false;
+            }
+            const c = allCustomers.find(x => x.id === conv);
+            if (c) delete c.pending_customer_link;
+            if (pendingLinkConv === conv) renderPendingLink(null);
+            showToast(escapeHtml(linkT(yes ? 'done' : 'dismissed')), 'success');
+        };
+        // ====== h4b end
+
         async function onSelectCustomer(customer) {
             chatSessionToken++; // invalidates any in-flight startLiveDemo() timers from before
             currentCustomerId = customer.id;
@@ -1226,6 +1297,7 @@
             if (customer.full_name) chatAvatar.innerText = customer.full_name.charAt(0).toUpperCase(); else chatAvatar.innerHTML = '<i class="fas fa-user text-base"></i>';
 
             renderChannelLine(customer);
+            renderPendingLink(customer);   // h4b: liên kết chờ duyệt của hội thoại này (nếu có)
             // Công tắc AI phản ánh đúng trạng thái THẬT của khách này
             renderAiMode(!customer.ai_paused);
             draftForKey = null;
